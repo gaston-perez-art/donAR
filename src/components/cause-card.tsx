@@ -6,10 +6,11 @@ import type { Cause } from '@/data/causes';
 type Props = {
   cause: Cause;
   onPress?: () => void;
+  mine?: boolean;
 };
 
 /** Airbnb-style cause card: cover image area, title, progress bar and amounts. */
-export function CauseCard({ cause, onPress }: Props) {
+export function CauseCard({ cause, onPress, mine }: Props) {
   const pct = Math.min(100, Math.round((cause.raised / cause.goal) * 100));
   const done = cause.status === 'completed';
 
@@ -18,13 +19,20 @@ export function CauseCard({ cause, onPress }: Props) {
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       onPress={onPress}>
       <View style={[styles.cover, { backgroundColor: cause.coverTint }]}>
-        <View style={styles.badge}>
-          <View style={[styles.tick, done && styles.tickHappy]}>
-            <Text style={styles.tickText}>✓</Text>
+        <View style={styles.badgeRow}>
+          <View style={styles.badge}>
+            <View style={[styles.tick, done && styles.tickHappy]}>
+              <Text style={styles.tickText}>✓</Text>
+            </View>
+            <Text style={[styles.badgeText, done && styles.badgeTextHappy]}>
+              {done ? 'Meta alcanzada' : 'Causa verificada'}
+            </Text>
           </View>
-          <Text style={[styles.badgeText, done && styles.badgeTextHappy]}>
-            {done ? 'Meta alcanzada' : 'Causa verificada'}
-          </Text>
+          {mine && (
+            <View style={styles.minePill}>
+              <Text style={styles.mineText}>Tu causa</Text>
+            </View>
+          )}
         </View>
         <Text style={styles.emoji}>{cause.emoji}</Text>
       </View>
@@ -66,6 +74,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     overflow: 'hidden',
   },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -76,6 +85,13 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: Radius.pill,
   },
+  minePill: {
+    backgroundColor: Colors.brand,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: Radius.pill,
+  },
+  mineText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   tick: {
     width: 16,
     height: 16,

@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DonAR: prototipo de alta fidelidad</title>
+<style>
+  :root{
+    --brand:#1E88E5;--brand-dark:#1565C0;--sky:#5AB9F2;
+    --sky-soft:#E9F5FE;--sky-tint:#F2F9FE;--verified:#1E9BF0;
+    --ink:#1B2733;--muted:#71808C;--line:#EEF2F6;--bg:#FFFFFF;--card:#FFFFFF;
+    --gold:#F4B740;--mp:#009EE3;--happy:#17B26A;--sad:#8A96A3;
+    --shadow:0 6px 22px rgba(27,39,51,.09);--shadow-lg:0 14px 40px rgba(27,39,51,.14);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#E7EDF2;color:var(--ink);display:flex;flex-direction:column;align-items:center;min-height:100vh;
+    padding:30px 16px;gap:16px;-webkit-font-smoothing:antialiased}
+  .headline{text-align:center;max-width:460px}
+  .headline h1{font-size:20px;letter-spacing:-.3px}.headline h1 span{color:var(--brand)}
+  .headline p{color:#54636e;font-size:13px;margin-top:6px}
+  .map{max-width:820px;display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  .map b{width:100%;text-align:center;font-size:12px;color:#54636e;font-weight:600;margin-bottom:2px}
+  .map button{border:1px solid #cdd8e0;background:#fff;border-radius:20px;padding:6px 12px;font-size:11.5px;
+    cursor:pointer;color:#33434f;font-family:inherit}
+  .map button:hover{background:var(--sky-soft);border-color:var(--brand);color:var(--brand-dark)}
+
+  .phone{width:390px;max-width:100%;height:812px;background:var(--bg);border-radius:46px;
+    box-shadow:0 34px 70px rgba(27,39,51,.30), inset 0 0 0 11px #0b1620;padding:12px;position:relative;overflow:hidden}
+  .notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:150px;height:26px;
+    background:#0b1620;border-radius:0 0 18px 18px;z-index:60}
+  .viewport{width:100%;height:100%;background:var(--bg);border-radius:35px;overflow:hidden;position:relative}
+  .statusbar{height:46px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 6px;font-size:13px;font-weight:600}
+  .statusbar.light{color:#fff}
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg)}
+  .screen.active{display:flex}
+  .scroll{flex:1;overflow-y:auto;padding-bottom:96px}
+  .scroll::-webkit-scrollbar{display:none}
+
+  .appbar{padding:8px 22px 14px;display:flex;align-items:center;justify-content:space-between}
+  .brand{font-weight:800;font-size:24px;letter-spacing:-1px}.brand b{color:var(--brand)}.brand i{color:var(--sky);font-style:normal}
+  .avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--sky),var(--brand));
+    color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;cursor:pointer}
+  .backbar{padding:12px 18px;display:flex;align-items:center;gap:12px}
+  .back{width:40px;height:40px;border-radius:14px;background:#fff;border:1px solid var(--line);display:flex;
+    align-items:center;justify-content:center;font-size:22px;cursor:pointer;color:var(--ink);box-shadow:var(--shadow)}
+  .backbar h2{font-size:16px;font-weight:700}
+  .sec{padding:6px 22px 12px}.sec h3{font-size:17px;letter-spacing:-.3px}.sec span{font-size:12.5px;color:var(--muted)}
+
+  .card{margin:0 18px 22px;cursor:pointer}
+  .card .cover{height:180px;border-radius:18px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,#bfe2fb,#8ecbf3);display:flex;align-items:flex-start;padding:12px}
+  .cover.c2{background:linear-gradient(135deg,#cfe6fb,#a7d3f0)}
+  .cover.c3{background:linear-gradient(135deg,#d7ecfb,#b8def5)}
+  .cover.done{background:linear-gradient(135deg,#c7f0dc,#9be3c0)}
+  .cover .emoji{position:absolute;bottom:10px;right:14px;font-size:44px;opacity:.9}
+  .verified{background:rgba(255,255,255,.96);color:var(--brand-dark);font-size:11.5px;font-weight:700;
+    padding:6px 11px;border-radius:30px;display:inline-flex;align-items:center;gap:6px;box-shadow:var(--shadow)}
+  .verified.g{color:#0f7a49}.verified .tick{width:16px;height:16px;background:var(--verified);border-radius:50%;color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;font-size:10px}
+  .verified.g .tick{background:var(--happy)}
+  .card .body{padding:12px 4px 0}
+  .card .body h4{font-size:16px;line-height:1.3;margin-bottom:3px;letter-spacing:-.2px}
+  .card .body .who{font-size:13px;color:var(--muted);margin-bottom:12px}
+  .progress{height:8px;background:#EDF2F6;border-radius:20px;overflow:hidden}
+  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--sky),var(--brand));border-radius:20px}
+  .progress.g>i{background:linear-gradient(90deg,#4fd196,var(--happy))}
+  .amounts{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
+  .amounts .raised{font-weight:800;font-size:15px}.amounts .raised small{font-weight:500;color:var(--muted);font-size:11.5px}
+  .amounts .days{font-size:12px;color:var(--muted)}
+  .amounts .days.g{color:var(--happy);font-weight:700}
+
+  .btn{display:block;width:100%;border:none;border-radius:16px;padding:17px;font-size:15.5px;font-weight:700;
+    cursor:pointer;text-align:center;font-family:inherit}
+  .btn.primary{background:var(--brand);color:#fff;box-shadow:0 8px 18px rgba(30,136,229,.32)}
+  .btn.primary:active{background:var(--brand-dark)}
+  .btn.ghost{background:#fff;color:var(--brand-dark);border:1.5px solid var(--brand)}
+  .btn.dark{background:var(--ink);color:#fff}
+  .btn.line{background:#fff;color:var(--ink);border:1.5px solid var(--line);box-shadow:var(--shadow)}
+  .btn.mp{background:var(--mp);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px}
+  .btn.happy{background:var(--happy);color:#fff}
+
+  .tabbar{position:absolute;bottom:0;left:0;width:100%;height:80px;background:rgba(255,255,255,.97);
+    backdrop-filter:blur(8px);border-top:1px solid var(--line);display:flex;align-items:center;padding-bottom:10px;z-index:40}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);cursor:pointer;flex:1}
+  .tab .ic{font-size:21px}.tab.on{color:var(--brand)}
+  .tab.plus{flex:1}
+  .tab.plus .ic{width:50px;height:50px;background:var(--brand);color:#fff;border-radius:18px;display:flex;
+    align-items:center;justify-content:center;font-size:30px;margin-top:-22px;box-shadow:0 8px 18px rgba(30,136,229,.4)}
+
+  /* Onboarding */
+  .onb{flex:1;display:flex;flex-direction:column;background:linear-gradient(160deg,var(--sky-tint),#fff)}
+  .onb .art{flex:1;display:flex;align-items:center;justify-content:center;font-size:120px}
+  .onb .txt{padding:0 30px 8px;text-align:center}
+  .onb .txt h1{font-size:26px;letter-spacing:-.6px;line-height:1.2;margin-bottom:12px}
+  .onb .txt p{font-size:15px;color:var(--muted);line-height:1.6}
+  .dots{display:flex;gap:7px;justify-content:center;padding:22px 0}
+  .dots i{width:7px;height:7px;border-radius:50%;background:#D5E1EA}.dots i.on{width:22px;border-radius:20px;background:var(--brand)}
+  .onb .foot{padding:8px 22px 26px;display:flex;flex-direction:column;gap:10px}
+  .skip{position:absolute;top:52px;right:24px;font-size:13px;color:var(--muted);font-weight:600;cursor:pointer;z-index:5}
+
+  .auth{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:0 22px 30px;background:linear-gradient(160deg,var(--sky-tint),#fff)}
+  .auth .logo{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+  .auth .logo .big{font-weight:800;font-size:40px;letter-spacing:-2px}
+  .auth .logo .big b{color:var(--brand)}.auth .logo .big i{color:var(--sky);font-style:normal}
+  .auth .logo p{color:var(--muted);font-size:14px}
+  .auth .stack{display:flex;flex-direction:column;gap:11px}
+  .auth .stack .btn{display:flex;align-items:center;justify-content:center;gap:10px}
+  .legal{font-size:11px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.5}.legal b{color:var(--brand-dark)}
+
+  .vwrap{padding:8px 22px}
+  .vhead{text-align:center;padding:6px 6px 18px}
+  .vhead .shield{width:82px;height:82px;border-radius:26px;background:var(--sky-soft);color:var(--brand);display:flex;
+    align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px}
+  .vhead h2{font-size:21px;letter-spacing:-.4px;margin-bottom:8px}.vhead p{font-size:13.5px;color:var(--muted);line-height:1.6}
+  .vstep{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow);cursor:pointer}
+  .vstep .ic{width:44px;height:44px;border-radius:13px;background:var(--sky-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+  .vstep .t{font-size:14.5px;font-weight:700}.vstep .s{font-size:12px;color:var(--muted);margin-top:2px}.vstep .chev{margin-left:auto;color:#c3d0da;font-size:20px}
+  .vdone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+  .vcheck{width:120px;height:120px;border-radius:50%;background:var(--sky-soft);display:flex;align-items:center;justify-content:center;margin-bottom:22px;animation:pop .5s ease}
+  .vcheck .b{width:76px;height:76px;border-radius:50%;background:var(--verified);color:#fff;display:flex;align-items:center;justify-content:center;font-size:40px}
+  @keyframes pop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+  .idbadge{display:inline-flex;align-items:center;gap:5px;background:var(--sky-soft);color:var(--brand-dark);font-size:11.5px;font-weight:700;padding:5px 10px;border-radius:20px}
+  .idbadge .tk{width:15px;height:15px;background:var(--verified);border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px}
+
+  .hero{height:210px;background:linear-gradient(135deg,#bfe2fb,#8ecbf3);position:relative;display:flex;align-items:flex-start;padding:14px}
+  .hero.done{background:linear-gradient(135deg,#c7f0dc,#9be3c0)}
+  .hero.sad{background:linear-gradient(135deg,#dfe6ec,#c3cdd6)}
+  .hero .emoji{position:absolute;bottom:14px;right:18px;font-size:60px;opacity:.9}
+  .detail-body{padding:18px 22px}
+  .detail-body h2{font-size:20px;line-height:1.3;letter-spacing:-.3px}
+  .detail-body .who{font-size:13px;color:var(--muted);margin:8px 0 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .stat-row{display:flex;justify-content:space-between;align-items:flex-start;margin:12px 0 4px}
+  .stat-row .raised{font-weight:800;font-size:20px}.stat-row .goal{font-size:12.5px;color:var(--muted);text-align:right;line-height:1.5}
+  .story{font-size:14.5px;line-height:1.65;color:#33434f;margin:18px 0}
+  .evi{display:flex;gap:8px;margin:10px 0 4px}
+  .evi div{flex:1;height:66px;border-radius:14px;background:var(--sky-tint);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted);text-align:center;padding:4px}
+  .trust{background:var(--sky-soft);border-radius:16px;padding:14px 15px;display:flex;gap:11px;align-items:flex-start;margin:16px 0}
+  .trust .b{width:26px;height:26px;border-radius:50%;background:var(--verified);color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .trust p{font-size:12.5px;line-height:1.55;color:#2a4a5e}.trust p b{color:var(--brand-dark)}
+  .ledger .row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+  .ledger .p{display:flex;align-items:center;gap:11px}
+  .ledger .dot{width:34px;height:34px;border-radius:50%;background:var(--sky-soft);color:var(--brand-dark);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .ledger .name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:5px}
+  .ledger .name .tk{width:14px;height:14px;background:var(--verified);border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px}
+  .ledger .time{font-size:11.5px;color:var(--muted)}.ledger .amt{font-weight:800;font-size:14.5px;color:var(--brand-dark)}
+  .sticky-cta{padding:13px 18px;background:#fff;border-top:1px solid var(--line)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .chip{flex:1 1 28%;text-align:center;padding:16px 0;border-radius:15px;border:1.5px solid var(--line);background:#fff;font-weight:700;cursor:pointer;font-size:15px}
+  .chip.sel{border-color:var(--brand);background:var(--sky-soft);color:var(--brand-dark)}
+  .field{margin:14px 0}.field label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:8px;font-weight:600}
+  .field .input{border:1.5px solid var(--line);border-radius:15px;padding:15px;font-size:15px;background:#fff}
+  .helper{font-size:11.5px;color:var(--muted);margin-top:7px;line-height:1.45}
+  .two{display:flex;gap:10px}.two .field{flex:1}
+  .form{padding:6px 22px}
+  .upload{border:1.6px dashed #b9d3e8;border-radius:16px;padding:24px;text-align:center;color:var(--muted);font-size:13px;background:var(--sky-tint);cursor:pointer}
+  .upload .ic{font-size:28px;display:block;margin-bottom:8px}
+
+  /* MP checkout */
+  .mpwrap{padding:8px 22px}
+  .mp-head{display:flex;align-items:center;gap:10px;justify-content:center;padding:10px 0 18px;color:var(--mp);font-weight:800;font-size:16px}
+  .mp-card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+  .mp-card .to{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--line)}
+  .mp-card .to .em{width:44px;height:44px;border-radius:12px;background:var(--sky-soft);display:flex;align-items:center;justify-content:center;font-size:22px}
+  .mp-card .to .t{font-size:14px;font-weight:700}.mp-card .to .s{font-size:11.5px;color:var(--muted)}
+  .brk{padding:14px 16px}
+  .brk .l{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;color:#33434f}
+  .brk .l.tot{border-top:1px solid var(--line);margin-top:6px;padding-top:12px;font-weight:800;font-size:15px}
+  .brk .l small{color:var(--muted);font-size:11px}
+  .mp-methods{display:flex;gap:9px;margin:14px 0 4px}
+  .mp-methods .mth{flex:1;border:1.5px solid var(--line);border-radius:13px;padding:12px 6px;text-align:center;font-size:11px;font-weight:600;background:#fff;cursor:pointer}
+  .mp-methods .mth.sel{border-color:var(--mp);background:#e6f7fd;color:#007bb3}
+  .mp-methods .mth .ic{font-size:20px;display:block;margin-bottom:4px}
+
+  .reward{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px}
+  .medal{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe6a3,var(--gold));display:flex;align-items:center;justify-content:center;font-size:56px;box-shadow:0 14px 34px rgba(244,183,64,.5);margin-bottom:20px;animation:pop .5s ease}
+  .reward h2{font-size:23px;margin-bottom:8px;letter-spacing:-.4px}
+  .reward p{font-size:14px;color:var(--muted);line-height:1.6;max-width:290px}
+  .ptbox{width:100%;background:var(--sky-tint);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin:20px 0 8px;text-align:left}
+  .ptbox .h{display:flex;justify-content:space-between;font-weight:800;font-size:14px;margin-bottom:8px}
+  .ptbox .h b{color:var(--brand-dark)}
+  .ptbox .l{display:flex;justify-content:space-between;font-size:12.5px;color:#33434f;padding:3px 0}
+  .ptbox .l span:last-child{color:var(--brand-dark);font-weight:700}
+  .level-bar{width:100%;margin:6px 0}
+  .level-bar .lab{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+
+  /* Cobro */
+  .opt-pay{display:flex;align-items:center;gap:12px;border:1.5px solid var(--line);border-radius:15px;padding:15px;cursor:pointer;background:#fff;margin-bottom:12px}
+  .opt-pay.sel{border-color:var(--mp);background:#e6f7fd}
+  .opt-pay .ic{width:42px;height:42px;border-radius:12px;background:var(--sky-tint);display:flex;align-items:center;justify-content:center;font-size:20px}
+  .opt-pay .t{font-size:14.5px;font-weight:700}.opt-pay .s{font-size:11.5px;color:var(--muted)}
+
+  .review{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+  .review .clock{width:100px;height:100px;border-radius:30px;background:var(--sky-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font-size:46px;margin-bottom:20px}
+  .steps{width:100%;margin-top:24px;text-align:left}
+  .steps .st{display:flex;gap:12px;align-items:center;padding:11px 0}
+  .steps .n{width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .steps .n.done{background:var(--brand);color:#fff}.steps .n.now{background:var(--gold);color:#fff}.steps .n.wait{background:#e6eef4;color:var(--muted)}
+  .steps .tx{font-size:14px}.steps .tx small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
+
+  /* Ranking */
+  .rank-head{background:linear-gradient(150deg,var(--brand),var(--sky));color:#fff;padding:52px 22px 22px;text-align:center}
+  .rank-head h2{font-size:19px;letter-spacing:-.3px}.rank-head p{font-size:12.5px;opacity:.92;margin-top:3px}
+  .podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;padding:22px 10px 6px}
+  .pod{display:flex;flex-direction:column;align-items:center;gap:7px}
+  .pod .pa{border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;position:relative}
+  .pod.first .pa{width:74px;height:74px;font-size:20px;box-shadow:0 0 0 3px #fff}
+  .pod.second .pa,.pod.third .pa{width:58px;height:58px;font-size:16px}
+  .pod .crown{position:absolute;top:-18px;font-size:20px}
+  .pod .nm{font-size:12px;color:#fff;font-weight:700;display:flex;align-items:center;gap:4px}
+  .pod .nm .tk{width:13px;height:13px;background:#fff;color:var(--brand);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px}
+  .pod .pts{font-size:11px;color:#fff;opacity:.9}
+  .rlist{padding:14px 18px 0}
+  .rrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;margin-bottom:10px;background:#fff;border:1px solid var(--line)}
+  .rrow.me{border-color:var(--brand);background:var(--sky-soft)}
+  .rrow .pos{width:24px;text-align:center;font-weight:800;color:var(--muted);font-size:14px}
+  .rrow .ra{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--sky),var(--brand));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .rrow .rn{font-size:14px;font-weight:700;display:flex;align-items:center;gap:5px}
+  .rrow .rn .tk{width:14px;height:14px;background:var(--verified);border-radius:50%;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:8px}
+  .rrow .rs{font-size:11.5px;color:var(--muted)}.rrow .rp{margin-left:auto;font-weight:800;color:var(--brand-dark);font-size:14px}
+  .howpts{margin:2px 18px 16px;background:var(--sky-tint);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+    display:flex;align-items:center;gap:10px;cursor:pointer}
+  .howpts .ic{font-size:20px}.howpts .t{font-size:12.5px;font-weight:700}.howpts .s{font-size:11px;color:var(--muted)}
+  .howpts .chev{margin-left:auto;color:#c3d0da;font-size:20px}
+
+  /* Activity */
+  .act{padding:8px 18px}
+  .actrow{display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:16px;margin-bottom:10px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);cursor:pointer}
+  .actrow.unread{border-left:3px solid var(--brand)}
+  .actrow .ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+  .actrow .ic.money{background:#e7f8ef;color:var(--happy)}
+  .actrow .ic.heart{background:var(--sky-soft);color:var(--brand)}
+  .actrow .ic.medal{background:#fdf3dc;color:#b8860b}
+  .actrow .ic.goal{background:#e7f8ef;color:var(--happy)}
+  .actrow .t{font-size:13.5px;line-height:1.4}.actrow .t b{font-weight:700}
+  .actrow .time{font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* Profile */
+  .phead{background:linear-gradient(150deg,var(--brand),var(--sky));color:#fff;padding:56px 22px 24px;border-radius:0 0 26px 26px}
+  .phead .top{display:flex;align-items:center;gap:14px}
+  .phead .pav{width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}
+  .phead h2{font-size:19px;display:flex;align-items:center;gap:7px}
+  .phead h2 .tk{width:19px;height:19px;background:#fff;color:var(--brand);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+  .phead .lvl{font-size:12.5px;opacity:.92;margin-top:3px}
+  .phead .lbar{height:8px;background:rgba(255,255,255,.28);border-radius:20px;margin-top:16px;overflow:hidden}
+  .phead .lbar i{display:block;height:100%;width:64%;background:#fff;border-radius:20px}
+  .phead .lnote{font-size:11.5px;opacity:.92;margin-top:8px}
+  .idrow{display:flex;align-items:center;gap:8px;margin-top:14px;background:rgba(255,255,255,.16);padding:9px 12px;border-radius:12px;font-size:12.5px}
+  .idrow .tk{width:17px;height:17px;background:#fff;color:var(--brand);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px}
+  .kpis{display:flex;gap:11px;padding:16px}
+  .kpi{flex:1;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;text-align:center;box-shadow:var(--shadow)}
+  .kpi b{font-size:19px;color:var(--brand-dark)}.kpi span{font-size:11px;color:var(--muted);display:block;margin-top:2px}
+  .mycard{margin:0 18px 12px;background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden;cursor:pointer}
+  .mycard .top{padding:14px 16px 8px;display:flex;align-items:center;gap:10px}
+  .mycard .top .em{width:40px;height:40px;border-radius:12px;background:var(--sky-soft);display:flex;align-items:center;justify-content:center;font-size:20px}
+  .mycard .top .t{font-size:14.5px;font-weight:700}.mycard .top .s{font-size:11.5px;color:var(--muted)}
+  .mycard .bd{padding:4px 16px 16px}
+  .mycard .big{font-weight:800;font-size:18px}.mycard .big small{font-weight:500;font-size:12px;color:var(--muted)}
+  .medals{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:6px 18px 10px}
+  .m{aspect-ratio:1;border-radius:17px;background:#fff;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:26px;box-shadow:var(--shadow)}
+  .m span{font-size:9px;color:var(--muted);font-weight:600}.m.locked{opacity:.4;filter:grayscale(1)}
+  .impact-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px;margin:0 18px 10px;box-shadow:var(--shadow)}
+  .impact-item .dot{width:38px;height:38px;border-radius:12px;background:var(--sky-soft);color:var(--brand-dark);display:flex;align-items:center;justify-content:center;font-size:17px}
+  .impact-item .t{font-size:13.5px;font-weight:700}.impact-item .s{font-size:11.5px;color:var(--muted)}
+  .impact-item .a{margin-left:auto;font-weight:800;font-size:13.5px;color:var(--brand-dark)}
+
+  /* Media gallery / thanks */
+  .thanksbanner{background:linear-gradient(150deg,#e7f8ef,#fff);border:1px solid #cdeede;border-radius:18px;padding:16px;margin:16px 0}
+  .thanksbanner .q{font-size:15px;line-height:1.6;color:#215c3e;font-style:italic}
+  .thanksbanner .by{font-size:12px;color:var(--muted);margin-top:8px;font-weight:600}
+  .video{height:190px;border-radius:16px;background:linear-gradient(135deg,#134e33,#0c6b43);display:flex;align-items:center;justify-content:center;margin:12px 0;position:relative}
+  .video .play{width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--happy)}
+  .video .tag{position:absolute;bottom:10px;left:12px;background:rgba(0,0,0,.4);color:#fff;font-size:11px;padding:4px 9px;border-radius:20px}
+  .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0}
+  .gallery div{aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#bfe2fb,#9be3c0);display:flex;align-items:center;justify-content:center;font-size:24px}
+  .celebrate{text-align:center;padding:6px 0 4px}
+  .celebrate .big{font-size:30px}
+  .banner{border-radius:16px;padding:16px;margin:16px 0;display:flex;gap:12px;align-items:flex-start}
+  .banner.happy{background:#e7f8ef;border:1px solid #bde9d0}
+  .banner.sad{background:#eef2f6;border:1px solid #dce3ea}
+  .banner .bi{font-size:24px}
+  .banner .bt{font-size:13px;line-height:1.55;color:#33434f}.banner .bt b{color:var(--ink)}
+
+  .note{max-width:460px;text-align:center;font-size:12px;color:#54636e;line-height:1.6}.note b{color:#33434f}
+</style>
+</head>
+<body>
+
+<div class="headline">
+  <h1><span>DonAR</span>: prototipo de alta fidelidad v3</h1>
+  <p>Recorré el flujo desde el onboarding, o saltá a cualquier pantalla con los accesos de abajo.</p>
+</div>
+
+<div class="map">
+  <b>Saltar a una pantalla</b>
+  <button onclick="go('onb1')">Onboarding</button>
+  <button onclick="go('auth')">Registro</button>
+  <button onclick="go('verify')">Verificar identidad</button>
+  <button onclick="go('feed')">Inicio</button>
+  <button onclick="go('detail')">Causa activa</button>
+  <button onclick="go('donate')">Donar</button>
+  <button onclick="go('mpcheckout')">Pago Mercado Pago</button>
+  <button onclick="go('reward')">Gracias + puntos</button>
+  <button onclick="go('create')">Crear causa</button>
+  <button onclick="go('cobro')">Vincular cobro</button>
+  <button onclick="go('activity')">Actividad</button>
+  <button onclick="go('mycause')">Mi causa (recibí)</button>
+  <button onclick="go('thanksupload')">Subir agradecimiento</button>
+  <button onclick="go('finishedhappy')">Causa lograda</button>
+  <button onclick="go('finishedsad')">Causa que no llegó</button>
+  <button onclick="go('ranking')">Ranking</button>
+  <button onclick="go('points')">Cómo son los puntos</button>
+  <button onclick="go('profile')">Perfil</button>
+</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="viewport">
+
+    <!-- ONBOARDING -->
+    <section class="screen active" id="onb1">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="skip" onclick="go('auth')">Saltar</div>
+      <div class="onb"><div class="art">🤝</div>
+        <div class="txt"><h1>Ayudar nunca fue tan simple</h1><p>Sumate a causas reales de personas que necesitan una mano, en un solo lugar.</p></div>
+        <div class="dots"><i class="on"></i><i></i><i></i></div>
+        <div class="foot"><button class="btn primary" onclick="go('onb2')">Siguiente</button></div>
+      </div>
+    </section>
+    <section class="screen" id="onb2">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="skip" onclick="go('auth')">Saltar</div>
+      <div class="onb"><div class="art">🔎</div>
+        <div class="txt"><h1>Cada causa, verificada</h1><p>Revisamos identidad y documentación antes de publicar. Sabés que tu ayuda va a donde tiene que ir.</p></div>
+        <div class="dots"><i></i><i class="on"></i><i></i></div>
+        <div class="foot"><button class="btn primary" onclick="go('onb3')">Siguiente</button></div>
+      </div>
+    </section>
+    <section class="screen" id="onb3">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="onb"><div class="art">🏅</div>
+        <div class="txt"><h1>Tu generosidad, reconocida</h1><p>Ganá medallas, subí de nivel y entrá al ranking mensual de las personas más solidarias.</p></div>
+        <div class="dots"><i></i><i></i><i class="on"></i></div>
+        <div class="foot"><button class="btn primary" onclick="go('auth')">Comenzar</button></div>
+      </div>
+    </section>
+
+    <!-- AUTH -->
+    <section class="screen" id="auth">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="auth">
+        <div class="logo"><div class="big"><b>Don</b><i>AR</i></div><p>Solidaridad que suma a todos</p></div>
+        <div class="stack">
+          <button class="btn dark" onclick="go('verify')"> Continuar con Apple</button>
+          <button class="btn line" onclick="go('verify')"> Continuar con Google</button>
+          <button class="btn primary" onclick="go('verify')">Continuar con email</button>
+          <div class="legal">Al continuar aceptás los <b>Términos</b> y la <b>Política de privacidad</b> de DonAR.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VERIFY -->
+    <section class="screen" id="verify">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('auth')">‹</div><h2>Verificá tu identidad</h2></div>
+      <div class="scroll" style="padding-bottom:20px"><div class="vwrap">
+        <div class="vhead"><div class="shield">🛡️</div><h2>Sumá tu check de verificado</h2>
+          <p>Como en Uber o Tinder, verificar tu identidad genera confianza. Es obligatorio para crear causas y opcional para donar.</p></div>
+        <div class="vstep" onclick="go('verifydone')"><div class="ic">🪪</div><div><div class="t">Documento de identidad</div><div class="s">Sacale una foto a tu DNI</div></div><div class="chev">›</div></div>
+        <div class="vstep" onclick="go('verifydone')"><div class="ic">🤳</div><div><div class="t">Selfie de validación</div><div class="s">Confirmamos que sos vos</div></div><div class="chev">›</div></div>
+      </div></div>
+      <div class="sticky-cta" style="display:flex;gap:10px;border:none">
+        <button class="btn line" onclick="go('feed')">Ahora no</button>
+        <button class="btn primary" onclick="go('verifydone')">Verificar</button>
+      </div>
+    </section>
+    <section class="screen" id="verifydone">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="vdone"><div class="vcheck"><div class="b">✓</div></div>
+        <h2 style="font-size:23px;letter-spacing:-.4px;margin-bottom:10px">Identidad verificada</h2>
+        <p style="font-size:14px;color:var(--muted);line-height:1.6;max-width:280px">Ya tenés tu <span class="idbadge"><span class="tk">✓</span> Verificado</span> en el perfil. Ahora podés donar y crear causas con toda la confianza.</p>
+      </div>
+      <div class="sticky-cta" style="border:none"><button class="btn primary" onclick="go('feed')">Entrar a DonAR</button></div>
+    </section>
+
+    <!-- FEED -->
+    <section class="screen" id="feed">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="appbar"><div class="brand"><b>Don</b><i>AR</i></div><div class="avatar" onclick="go('profile')">GP</div></div>
+      <div class="sec"><h3>Causas verificadas cerca tuyo</h3><span>Cada causa fue revisada antes de publicarse</span></div>
+      <div class="scroll">
+        <div class="card" onclick="go('detail')">
+          <div class="cover"><span class="verified"><span class="tick">✓</span> Causa verificada</span><span class="emoji">💙</span></div>
+          <div class="body"><h4>Tratamiento para Mateo, 6 años</h4><div class="who">Familia Gómez · Florencio Varela</div>
+            <div class="progress"><i style="width:72%"></i></div>
+            <div class="amounts"><div class="raised">$2.160.000 <small>de $3.000.000</small></div><div class="days">8 días restantes</div></div></div>
+        </div>
+        <div class="card" onclick="go('detail')">
+          <div class="cover c2"><span class="verified"><span class="tick">✓</span> Causa verificada</span><span class="emoji">🏠</span></div>
+          <div class="body"><h4>Reconstruir la casa tras el incendio</h4><div class="who">Carla R. · Quilmes</div>
+            <div class="progress"><i style="width:41%"></i></div>
+            <div class="amounts"><div class="raised">$820.000 <small>de $2.000.000</small></div><div class="days">15 días restantes</div></div></div>
+        </div>
+        <div class="sec" style="padding-top:6px"><h3>Lo lograron 🎉</h3><span>Causas que llegaron a la meta</span></div>
+        <div class="card" onclick="go('finishedhappy')">
+          <div class="cover done"><span class="verified g"><span class="tick">✓</span> Meta alcanzada</span><span class="emoji">♿</span></div>
+          <div class="body"><h4>Silla de ruedas para Don Alberto</h4><div class="who">Centro vecinal · Berazategui</div>
+            <div class="progress g"><i style="width:100%"></i></div>
+            <div class="amounts"><div class="raised">$600.000 <small>de $600.000</small></div><div class="days g">Cumplida ✓</div></div></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <div class="tab on"><div class="ic">🏠</div>Inicio</div>
+        <div class="tab" onclick="go('ranking')"><div class="ic">🏆</div>Ranking</div>
+        <div class="tab plus" onclick="go('create')"><div class="ic">+</div></div>
+        <div class="tab" onclick="go('activity')"><div class="ic">🔔</div>Actividad</div>
+        <div class="tab" onclick="go('profile')"><div class="ic">👤</div>Perfil</div>
+      </div>
+    </section>
+
+    <!-- DETAIL (active, donor view) -->
+    <section class="screen" id="detail">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('feed')">‹</div><h2>Detalle de la causa</h2></div>
+      <div class="scroll" style="padding-bottom:0">
+        <div class="hero"><span class="verified"><span class="tick">✓</span> Causa verificada por DonAR</span><span class="emoji">💙</span></div>
+        <div class="detail-body">
+          <h2>Tratamiento para Mateo, 6 años</h2>
+          <div class="who">Familia Gómez <span class="idbadge"><span class="tk">✓</span> Verificado</span> · Florencio Varela</div>
+          <div class="progress" style="height:11px"><i style="width:72%"></i></div>
+          <div class="stat-row"><div class="raised">$2.160.000</div><div class="goal">meta $3.000.000<br>8 días restantes</div></div>
+          <p class="story">Mateo necesita un tratamiento que su obra social no cubre. Somos su mamá y su papá y ya vendimos lo que pudimos. Con esta ayuda llegamos al monto que pide la clínica para arrancar en agosto. Gracias a cada persona que se suma.</p>
+          <div class="trust"><div class="b">✓</div><p><b>Qué verificamos:</b> identidad de la familia, presupuesto de la clínica y diagnóstico. El dinero llega directo a la cuenta de la familia por Mercado Pago.</p></div>
+          <div class="evi"><div>Presupuesto clínica</div><div>Diagnóstico</div><div>DNI verificado</div></div>
+          <div class="sec" style="padding:18px 0 4px"><h3>Aportes recientes</h3><span>Trazabilidad abierta</span></div>
+          <div class="ledger">
+            <div class="row"><div class="p"><div class="dot">JL</div><div><div class="name">Julián L. <span class="tk">✓</span></div><div class="time">hace 20 min</div></div></div><div class="amt">+$15.000</div></div>
+            <div class="row"><div class="p"><div class="dot">MA</div><div><div class="name">María A. <span class="tk">✓</span></div><div class="time">hace 1 h</div></div></div><div class="amt">+$5.000</div></div>
+            <div class="row"><div class="p"><div class="dot">AN</div><div><div class="name">Anónimo</div><div class="time">hace 2 h</div></div></div><div class="amt">+$30.000</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('donate')">Donar a esta causa</button></div>
+    </section>
+
+    <!-- DONATE -->
+    <section class="screen" id="donate">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('detail')">‹</div><h2>Tu aporte</h2></div>
+      <div class="scroll"><div class="form">
+        <div class="sec" style="padding:10px 0 0"><h3>¿Cuánto querés aportar a Mateo?</h3></div>
+        <div class="chips">
+          <div class="chip" onclick="selChip(this)">$2.000</div>
+          <div class="chip sel" onclick="selChip(this)">$5.000</div>
+          <div class="chip" onclick="selChip(this)">$10.000</div>
+          <div class="chip" onclick="selChip(this)">$20.000</div>
+          <div class="chip" onclick="selChip(this)">$50.000</div>
+          <div class="chip" onclick="selChip(this)">Otro</div>
+        </div>
+        <div class="field"><label>Dejá un mensaje de aliento (opcional)</label><div class="input" style="color:var(--muted)">Fuerza Mateo, vas a estar bien 💙</div></div>
+        <div class="trust" style="margin-top:6px"><div class="b">✓</div><p><b>Transparente:</b> tu aporte queda visible en el recorrido de la causa. Vas a ver exactamente cuánto llega a Mateo y cuánto es la comisión.</p></div>
+      </div></div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('mpcheckout')">Continuar al pago</button></div>
+    </section>
+
+    <!-- MP CHECKOUT (AHA) -->
+    <section class="screen" id="mpcheckout">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('donate')">‹</div><h2>Pago seguro</h2></div>
+      <div class="scroll"><div class="mpwrap">
+        <div class="mp-head">💳 Pagás con Mercado Pago</div>
+        <div class="mp-card">
+          <div class="to"><div class="em">💙</div><div><div class="t">Tratamiento para Mateo, 6 años</div><div class="s">Familia Gómez · Causa verificada</div></div></div>
+          <div class="brk">
+            <div class="l"><span>Tu aporte</span><span>$5.000</span></div>
+            <div class="l"><span>Llega a la causa <small>(95%)</small></span><span>$4.750</span></div>
+            <div class="l"><span>Comisión DonAR <small>(5%)</small></span><span>$250</span></div>
+            <div class="l tot"><span>Total a pagar</span><span>$5.000</span></div>
+          </div>
+        </div>
+        <div class="sec" style="padding:16px 0 0"><h3>Método de pago</h3></div>
+        <div class="mp-methods">
+          <div class="mth sel" onclick="selMth(this)"><span class="ic">💰</span>Dinero en cuenta</div>
+          <div class="mth" onclick="selMth(this)"><span class="ic">💳</span>Tarjeta</div>
+          <div class="mth" onclick="selMth(this)"><span class="ic">🏦</span>Débito</div>
+        </div>
+        <div class="trust" style="margin-top:16px"><div class="b">✓</div><p>El dinero va directo a la cuenta verificada de la familia. DonAR no retiene fondos: solo su comisión, y solo cuando vos pagás.</p></div>
+      </div></div>
+      <div class="sticky-cta"><button class="btn mp" onclick="go('reward')">Pagar $5.000 con Mercado Pago</button></div>
+    </section>
+
+    <!-- REWARD -->
+    <section class="screen" id="reward">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="reward">
+        <div class="medal">🏅</div>
+        <h2>¡Gracias por sumar, Gastón!</h2>
+        <p>Tus <b>$4.750</b> ya llegaron a la familia de Mateo. Tu aporte es visible en la causa y ganaste la medalla <b>"Constante"</b>.</p>
+        <div class="ptbox">
+          <div class="h"><span>Puntos ganados</span><b>+66 pts</b></div>
+          <div class="l"><span>Apoyaste una causa</span><span>+50</span></div>
+          <div class="l"><span>Por tu aporte ($5.000)</span><span>+5</span></div>
+          <div class="l"><span>Racha semanal activa</span><span>x1,2</span></div>
+        </div>
+        <div class="level-bar">
+          <div class="lab"><span>Nivel 3 · Solidario</span><span>706 / 1000 pts</span></div>
+          <div class="progress" style="height:11px"><i style="width:70%"></i></div>
+        </div>
+        <p style="font-size:12px;margin-top:4px;color:var(--muted)">Subiste al puesto 6 del ranking mensual.</p>
+      </div>
+      <div class="sticky-cta" style="border:none;background:transparent;display:flex;gap:10px">
+        <button class="btn ghost" onclick="go('ranking')">Ver ranking</button>
+        <button class="btn primary" onclick="go('feed')">Seguir ayudando</button>
+      </div>
+    </section>
+
+    <!-- CREATE -->
+    <section class="screen" id="create">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('feed')">‹</div><h2>Crear una causa</h2></div>
+      <div class="scroll"><div class="form">
+        <div class="field"><label>Título de tu causa</label><div class="input" style="color:var(--muted)">Ej: Tratamiento para Mateo, 6 años</div></div>
+        <div class="field"><label>Tu historia</label><div class="input" style="min-height:92px;color:var(--muted)">Contá qué necesitás y por qué. Cuanto más claro y honesto, más confianza genera.</div></div>
+        <div class="two">
+          <div class="field"><label>Monto que necesitás</label><div class="input" style="color:var(--muted)">$3.000.000</div></div>
+          <div class="field"><label>Cierre</label><div class="input" style="color:var(--muted)">31/08/2026</div></div>
+        </div>
+        <div class="field"><label>Evidencia que respalda tu causa</label>
+          <div class="upload"><span class="ic">📎</span>Subí presupuesto, diagnóstico o documentación</div>
+          <p class="helper">Necesitás identidad verificada para publicar. Un curador revisa tu causa antes de que salga.</p></div>
+      </div></div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('cobro')">Continuar</button></div>
+    </section>
+
+    <!-- COBRO (link MP/CBU) -->
+    <section class="screen" id="cobro">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('create')">‹</div><h2>¿Dónde recibís el dinero?</h2></div>
+      <div class="scroll"><div class="form">
+        <p style="font-size:13.5px;color:var(--muted);line-height:1.6;margin:8px 0 16px">Cada aporte se acredita acá directo, sin pasar por DonAR. Es obligatorio para publicar tu causa.</p>
+        <div class="opt-pay sel" onclick="selCobro(this)"><div class="ic">💙</div><div><div class="t">Vincular Mercado Pago</div><div class="s">Recomendado. La plata entra al instante</div></div></div>
+        <div class="opt-pay" onclick="selCobro(this)"><div class="ic">🏦</div><div><div class="t">Cargar CBU o alias</div><div class="s">Tu cuenta bancaria</div></div></div>
+        <div class="field" style="margin-top:8px"><label>Alias o CBU</label><div class="input" style="color:var(--muted)">mateo.gomez.mp</div></div>
+        <div class="trust"><div class="b">✓</div><p>Verificamos que la cuenta esté a nombre de la persona que creó la causa. Esto protege a quien dona.</p></div>
+      </div></div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('review')">Enviar a verificación</button></div>
+    </section>
+
+    <!-- REVIEW -->
+    <section class="screen" id="review">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="review"><div class="clock">⏳</div>
+        <h2 style="font-size:22px;letter-spacing:-.4px">Tu causa está en revisión</h2>
+        <p style="color:var(--muted);font-size:14px;line-height:1.6;max-width:290px;margin-top:8px">Un curador de DonAR está verificando tu historia, tu documentación y tu cuenta de cobro. Te avisamos cuando esté publicada, normalmente en menos de 48 hs.</p>
+        <div class="steps">
+          <div class="st"><div class="n done">✓</div><div class="tx">Causa enviada<small>Recibimos tu historia y tu evidencia</small></div></div>
+          <div class="st"><div class="n now">2</div><div class="tx">En verificación<small>Revisamos identidad, documentación y cobro</small></div></div>
+          <div class="st"><div class="n wait">3</div><div class="tx">Publicada<small>Tu causa sale al feed y empieza a recibir aportes</small></div></div>
+        </div>
+      </div>
+      <div class="sticky-cta"><button class="btn ghost" onclick="go('mycause')">Ver mi causa</button></div>
+    </section>
+
+    <!-- ACTIVITY -->
+    <section class="screen" id="activity">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="appbar"><h2 style="font-size:22px;font-weight:800;letter-spacing:-.5px">Actividad</h2></div>
+      <div class="scroll"><div class="act">
+        <div class="actrow unread" onclick="go('mycause')"><div class="ic money">💵</div><div><div class="t"><b>¡Recibiste $30.000!</b> Anónimo aportó a tu causa "Tratamiento para Mateo".</div><div class="time">hace 12 min · acreditado en tu Mercado Pago</div></div></div>
+        <div class="actrow unread" onclick="go('mycause')"><div class="ic heart">💙</div><div><div class="t"><b>María A.</b> aportó $5.000 a tu causa y te dejó un mensaje.</div><div class="time">hace 1 h</div></div></div>
+        <div class="actrow" onclick="go('thanksupload')"><div class="ic goal">🎉</div><div><div class="t"><b>Tu causa alcanzó la meta.</b> Subí un video o fotos para agradecer a quienes te ayudaron.</div><div class="time">ayer</div></div></div>
+        <div class="actrow" onclick="go('reward')"><div class="ic medal">🏅</div><div><div class="t">Ganaste la medalla <b>"Constante"</b> por tu tercer aporte.</div><div class="time">ayer</div></div></div>
+        <div class="actrow" onclick="go('ranking')"><div class="ic medal">🏆</div><div><div class="t">Subiste al <b>puesto 6</b> del ranking mensual de solidarios.</div><div class="time">hace 2 días</div></div></div>
+        <div class="actrow" onclick="go('finishedsad')"><div class="ic heart">🤍</div><div><div class="t">Una causa que apoyaste cerró sin llegar a la meta. Mirá el cierre.</div><div class="time">hace 3 días</div></div></div>
+      </div></div>
+      <div class="tabbar">
+        <div class="tab" onclick="go('feed')"><div class="ic">🏠</div>Inicio</div>
+        <div class="tab" onclick="go('ranking')"><div class="ic">🏆</div>Ranking</div>
+        <div class="tab plus" onclick="go('create')"><div class="ic">+</div></div>
+        <div class="tab on"><div class="ic">🔔</div>Actividad</div>
+        <div class="tab" onclick="go('profile')"><div class="ic">👤</div>Perfil</div>
+      </div>
+    </section>
+
+    <!-- MY CAUSE (beneficiary, receiving) -->
+    <section class="screen" id="mycause">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('profile')">‹</div><h2>Mi causa</h2></div>
+      <div class="scroll" style="padding-bottom:0">
+        <div class="hero"><span class="verified"><span class="tick">✓</span> Tu causa está publicada</span><span class="emoji">💙</span></div>
+        <div class="detail-body">
+          <h2>Tratamiento para Mateo, 6 años</h2>
+          <div class="who">Vos · Florencio Varela · cierra el 31/08</div>
+          <div class="celebrate" style="text-align:left;padding:6px 0 0"><div style="font-size:13px;color:var(--muted)">Llevás recaudado</div>
+            <div style="font-weight:800;font-size:30px;color:var(--brand-dark)">$2.160.000 <span style="font-weight:500;font-size:14px;color:var(--muted)">de $3.000.000</span></div></div>
+          <div class="progress" style="height:11px;margin-top:10px"><i style="width:72%"></i></div>
+          <div class="banner happy" style="margin-top:16px"><div class="bi">💵</div><div class="bt"><b>Todo lo recaudado ya está en tu Mercado Pago.</b> Cada aporte se acredita en tu cuenta al instante, no lo retiene DonAR.</div></div>
+          <div class="sec" style="padding:8px 0 4px"><h3>Aportes recibidos</h3><span>72 personas te ayudaron</span></div>
+          <div class="ledger">
+            <div class="row"><div class="p"><div class="dot">AN</div><div><div class="name">Anónimo</div><div class="time">hace 12 min</div></div></div><div class="amt">+$30.000</div></div>
+            <div class="row"><div class="p"><div class="dot">MA</div><div><div class="name">María A. <span class="tk">✓</span></div><div class="time">“Fuerza Mateo” · hace 1 h</div></div></div><div class="amt">+$5.000</div></div>
+            <div class="row"><div class="p"><div class="dot">JL</div><div><div class="name">Julián L. <span class="tk">✓</span></div><div class="time">hace 3 h</div></div></div><div class="amt">+$15.000</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="sticky-cta" style="display:flex;gap:10px"><button class="btn line" onclick="go('thanksupload')">Agradecer</button><button class="btn primary" onclick="go('feed')">Compartir causa</button></div>
+    </section>
+
+    <!-- THANKS UPLOAD (beneficiary) -->
+    <section class="screen" id="thanksupload">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('mycause')">‹</div><h2>Agradecé a quienes te ayudaron</h2></div>
+      <div class="scroll"><div class="form">
+        <div class="celebrate"><div class="big">🎉</div><h3 style="font-size:18px;margin:6px 0 4px">¡Lo lograste!</h3>
+          <p style="font-size:13px;color:var(--muted);line-height:1.6;max-width:280px;margin:0 auto">Un gesto de agradecimiento cierra el círculo. Quienes te ayudaron van a poder verlo.</p></div>
+        <div class="field" style="margin-top:18px"><label>Video de agradecimiento</label>
+          <div class="upload"><span class="ic">🎥</span>Grabá o subí un video corto</div></div>
+        <div class="field"><label>Fotos</label>
+          <div class="upload"><span class="ic">📷</span>Sumá fotos del antes y el después</div></div>
+        <div class="field"><label>Tu mensaje</label><div class="input" style="min-height:80px;color:var(--muted)">Gracias de corazón. Mateo arranca el tratamiento la semana que viene.</div></div>
+      </div></div>
+      <div class="sticky-cta"><button class="btn happy" onclick="go('finishedhappy')">Publicar agradecimiento</button></div>
+    </section>
+
+    <!-- FINISHED HAPPY (donor view of completed cause) -->
+    <section class="screen" id="finishedhappy">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('feed')">‹</div><h2>Causa cumplida</h2></div>
+      <div class="scroll" style="padding-bottom:0">
+        <div class="hero done"><span class="verified g"><span class="tick">✓</span> Meta alcanzada</span><span class="emoji">♿</span></div>
+        <div class="detail-body">
+          <div class="celebrate" style="text-align:left"><div style="font-size:26px">🎉</div></div>
+          <h2>Silla de ruedas para Don Alberto</h2>
+          <div class="who">Centro vecinal <span class="idbadge"><span class="tk">✓</span> Verificado</span> · Berazategui</div>
+          <div class="progress g" style="height:11px"><i style="width:100%"></i></div>
+          <div class="stat-row"><div class="raised" style="color:var(--happy)">$600.000 de $600.000</div><div class="goal">143 personas<br>ayudaron 💙</div></div>
+          <div class="banner happy"><div class="bi">🙌</div><div class="bt"><b>Fuiste parte de esto.</b> Aportaste $10.000. Gracias a vos y a 142 personas más, Don Alberto ya tiene su silla.</div></div>
+          <div class="sec" style="padding:14px 0 4px"><h3>El agradecimiento de Don Alberto</h3></div>
+          <div class="video"><div class="play">▶</div><div class="tag">🎥 Video de agradecimiento · 0:38</div></div>
+          <div class="thanksbanner"><div class="q">“No tengo palabras. Ahora puedo salir a la plaza solo. Gracias a cada uno que puso su granito.”</div><div class="by">Don Alberto, 74 años</div></div>
+          <div class="gallery"><div>📷</div><div>😊</div><div>♿</div></div>
+        </div>
+      </div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('feed')">Ayudar a otra causa</button></div>
+    </section>
+
+    <!-- FINISHED SAD (donor view, did not reach goal) -->
+    <section class="screen" id="finishedsad">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('activity')">‹</div><h2>Cierre de la causa</h2></div>
+      <div class="scroll" style="padding-bottom:0">
+        <div class="hero sad"><span class="verified"><span class="tick">✓</span> Causa verificada</span><span class="emoji">🤍</span></div>
+        <div class="detail-body">
+          <h2>Útiles y guardapolvos para la escuela 12</h2>
+          <div class="who">Coop. de padres <span class="idbadge"><span class="tk">✓</span> Verificado</span> · La Matanza</div>
+          <div class="progress" style="height:11px"><i style="width:63%;background:linear-gradient(90deg,#aeb9c4,var(--sad))"></i></div>
+          <div class="stat-row"><div class="raised">$315.000 <span style="font-weight:500;font-size:13px;color:var(--muted)">de $500.000</span></div><div class="goal">cerró ayer<br>58 personas ayudaron</div></div>
+          <div class="banner sad"><div class="bi">🤍</div><div class="bt">No se alcanzó la meta, pero <b>cada peso que juntaste igual le llega a la escuela</b>. Los $315.000 ya están en su cuenta y con eso compran lo que puedan. Tu ayuda no fue en vano.</div></div>
+          <div class="thanksbanner" style="background:linear-gradient(150deg,#eef2f6,#fff);border-color:#dce3ea"><div class="q" style="color:#3a4a56">“Gracias igual. Con lo que juntamos arrancamos las clases con útiles para los más chicos. Seguimos.”</div><div class="by">Coop. de padres, Escuela 12</div></div>
+          <div class="trust"><div class="b">✓</div><p><b>Transparencia hasta el final:</b> podés ver los 58 aportes y a dónde fue cada uno, esté cumplida la meta o no.</p></div>
+        </div>
+      </div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('feed')">Apoyar otra causa</button></div>
+    </section>
+
+    <!-- RANKING -->
+    <section class="screen" id="ranking">
+      <div class="statusbar light"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="scroll" style="padding-top:0">
+        <div class="rank-head">
+          <h2>🏆 Top solidarios de julio</h2><p>Reconocemos a quienes más ayudan. Se reinicia cada mes.</p>
+          <div class="podium">
+            <div class="pod second"><div class="pa">LM</div><div class="nm">Lucía M. <span class="tk">✓</span></div><div class="pts">4.980 pts</div></div>
+            <div class="pod first"><div class="pa"><span class="crown">👑</span>JF</div><div class="nm">Javier F. <span class="tk">✓</span></div><div class="pts">6.240 pts</div></div>
+            <div class="pod third"><div class="pa">RO</div><div class="nm">Rocío O. <span class="tk">✓</span></div><div class="pts">4.510 pts</div></div>
+          </div>
+        </div>
+        <div class="howpts" onclick="go('points')"><div class="ic">⭐</div><div><div class="t">¿Cómo se ganan los puntos?</div><div class="s">Reglas justas: cuenta ayudar seguido, no solo el monto</div></div><div class="chev">›</div></div>
+        <div class="rlist">
+          <div class="rrow"><div class="pos">4</div><div class="ra">MG</div><div><div class="rn">Martín G. <span class="tk">✓</span></div><div class="rs">12 causas · $210k</div></div><div class="rp">3.120 pts</div></div>
+          <div class="rrow"><div class="pos">5</div><div class="ra">AS</div><div><div class="rn">Ana S. <span class="tk">✓</span></div><div class="rs">14 causas · $96k</div></div><div class="rp">2.980 pts</div></div>
+          <div class="rrow me"><div class="pos">6</div><div class="ra">GP</div><div><div class="rn">Vos (Gastón) <span class="tk">✓</span></div><div class="rs">12 causas · $153k</div></div><div class="rp">2.546 pts</div></div>
+          <div class="rrow"><div class="pos">7</div><div class="ra">DP</div><div><div class="rn">Diego P.</div><div class="rs">9 causas · $150k</div></div><div class="rp">2.510 pts</div></div>
+          <div class="rrow"><div class="pos">8</div><div class="ra">FL</div><div><div class="rn">Florencia L. <span class="tk">✓</span></div><div class="rs">8 causas · $132k</div></div><div class="rp">2.260 pts</div></div>
+        </div>
+        <div style="padding:6px 22px 20px;text-align:center;font-size:12px;color:var(--muted)">Ana está 5ta con menos plata que vos: ayudó a más causas. Así de justo es el ranking.</div>
+      </div>
+      <div class="tabbar">
+        <div class="tab" onclick="go('feed')"><div class="ic">🏠</div>Inicio</div>
+        <div class="tab on"><div class="ic">🏆</div>Ranking</div>
+        <div class="tab plus" onclick="go('create')"><div class="ic">+</div></div>
+        <div class="tab" onclick="go('activity')"><div class="ic">🔔</div>Actividad</div>
+        <div class="tab" onclick="go('profile')"><div class="ic">👤</div>Perfil</div>
+      </div>
+    </section>
+
+    <!-- POINTS EXPLAINER -->
+    <section class="screen" id="points">
+      <div class="statusbar"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="backbar"><div class="back" onclick="go('ranking')">‹</div><h2>Cómo se ganan los puntos</h2></div>
+      <div class="scroll"><div class="form">
+        <p style="font-size:13.5px;color:var(--muted);line-height:1.65;margin:8px 0 8px">Los puntos premian <b style="color:var(--ink)">ayudar seguido</b>, no tener más plata. Por eso el monto suma poco y tiene tope.</p>
+        <div class="ptbox" style="margin:8px 0"><div class="l"><span>💙 Apoyar una causa</span><span>+50 pts</span></div></div>
+        <div class="ptbox" style="margin:8px 0"><div class="l"><span>💵 Por monto aportado</span><span>+1 pt cada $1.000</span></div><div class="l"><span style="color:var(--muted);font-size:11.5px">tope por causa, para que el monto no domine</span><span style="color:var(--muted)">máx. 150 pts</span></div></div>
+        <div class="ptbox" style="margin:8px 0"><div class="l"><span>🔥 Racha semanal</span><span>x1,2</span></div></div>
+        <div class="ptbox" style="margin:8px 0"><div class="l"><span>🎯 Una causa llega a la meta con tu aporte</span><span>+100 pts</span></div></div>
+        <div class="ptbox" style="margin:8px 0"><div class="l"><span>🛡️ Verificar tu identidad (una vez)</span><span>+200 pts</span></div></div>
+        <div class="trust" style="margin-top:14px"><div class="b">✓</div><p>Ejemplo: quien dona $5.000 a diez causas distintas junta más puntos que quien dona $50.000 a una sola. Premiamos la constancia.</p></div>
+      </div></div>
+      <div class="sticky-cta"><button class="btn primary" onclick="go('ranking')">Entendido</button></div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="screen" id="profile">
+      <div class="statusbar light"><span>9:41</span><span>▲ ● ▮</span></div>
+      <div class="scroll" style="padding-top:0">
+        <div class="phead">
+          <div class="top"><div class="pav">GP</div><div><h2>Gastón Pérez <span class="tk">✓</span></h2><div class="lvl">Nivel 3 · Solidario 🏅 · Puesto 6 del mes</div></div></div>
+          <div class="lbar"><i></i></div>
+          <div class="lnote">706 / 1000 pts · 294 para el Nivel 4</div>
+          <div class="idrow"><span class="tk">✓</span> Identidad verificada</div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><b>12</b><span>causas apoyadas</span></div>
+          <div class="kpi"><b>$153k</b><span>total donado</span></div>
+          <div class="kpi"><b>7</b><span>medallas</span></div>
+        </div>
+
+        <div class="sec"><h3>Mis causas</h3><span>Lo que recibís</span></div>
+        <div class="mycard" onclick="go('mycause')">
+          <div class="top"><div class="em">💙</div><div><div class="t">Tratamiento para Mateo, 6 años</div><div class="s">Activa · cierra el 31/08 · 72 aportes</div></div></div>
+          <div class="bd"><div class="progress" style="margin:2px 0 10px"><i style="width:72%"></i></div>
+            <div class="big">$2.160.000 <small>recaudado de $3.000.000</small></div>
+            <div style="font-size:11.5px;color:var(--happy);font-weight:700;margin-top:4px">💵 Acreditado en tu Mercado Pago</div></div>
+        </div>
+
+        <div class="sec"><h3>Tus medallas</h3><span>Reconocimiento por sumar, sin costo</span></div>
+        <div class="medals">
+          <div class="m">🥇<span>Primer aporte</span></div>
+          <div class="m">🔥<span>Racha x5</span></div>
+          <div class="m">🏅<span>Constante</span></div>
+          <div class="m">💙<span>10 causas</span></div>
+          <div class="m">🎯<span>Causa completa</span></div>
+          <div class="m">🌟<span>Padrino</span></div>
+          <div class="m">🤝<span>Difusor</span></div>
+          <div class="m locked">🔒<span>Nivel 4</span></div>
+        </div>
+
+        <div class="sec"><h3>Mi impacto</h3><span>Adónde fue tu ayuda</span></div>
+        <div class="impact-item" onclick="go('finishedhappy')"><div class="dot">♿</div><div><div class="t">Silla de ruedas para Don Alberto</div><div class="s">Cumplida · mirá su agradecimiento</div></div><div class="a">$10.000</div></div>
+        <div class="impact-item"><div class="dot">🏠</div><div><div class="t">Reconstruir la casa tras el incendio</div><div class="s">En curso · 41%</div></div><div class="a">$5.000</div></div>
+        <div class="impact-item" onclick="go('finishedsad')"><div class="dot">🤍</div><div><div class="t">Útiles para la escuela 12</div><div class="s">Cerró al 63% · le llegó igual</div></div><div class="a">$3.000</div></div>
+        <div style="height:20px"></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab" onclick="go('feed')"><div class="ic">🏠</div>Inicio</div>
+        <div class="tab" onclick="go('ranking')"><div class="ic">🏆</div>Ranking</div>
+        <div class="tab plus" onclick="go('create')"><div class="ic">+</div></div>
+        <div class="tab" onclick="go('activity')"><div class="ic">🔔</div>Actividad</div>
+        <div class="tab on"><div class="ic">👤</div>Perfil</div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<p class="note"><b>Nota:</b> menú de 5 con el + centrado, perfil único (lo donado y lo recibido juntos), pago con Mercado Pago sin comprobante y comisión transparente, causa lograda con video y fotos, causa que no llegó con la plata que igual le llega, y puntos balanceados con tope. Textos, montos y comisión (5%) son de ejemplo, todo ajustable. Faltan las fotos reales de cada causa.</p>
+
+<script>
+  function go(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    var el=document.getElementById(id); if(!el)return;
+    el.classList.add('active');
+    var vp=el.querySelector('.scroll'); if(vp) vp.scrollTop=0;
+    window.scrollTo({top:document.querySelector('.phone').offsetTop-20,behavior:'smooth'});
+  }
+  function selChip(el){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');}
+  function selMth(el){el.parentElement.querySelectorAll('.mth').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');}
+  function selCobro(el){el.parentElement.querySelectorAll('.opt-pay').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');}
+</script>
+</body>
+</html>

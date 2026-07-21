@@ -1,11 +1,18 @@
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
 import { Colors, Spacing, TabBarHeight } from '@/constants/donar-theme';
-import { activeCauses, completedCauses } from '@/data/causes';
+import { useCauses } from '@/store/causes-store';
 
 export default function FeedScreen() {
+  const router = useRouter();
+  const { causes } = useCauses();
+
+  const active = causes.filter((c) => c.status === 'active');
+  const completed = causes.filter((c) => c.status === 'completed');
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.appbar}>
@@ -26,18 +33,26 @@ export default function FeedScreen() {
           <Text style={styles.secSub}>Cada causa fue revisada antes de publicarse</Text>
         </View>
 
-        {activeCauses.map((cause) => (
-          <CauseCard key={cause.id} cause={cause} />
+        {active.map((cause) => (
+          <CauseCard
+            key={cause.id}
+            cause={cause}
+            mine={cause.mine}
+            onPress={() => router.push('/create')}
+          />
         ))}
 
-        <View style={styles.sec}>
-          <Text style={styles.secTitle}>Lo lograron 🎉</Text>
-          <Text style={styles.secSub}>Causas que llegaron a la meta</Text>
-        </View>
-
-        {completedCauses.map((cause) => (
-          <CauseCard key={cause.id} cause={cause} />
-        ))}
+        {completed.length > 0 && (
+          <>
+            <View style={styles.sec}>
+              <Text style={styles.secTitle}>Lo lograron 🎉</Text>
+              <Text style={styles.secSub}>Causas que llegaron a la meta</Text>
+            </View>
+            {completed.map((cause) => (
+              <CauseCard key={cause.id} cause={cause} />
+            ))}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

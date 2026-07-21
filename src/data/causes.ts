@@ -12,8 +12,10 @@ export type Cause = {
   raised: number;
   goal: number;
   daysLeft: number;
-  status: 'active' | 'completed' | 'closed';
+  status: 'active' | 'completed' | 'closed' | 'review';
   verified: boolean;
+  /** True when the cause was created by the current user (local session). */
+  mine?: boolean;
 };
 
 export const causes: Cause[] = [
