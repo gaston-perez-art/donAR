@@ -1,0 +1,71 @@
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { CauseCard } from '@/components/cause-card';
+import { Colors, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { activeCauses, completedCauses } from '@/data/causes';
+
+export default function FeedScreen() {
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.appbar}>
+        <Text style={styles.brand}>
+          <Text style={styles.brandDon}>Don</Text>
+          <Text style={styles.brandAr}>AR</Text>
+        </Text>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>GP</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: TabBarHeight + Spacing.xl }}>
+        <View style={styles.sec}>
+          <Text style={styles.secTitle}>Causas verificadas cerca tuyo</Text>
+          <Text style={styles.secSub}>Cada causa fue revisada antes de publicarse</Text>
+        </View>
+
+        {activeCauses.map((cause) => (
+          <CauseCard key={cause.id} cause={cause} />
+        ))}
+
+        <View style={styles.sec}>
+          <Text style={styles.secTitle}>Lo lograron 🎉</Text>
+          <Text style={styles.secSub}>Causas que llegaron a la meta</Text>
+        </View>
+
+        {completedCauses.map((cause) => (
+          <CauseCard key={cause.id} cause={cause} />
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.bg },
+  appbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
+  },
+  brand: { fontSize: 24, fontWeight: '800', letterSpacing: -1 },
+  brandDon: { color: Colors.brand },
+  brandAr: { color: Colors.sky },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  sec: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md, paddingTop: Spacing.xs },
+  secTitle: { fontSize: 17, fontWeight: '700', color: Colors.ink, letterSpacing: -0.3 },
+  secSub: { fontSize: 12.5, color: Colors.muted, marginTop: 2 },
+});
