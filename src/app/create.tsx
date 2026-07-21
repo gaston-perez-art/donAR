@@ -1,6 +1,9 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -14,9 +17,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
+const pad = (n: number) => String(n).padStart(2, '0');
+const formatDMY = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+function parseDMY(dmy: string): Date {
+  const m = dmy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : new Date();
+}
+
 export default function CreateScreen() {
   const router = useRouter();
   const { draft, setDraft } = useCauses();
+  const [showPicker, setShowPicker] = useState(false);
+  const [tempDate, setTempDate] = useState<Date>(new Date());
 
   const canContinue = draft.title.trim().length > 0 && draft.goal.trim().length > 0;
 
@@ -32,6 +45,16 @@ export default function CreateScreen() {
     if (d.length > 4) out = `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
     else if (d.length > 2) out = `${d.slice(0, 2)}/${d.slice(2)}`;
     setDraft({ deadline: out });
+  };
+
+  const openPicker = () => {
+    setTempDate(parseDMY(draft.deadline));
+    setShowPicker(true);
+  };
+
+  const confirmPicker = () => {
+    setDraft({ deadline: formatDMY(tempDate) });
+    setShowPicker(false);
   };
 
   return (
@@ -83,15 +106,20 @@ export default function CreateScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Field label="Cierre">
-                <TextInput
-                  style={styles.input}
-                  placeholder="DD/MM/AAAA"
-                  placeholderTextColor={Colors.muted}
-                  value={draft.deadline}
-                  onChangeText={onChangeDate}
-                  keyboardType="number-pad"
-                  maxLength={10}
-                />
+                <View style={styles.dateWrap}>
+                  <TextInput
+                    style={styles.dateInput}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={Colors.muted}
+                    value={draft.deadline}
+                    onChangeText={onChangeDate}
+                    keyboardType="number-pad"
+                    maxLength={10}
+                  />
+                  <Pressable style={styles.calBtn} onPress={openPicker} hitSlop={8}>
+                    <Text style={styles.calIcon}>📅</Text>
+                  </Pressable>
+                </View>
               </Field>
             </View>
           </View>
@@ -117,6 +145,29 @@ export default function CreateScreen() {
           <Text style={styles.btnText}>Continuar</Text>
         </Pressable>
       </View>
+
+      <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
+        <Pressable style={styles.overlay} onPress={() => setShowPicker(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.sheetTitle}>Elegí la fecha de cierre</Text>
+            <DateTimePicker
+              value={tempDate}
+              mode="date"
+              display="spinner"
+              minimumDate={new Date()}
+              onChange={(_e, d) => d && setTempDate(d)}
+            />
+            <View style={styles.sheetActions}>
+              <Pressable style={styles.sheetBtn} onPress={() => setShowPicker(false)}>
+                <Text style={styles.sheetCancel}>Cancelar</Text>
+              </Pressable>
+              <Pressable style={[styles.sheetBtn, styles.sheetPrimary]} onPress={confirmPicker}>
+                <Text style={styles.sheetDone}>Listo</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -163,6 +214,18 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     backgroundColor: '#fff',
   },
+  dateWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    backgroundColor: '#fff',
+    paddingRight: 10,
+  },
+  dateInput: { flex: 1, padding: 15, fontSize: 15, color: Colors.ink },
+  calBtn: { paddingHorizontal: 4 },
+  calIcon: { fontSize: 20 },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
   row: { flexDirection: 'row', gap: Spacing.md },
   upload: {
@@ -178,12 +241,21 @@ const styles = StyleSheet.create({
   uploadText: { fontSize: 13, color: Colors.muted, textAlign: 'center' },
   helper: { fontSize: 11.5, color: Colors.muted, marginTop: Spacing.sm, lineHeight: 16 },
   footer: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
-  btn: {
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.md,
-    padding: 17,
-    alignItems: 'center',
-  },
+  btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#AFC8DD' },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+  overlay: { flex: 1, backgroundColor: 'rgba(16,48,43,0.35)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: Spacing.lg },
+  sheetTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.ink,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  sheetActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm },
+  sheetBtn: { flex: 1, borderRadius: Radius.md, padding: 15, alignItems: 'center' },
+  sheetPrimary: { backgroundColor: Colors.brand },
+  sheetCancel: { color: Colors.muted, fontWeight: '700', fontSize: 15 },
+  sheetDone: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

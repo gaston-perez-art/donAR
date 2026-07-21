@@ -60,6 +60,7 @@ function mapRow(row: any, userId: string | null): Cause {
   return {
     id: row.id,
     title: row.title,
+    story: row.story ?? '',
     who: mine ? 'Vos' : 'Persona verificada',
     emoji: row.emoji || '💙',
     coverTint: row.cover_tint || '#CFE6FB',
@@ -72,6 +73,15 @@ function mapRow(row: any, userId: string | null): Cause {
   };
 }
 
+export type Contribution = {
+  id: string;
+  name: string;
+  amount: number;
+  message: string | null;
+  createdAt: string;
+  mine: boolean;
+};
+
 type CausesContextValue = {
   causes: Cause[];
   myCauses: Cause[];
@@ -81,6 +91,9 @@ type CausesContextValue = {
   resetDraft: () => void;
   publishDraft: () => Promise<Cause | null>;
   refresh: () => Promise<void>;
+  getCause: (id: string) => Cause | undefined;
+  getContributions: (causeId: string) => Promise<Contribution[]>;
+  donate: (causeId: string, amount: number, message: string, anonymous: boolean) => Promise<boolean>;
 };
 
 const CausesContext = createContext<CausesContextValue | null>(null);
@@ -160,6 +173,53 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     return mapRow(inserted, uid);
   }, [draft, userId, fetchCauses]);
 
+  const getCause = useCallback((id: string) => causes.find((c) => c.id === id), [causes]);
+
+  const getContributions = useCallback(
+    async (causeId: string): Promise<Contribution[]> => {
+      const { data, error } = await supabase
+        .from('contributions')
+        .select('*')
+        .eq('cause_id', causeId)
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.warn('fetch contributions error:', error.message);
+        return [];
+      }
+      return (data ?? []).map((row: any) => ({
+        id: row.id,
+        name: row.anonymous ? 'Anónimo' : row.donor_id === userId ? 'Vos' : 'Alguien de la comunidad',
+        amount: Number(row.amount) || 0,
+        message: row.message,
+        createdAt: row.created_at,
+        mine: row.donor_id === userId,
+      }));
+    },
+    [userId],
+  );
+
+  const donate = useCallback(
+    async (causeId: string, amount: number, message: string, anonymous: boolean): Promise<boolean> => {
+      const uid = userId ?? (await ensureSession());
+      if (!uid) return false;
+      const { error } = await supabase.from('contributions').insert({
+        cause_id: causeId,
+        donor_id: uid,
+        amount,
+        message: message.trim() || null,
+        anonymous,
+        status: 'approved',
+      });
+      if (error) {
+        console.warn('donate error:', error.message);
+        return false;
+      }
+      await fetchCauses(uid);
+      return true;
+    },
+    [userId, fetchCauses],
+  );
+
   const value = useMemo<CausesContextValue>(
     () => ({
       causes,
@@ -170,8 +230,11 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       resetDraft,
       publishDraft,
       refresh,
+      getCause,
+      getContributions,
+      donate,
     }),
-    [causes, loading, draft, setDraft, resetDraft, publishDraft, refresh],
+    [causes, loading, draft, setDraft, resetDraft, publishDraft, refresh, getCause, getContributions, donate],
   );
 
   return <CausesContext.Provider value={value}>{children}</CausesContext.Provider>;

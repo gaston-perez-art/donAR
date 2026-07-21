@@ -38,7 +38,7 @@ export default function FeedScreen() {
             key={cause.id}
             cause={cause}
             mine={cause.mine}
-            onPress={() => router.push('/create')}
+            onPress={() => router.push(`/cause/${cause.id}`)}
           />
         ))}
 
@@ -57,7 +57,11 @@ export default function FeedScreen() {
               <Text style={styles.secSub}>Causas que llegaron a la meta</Text>
             </View>
             {completed.map((cause) => (
-              <CauseCard key={cause.id} cause={cause} />
+              <CauseCard
+                key={cause.id}
+                cause={cause}
+                onPress={() => router.push(`/cause/${cause.id}`)}
+              />
             ))}
           </>
         )}

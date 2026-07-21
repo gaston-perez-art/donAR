@@ -6,6 +6,7 @@
 export type Cause = {
   id: string;
   title: string;
+  story: string;
   who: string;
   emoji: string;
   coverTint: string;

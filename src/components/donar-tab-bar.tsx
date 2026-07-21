@@ -16,7 +16,7 @@ const RIGHT: TabItem[] = [
 ];
 
 /** Custom 5-slot tab bar with a centered + button, matching the prototype. */
-const HIDDEN_ON = ['/create', '/cobro', '/review'];
+const HIDDEN_ON = ['/create', '/cobro', '/review', '/cause', '/donate', '/gracias'];
 
 export function DonarTabBar() {
   const pathname = usePathname();
