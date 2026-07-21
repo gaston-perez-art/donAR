@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, Radius, Spacing } from '@/constants/donar-theme';
+import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
 export default function CreateScreen() {
@@ -19,6 +19,20 @@ export default function CreateScreen() {
   const { draft, setDraft } = useCauses();
 
   const canContinue = draft.title.trim().length > 0 && draft.goal.trim().length > 0;
+
+  const onChangeGoal = (text: string) => {
+    const digits = text.replace(/\D/g, '');
+    setDraft({ goal: digits ? formatARS(Number(digits)) : '' });
+  };
+
+  // Autoformato DD/MM/AAAA mientras escribe.
+  const onChangeDate = (text: string) => {
+    const d = text.replace(/\D/g, '').slice(0, 8);
+    let out = d;
+    if (d.length > 4) out = `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+    else if (d.length > 2) out = `${d.slice(0, 2)}/${d.slice(2)}`;
+    setDraft({ deadline: out });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -62,8 +76,8 @@ export default function CreateScreen() {
                   placeholder="$3.000.000"
                   placeholderTextColor={Colors.muted}
                   value={draft.goal}
-                  onChangeText={(goal) => setDraft({ goal })}
-                  keyboardType="numeric"
+                  onChangeText={onChangeGoal}
+                  keyboardType="number-pad"
                 />
               </Field>
             </View>
@@ -71,10 +85,12 @@ export default function CreateScreen() {
               <Field label="Cierre">
                 <TextInput
                   style={styles.input}
-                  placeholder="31/08/2026"
+                  placeholder="DD/MM/AAAA"
                   placeholderTextColor={Colors.muted}
                   value={draft.deadline}
-                  onChangeText={(deadline) => setDraft({ deadline })}
+                  onChangeText={onChangeDate}
+                  keyboardType="number-pad"
+                  maxLength={10}
                 />
               </Field>
             </View>

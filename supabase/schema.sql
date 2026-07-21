@@ -1,0 +1,112 @@
+-- DonAR: esquema inicial del MVP
+-- Pegar completo en Supabase > SQL Editor > New query > Run.
+
+-- ========== Enums ==========
+create type cause_status as enum ('review', 'active', 'completed', 'closed');
+create type payout_method as enum ('mp', 'cbu');
+create type identity_state as enum ('unverified', 'pending', 'verified', 'rejected');
+
+-- ========== profiles (extiende auth.users) ==========
+create table profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  initials text,
+  identity_status identity_state not null default 'unverified',
+  points int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+-- ========== causes (datos públicos de la causa) ==========
+create table causes (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references profiles(id) on delete cascade,
+  title text not null,
+  story text,
+  goal_amount numeric not null check (goal_amount > 0),
+  deadline date,
+  status cause_status not null default 'review',
+  emoji text default '💙',
+  cover_tint text default '#CFE6FB',
+  verified boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- ========== cause_payouts (dónde cobra, PRIVADO) ==========
+create table cause_payouts (
+  cause_id uuid primary key references causes(id) on delete cascade,
+  method payout_method not null,
+  alias text not null
+);
+
+-- ========== contributions (aportes) ==========
+create table contributions (
+  id uuid primary key default gen_random_uuid(),
+  cause_id uuid not null references causes(id) on delete cascade,
+  donor_id uuid references profiles(id) on delete set null,
+  amount numeric not null check (amount > 0),
+  message text,
+  anonymous boolean not null default false,
+  status text not null default 'approved',
+  created_at timestamptz not null default now()
+);
+
+-- ========== Vista con totales calculados (respeta RLS) ==========
+create view causes_public with (security_invoker = true) as
+select
+  c.*,
+  coalesce((select sum(ct.amount) from contributions ct
+            where ct.cause_id = c.id and ct.status = 'approved'), 0) as raised_amount,
+  (select count(*) from contributions ct
+   where ct.cause_id = c.id and ct.status = 'approved') as contributors
+from causes c;
+
+-- ========== Row Level Security ==========
+alter table profiles enable row level security;
+alter table causes enable row level security;
+alter table cause_payouts enable row level security;
+alter table contributions enable row level security;
+
+-- profiles: los lee cualquiera, cada uno edita el suyo
+create policy "profiles readable" on profiles for select using (true);
+create policy "profiles insert own" on profiles for insert with check (auth.uid() = id);
+create policy "profiles update own" on profiles for update using (auth.uid() = id);
+
+-- causes: se leen las publicadas (o las propias, aunque estén en review); el dueño crea y edita
+create policy "causes public read" on causes for select
+  using (status in ('active','completed','closed') or owner_id = auth.uid());
+create policy "causes insert own" on causes for insert with check (owner_id = auth.uid());
+create policy "causes update own" on causes for update using (owner_id = auth.uid());
+
+-- cause_payouts: SOLO el dueño de la causa (candado anti-bypass)
+create policy "payouts owner read" on cause_payouts for select
+  using (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+create policy "payouts owner insert" on cause_payouts for insert
+  with check (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+create policy "payouts owner update" on cause_payouts for update
+  using (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+
+-- contributions: las lee cualquiera (recorrido del dinero), las crea un usuario logueado
+create policy "contributions public read" on contributions for select using (true);
+create policy "contributions insert" on contributions for insert
+  with check (auth.uid() = donor_id or donor_id is null);
+
+-- ========== Trigger: crear el profile al registrarse (email, Google, etc.) ==========
+create function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, full_name, initials)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'Usuario'),
+    upper(substr(coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'US'), 1, 2))
+  );
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();

@@ -8,7 +8,7 @@ import { useCauses } from '@/store/causes-store';
 
 export default function FeedScreen() {
   const router = useRouter();
-  const { causes } = useCauses();
+  const { causes, loading } = useCauses();
 
   const active = causes.filter((c) => c.status === 'active');
   const completed = causes.filter((c) => c.status === 'completed');
@@ -41,6 +41,14 @@ export default function FeedScreen() {
             onPress={() => router.push('/create')}
           />
         ))}
+
+        {!loading && active.length === 0 && (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>💙</Text>
+            <Text style={styles.emptyTitle}>Todavía no hay causas</Text>
+            <Text style={styles.emptySub}>Tocá el + para crear la primera y probála de punta a punta.</Text>
+          </View>
+        )}
 
         {completed.length > 0 && (
           <>
@@ -83,4 +91,15 @@ const styles = StyleSheet.create({
   sec: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md, paddingTop: Spacing.xs },
   secTitle: { fontSize: 17, fontWeight: '700', color: Colors.ink, letterSpacing: -0.3 },
   secSub: { fontSize: 12.5, color: Colors.muted, marginTop: 2 },
+  empty: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxl },
+  emptyEmoji: { fontSize: 44, marginBottom: Spacing.md },
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.ink },
+  emptySub: {
+    fontSize: 13,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    lineHeight: 19,
+    maxWidth: 260,
+  },
 });

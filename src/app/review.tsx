@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -8,13 +9,21 @@ import { useCauses } from '@/store/causes-store';
 export default function ReviewScreen() {
   const router = useRouter();
   const { draft, publishDraft } = useCauses();
+  const [submitting, setSubmitting] = useState(false);
 
   const goalNumber = parseInt(draft.goal.replace(/\D/g, ''), 10) || 0;
 
   // Simulates curator approval so the creation flow can be tested end to end.
-  const publish = () => {
-    publishDraft();
-    router.navigate('/');
+  // The submitting guard prevents a double tap creating two causes.
+  const publish = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    const created = await publishDraft();
+    if (created) {
+      router.navigate('/');
+    } else {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -51,8 +60,13 @@ export default function ReviewScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.btn} onPress={publish}>
-          <Text style={styles.btnText}>Publicar (simular aprobación)</Text>
+        <Pressable
+          style={[styles.btn, submitting && styles.btnDisabled]}
+          onPress={publish}
+          disabled={submitting}>
+          <Text style={styles.btnText}>
+            {submitting ? 'Publicando...' : 'Publicar (simular aprobación)'}
+          </Text>
         </Pressable>
         <Text style={styles.footnote}>
           En el MVP real, este paso lo hace la curaduría. Acá lo simulamos para probar el flujo.
@@ -169,6 +183,7 @@ const styles = StyleSheet.create({
   stepHint: { fontSize: 11.5, color: Colors.muted, marginTop: 1 },
   footer: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
+  btnDisabled: { backgroundColor: '#AFC8DD' },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
   footnote: { fontSize: 11, color: Colors.muted, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 15 },
 });
