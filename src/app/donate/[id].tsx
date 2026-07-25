@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -66,7 +67,11 @@ export default function DonateScreen() {
 
   const valid = amount > 0;
 
-  const confirm = async () => {
+  // Meta como objetivo, no techo: se puede superar, pero avisamos al donante.
+  const alreadyMet = !!cause && cause.raised >= cause.goal;
+  const willExceed = !!cause && valid && cause.raised + amount > cause.goal;
+
+  const doDonate = async () => {
     if (submitting || !valid) return;
     setSubmitting(true);
     const ok = await donate(String(id), amount, message, anonymous);
@@ -74,6 +79,26 @@ export default function DonateScreen() {
     if (ok) {
       router.replace(`/gracias?amount=${amount}`);
     }
+  };
+
+  const confirm = () => {
+    if (submitting || !valid) return;
+    if (willExceed && cause) {
+      Alert.alert(
+        alreadyMet ? 'Esta causa ya alcanzó su meta' : 'Tu aporte supera la meta',
+        `${
+          alreadyMet
+            ? `Ya reunió los ${formatARS(cause.goal)} que pedía.`
+            : `Con este aporte la causa pasa su meta de ${formatARS(cause.goal)}.`
+        } Tu donación suma igual y queda registrada en el recorrido de la causa. ¿Querés continuar?`,
+        [
+          { text: 'Cambiar monto', style: 'cancel' },
+          { text: 'Donar igual', onPress: doDonate },
+        ],
+      );
+      return;
+    }
+    doDonate();
   };
 
   return (
@@ -115,6 +140,18 @@ export default function DonateScreen() {
               onFocus={() => setCustomActive(true)}
             />
           </View>
+
+          {willExceed && cause ? (
+            <View style={styles.notice}>
+              <Text style={styles.noticeEmoji}>💙</Text>
+              <Text style={styles.noticeText}>
+                {alreadyMet
+                  ? `Esta causa ya llegó a su meta de ${formatARS(cause.goal)}.`
+                  : `Con este monto, la causa supera su meta de ${formatARS(cause.goal)}.`}{' '}
+                Podés donar igual: tu aporte queda registrado en el recorrido.
+              </Text>
+            </View>
+          ) : null}
 
           <Text style={styles.label}>Dejá un mensaje de aliento (opcional)</Text>
           <TextInput
@@ -213,6 +250,17 @@ const styles = StyleSheet.create({
   customPeso: { fontSize: 17, fontWeight: '800', color: Colors.muted, marginRight: 6 },
   customPesoActive: { color: Colors.brandDark },
   customInput: { flex: 1, paddingVertical: 15, fontSize: 16, fontWeight: '700', color: Colors.ink },
+  notice: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    backgroundColor: '#FEF6E6',
+    borderRadius: Radius.md,
+    padding: 13,
+    marginTop: Spacing.md,
+  },
+  noticeEmoji: { fontSize: 15, marginTop: 1 },
+  noticeText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: '#7A5B12' },
   label: { fontSize: 12.5, color: Colors.muted, fontWeight: '600', marginTop: Spacing.xl, marginBottom: Spacing.sm },
   input: {
     borderWidth: 1.5,
