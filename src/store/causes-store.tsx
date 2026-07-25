@@ -82,6 +82,40 @@ export type Contribution = {
   mine: boolean;
 };
 
+/** Un aporte que hice yo, con datos de la causa a la que fue. */
+export type MyContribution = {
+  id: string;
+  amount: number;
+  message: string | null;
+  createdAt: string;
+  causeId: string;
+  causeTitle: string;
+  causeEmoji: string;
+  causeTint: string;
+  causeStatus: Cause['status'];
+};
+
+/** Resumen de actividad del usuario para el perfil. Todo derivado de datos reales. */
+export type MyActivity = {
+  donatedTotal: number; // suma de lo que doné
+  donationsCount: number; // cantidad de aportes
+  causesSupported: number; // causas distintas que apoyé
+  completedSupported: number; // de esas, cuántas llegaron a la meta
+  receivedTotal: number; // suma recaudada en mis causas
+  myCausesCount: number; // causas que creé
+  contributions: MyContribution[];
+};
+
+const emptyActivity: MyActivity = {
+  donatedTotal: 0,
+  donationsCount: 0,
+  causesSupported: 0,
+  completedSupported: 0,
+  receivedTotal: 0,
+  myCausesCount: 0,
+  contributions: [],
+};
+
 type CausesContextValue = {
   causes: Cause[];
   myCauses: Cause[];
@@ -94,6 +128,7 @@ type CausesContextValue = {
   getCause: (id: string) => Cause | undefined;
   getContributions: (causeId: string) => Promise<Contribution[]>;
   donate: (causeId: string, amount: number, message: string, anonymous: boolean) => Promise<boolean>;
+  getMyActivity: () => Promise<MyActivity>;
 };
 
 const CausesContext = createContext<CausesContextValue | null>(null);
@@ -220,6 +255,58 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     [userId, fetchCauses],
   );
 
+  const getMyActivity = useCallback(async (): Promise<MyActivity> => {
+    const uid = userId ?? (await ensureSession());
+    if (!uid) return emptyActivity;
+
+    // Aportes que hice yo, con la causa embebida (título, emoji, estado).
+    const { data, error } = await supabase
+      .from('contributions')
+      .select('id, amount, message, created_at, cause_id, causes(title, emoji, status, cover_tint)')
+      .eq('donor_id', uid)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('getMyActivity error:', error.message);
+      return emptyActivity;
+    }
+
+    const contributions: MyContribution[] = (data ?? []).map((row: any) => {
+      const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+      return {
+        id: row.id,
+        amount: Number(row.amount) || 0,
+        message: row.message,
+        createdAt: row.created_at,
+        causeId: row.cause_id,
+        causeTitle: cause?.title ?? 'Causa',
+        causeEmoji: cause?.emoji ?? '💙',
+        causeTint: cause?.cover_tint ?? '#CFE6FB',
+        causeStatus: (cause?.status ?? 'active') as Cause['status'],
+      };
+    });
+
+    const donatedTotal = contributions.reduce((sum, c) => sum + c.amount, 0);
+    const supportedIds = new Set(contributions.map((c) => c.causeId));
+    const completedIds = new Set(
+      contributions.filter((c) => c.causeStatus === 'completed').map((c) => c.causeId),
+    );
+
+    // Causas propias y lo recaudado en ellas (ya viene en el store).
+    const mine = causes.filter((c) => c.mine);
+    const receivedTotal = mine.reduce((sum, c) => sum + c.raised, 0);
+
+    return {
+      donatedTotal,
+      donationsCount: contributions.length,
+      causesSupported: supportedIds.size,
+      completedSupported: completedIds.size,
+      receivedTotal,
+      myCausesCount: mine.length,
+      contributions,
+    };
+  }, [userId, causes]);
+
   const value = useMemo<CausesContextValue>(
     () => ({
       causes,
@@ -233,8 +320,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getCause,
       getContributions,
       donate,
+      getMyActivity,
     }),
-    [causes, loading, draft, setDraft, resetDraft, publishDraft, refresh, getCause, getContributions, donate],
+    [causes, loading, draft, setDraft, resetDraft, publishDraft, refresh, getCause, getContributions, donate, getMyActivity],
   );
 
   return <CausesContext.Provider value={value}>{children}</CausesContext.Provider>;
