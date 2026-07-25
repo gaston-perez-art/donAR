@@ -1,11 +1,29 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type MyActivity } from '@/store/causes-store';
+
+/** Frases de altruismo. Se elige una al azar al abrir una medalla. */
+const ALTRUISM_PHRASES = [
+  'Nadie se hizo más pobre por dar.',
+  'Lo que das no se pierde: cambia de manos y vuelve como otra cosa.',
+  'Ayudar a uno no cambia el mundo, pero cambia el mundo de uno.',
+  'La generosidad no se mide por lo que sobra, sino por lo que se comparte.',
+  'Cada aporte tuyo es una historia que sigue.',
+  'Dar es la forma más simple de estar cerca de alguien que no conocés.',
+  'La solidaridad es el interés bien entendido de una comunidad.',
+  'No hace falta tener mucho para dar algo. Alcanza con querer hacerlo.',
+  'Un gesto pequeño, sostenido por muchos, mueve montañas.',
+  'El que ayuda gana dos veces: una para el otro, otra para sí mismo.',
+];
+
+function randomPhrase(): string {
+  return ALTRUISM_PHRASES[Math.floor(Math.random() * ALTRUISM_PHRASES.length)];
+}
 
 /** Niveles del donante. El umbral es la cantidad de causas distintas apoyadas. */
 const LEVELS = [
@@ -68,6 +86,13 @@ export default function ProfileScreen() {
   const { getMyActivity } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openMedal, setOpenMedal] = useState<Medal | null>(null);
+  const [phrase, setPhrase] = useState('');
+
+  const showMedal = (m: Medal) => {
+    setPhrase(randomPhrase());
+    setOpenMedal(m);
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -159,11 +184,14 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.medalGrid}>
             {medals.map((m) => (
-              <View key={m.key} style={[styles.medal, !m.earned && styles.medalLocked]}>
+              <Pressable
+                key={m.key}
+                style={[styles.medal, !m.earned && styles.medalLocked]}
+                onPress={() => showMedal(m)}>
                 <Text style={[styles.medalEmoji, !m.earned && styles.medalEmojiLocked]}>{m.emoji}</Text>
                 <Text style={[styles.medalLabel, !m.earned && styles.medalLabelLocked]}>{m.label}</Text>
                 {!m.earned ? <Text style={styles.medalHint}>{m.hint}</Text> : null}
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
@@ -199,6 +227,34 @@ export default function ProfileScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Modal de medalla */}
+      <Modal visible={!!openMedal} transparent animationType="fade" onRequestClose={() => setOpenMedal(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setOpenMedal(null)}>
+          <Pressable style={styles.modalCard} onPress={() => {}}>
+            <View style={[styles.modalHalo, openMedal && !openMedal.earned && styles.modalHaloLocked]}>
+              <View style={[styles.modalDisc, openMedal && !openMedal.earned && styles.modalDiscLocked]}>
+                <Text style={[styles.modalEmoji, openMedal && !openMedal.earned && styles.medalEmojiLocked]}>
+                  {openMedal?.emoji}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.modalLabel}>{openMedal?.label}</Text>
+            <View style={[styles.modalStatus, openMedal?.earned ? styles.modalStatusOn : styles.modalStatusOff]}>
+              <Text style={[styles.modalStatusText, openMedal?.earned ? styles.modalStatusTextOn : styles.modalStatusTextOff]}>
+                {openMedal?.earned ? '✓ Desbloqueada' : `🔒 ${openMedal?.hint}`}
+              </Text>
+            </View>
+
+            <Text style={styles.modalPhrase}>“{phrase}”</Text>
+
+            <Pressable style={styles.modalClose} onPress={() => setOpenMedal(null)}>
+              <Text style={styles.modalCloseText}>Cerrar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -299,4 +355,70 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   rowAmt: { fontSize: 14.5, fontWeight: '800', color: Colors.brandDark },
+
+  // Modal de medalla
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20,40,60,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
+    alignItems: 'center',
+  },
+  modalHalo: {
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: Colors.skySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+  },
+  modalHaloLocked: { backgroundColor: '#F1F4F7' },
+  modalDisc: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#FDEFC7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDiscLocked: { backgroundColor: '#E7ECF0' },
+  modalEmoji: { fontSize: 48 },
+  modalLabel: { fontSize: 20, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3, textAlign: 'center' },
+  modalStatus: {
+    marginTop: 10,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  modalStatusOn: { backgroundColor: '#E4F7EE' },
+  modalStatusOff: { backgroundColor: '#F1F4F7' },
+  modalStatusText: { fontSize: 12.5, fontWeight: '700', textAlign: 'center' },
+  modalStatusTextOn: { color: Colors.happy },
+  modalStatusTextOff: { color: Colors.muted },
+  modalPhrase: {
+    fontSize: 15.5,
+    fontStyle: 'italic',
+    color: '#33434F',
+    textAlign: 'center',
+    lineHeight: 23,
+    marginTop: Spacing.xl,
+    marginBottom: Spacing.xl,
+  },
+  modalClose: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.brand,
+    borderRadius: Radius.md,
+    padding: 15,
+    alignItems: 'center',
+  },
+  modalCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

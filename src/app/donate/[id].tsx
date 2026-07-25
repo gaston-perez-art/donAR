@@ -1,5 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +17,13 @@ import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
 const AMOUNTS = [2000, 5000, 10000, 20000, 50000];
+const DEFAULT_AMOUNT = 5000;
+
+/** Solo dígitos. "$12.000" -> 12000. */
+function parseAmount(text: string): number {
+  const digits = text.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
 
 export default function DonateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,19 +31,48 @@ export default function DonateScreen() {
   const { getCause, donate } = useCauses();
   const cause = getCause(String(id));
 
-  const [amount, setAmount] = useState(5000);
+  const [amount, setAmount] = useState(DEFAULT_AMOUNT);
+  const [customText, setCustomText] = useState('');
+  const [customActive, setCustomActive] = useState(false);
   const [message, setMessage] = useState('');
   const [anonymous, setAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // La pantalla vive dentro de un Tabs y no se desmonta: reseteamos el estado
+  // cada vez que toma foco para que se pueda volver a donar sin quedar trabado.
+  useFocusEffect(
+    useCallback(() => {
+      setAmount(DEFAULT_AMOUNT);
+      setCustomText('');
+      setCustomActive(false);
+      setMessage('');
+      setAnonymous(false);
+      setSubmitting(false);
+    }, []),
+  );
+
+  const pickChip = (a: number) => {
+    setAmount(a);
+    setCustomActive(false);
+    setCustomText('');
+  };
+
+  const onCustomChange = (text: string) => {
+    const n = parseAmount(text);
+    setCustomText(n ? formatARS(n).replace('$', '') : '');
+    setCustomActive(true);
+    setAmount(n);
+  };
+
+  const valid = amount > 0;
+
   const confirm = async () => {
-    if (submitting) return;
+    if (submitting || !valid) return;
     setSubmitting(true);
     const ok = await donate(String(id), amount, message, anonymous);
+    setSubmitting(false);
     if (ok) {
       router.replace(`/gracias?amount=${amount}`);
-    } else {
-      setSubmitting(false);
     }
   };
 
@@ -54,16 +91,29 @@ export default function DonateScreen() {
 
           <View style={styles.chips}>
             {AMOUNTS.map((a) => {
-              const sel = a === amount;
+              const sel = !customActive && a === amount;
               return (
                 <Pressable
                   key={a}
                   style={[styles.chip, sel && styles.chipSel]}
-                  onPress={() => setAmount(a)}>
+                  onPress={() => pickChip(a)}>
                   <Text style={[styles.chipText, sel && styles.chipTextSel]}>{formatARS(a)}</Text>
                 </Pressable>
               );
             })}
+          </View>
+
+          <View style={[styles.customWrap, customActive && styles.customWrapActive]}>
+            <Text style={[styles.customPeso, customActive && styles.customPesoActive]}>$</Text>
+            <TextInput
+              style={styles.customInput}
+              placeholder="Otro monto"
+              placeholderTextColor={Colors.muted}
+              keyboardType="number-pad"
+              value={customText}
+              onChangeText={onCustomChange}
+              onFocus={() => setCustomActive(true)}
+            />
           </View>
 
           <Text style={styles.label}>Dejá un mensaje de aliento (opcional)</Text>
@@ -95,9 +145,16 @@ export default function DonateScreen() {
       </KeyboardAvoidingView>
 
       <View style={styles.cta}>
-        <Pressable style={[styles.btn, submitting && styles.btnDisabled]} onPress={confirm} disabled={submitting}>
+        <Pressable
+          style={[styles.btn, (submitting || !valid) && styles.btnDisabled]}
+          onPress={confirm}
+          disabled={submitting || !valid}>
           <Text style={styles.btnText}>
-            {submitting ? 'Procesando...' : `Confirmar aporte de ${formatARS(amount)}`}
+            {submitting
+              ? 'Procesando...'
+              : valid
+                ? `Confirmar aporte de ${formatARS(amount)}`
+                : 'Ingresá un monto'}
           </Text>
         </Pressable>
       </View>
@@ -142,6 +199,20 @@ const styles = StyleSheet.create({
   chipSel: { borderColor: Colors.brand, backgroundColor: Colors.skySoft },
   chipText: { fontWeight: '700', fontSize: 15, color: Colors.ink },
   chipTextSel: { color: Colors.brandDark },
+  customWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    paddingHorizontal: 15,
+    backgroundColor: '#fff',
+  },
+  customWrapActive: { borderColor: Colors.brand, backgroundColor: Colors.skySoft },
+  customPeso: { fontSize: 17, fontWeight: '800', color: Colors.muted, marginRight: 6 },
+  customPesoActive: { color: Colors.brandDark },
+  customInput: { flex: 1, paddingVertical: 15, fontSize: 16, fontWeight: '700', color: Colors.ink },
   label: { fontSize: 12.5, color: Colors.muted, fontWeight: '600', marginTop: Spacing.xl, marginBottom: Spacing.sm },
   input: {
     borderWidth: 1.5,
