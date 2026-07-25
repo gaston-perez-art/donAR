@@ -77,6 +77,7 @@ Usar Expo SDK 54, confirmado por Gastón. La mención a v57 en AGENTS.md se igno
 - **Umbral "monto alto" en salud** que dispara pago directo al proveedor: sin definir.
 - **Detección de duplicados:** hoy a ojo del curador; falta criterio concreto.
 - **CBU de terceros:** su encuadre legal entra en la consulta con abogado sobre "conectar sin custodiar".
+- **Destino del excedente:** qué pasa con la plata que supera la meta de una causa. Sin definir. Trazabilidad + legal (abogado). Hoy se permite donar de más con aviso neutro.
 - **Nativo vs. web:** si el volumen inicial se sostiene con web responsive, se posterga el desarrollo nativo.
 
 ---
@@ -115,6 +116,24 @@ Fuera por ahora: custodia de fondos y regulación asociada, beneficios materiale
 ---
 
 ## 9. Registro de sesiones (log)
+
+### 24 jul 2026 (sesión 5)
+- Corregido `AGENTS.md`: ahora es el punto de entrada para Claude Code / Cowork. Apunta a memory.md como fuente de verdad, fija SDK 54, reglas de trabajo de Gastón, git directo a main OK, y nota de los errores TS preexistentes. Reemplazó la nota vieja y errónea de Expo v57.
+- Creada skill de estilo en el repo: `.claude/skills/estilo-gaston/SKILL.md` (con frontmatter name+description). Así Claude Code la levanta sola al abrir el proyecto. Es la versión viva y compartida entre Cowork y Claude Code.
+- Aclaración honesta a Gastón: una skill no se autoactualiza sola; se edita en el lugar cuando corrige un borrador o dice "no suena a mí". La sección "Mantenimiento" de la skill lo deja escrito.
+- Continuidad Cowork -> Claude Code: el chat en sí no se transfiere, pero todo lo importante vive en el repo (memory.md, docs/, AGENTS.md, skill de estilo). Abrir Claude Code en ~/Documents/donAR y pedir "leé memory.md y AGENTS.md".
+
+### 24 jul 2026 (sesión 4)
+- DECISIÓN de producto: la meta de una causa es un OBJETIVO, no un techo. Se puede donar aunque la causa ya llegó o supere la meta, siempre CON AVISO al donante (Gastón lo eligió). Causas SIN monto = descartadas para el MVP (la meta es lo que ancla la verificación, la UX y evita la colecta abierta tipo Maratea).
+- NUEVO PENDIENTE (importante): definir el DESTINO DEL EXCEDENTE cuando una causa supera su meta. Es pregunta de trazabilidad + legal; entra en la consulta con el abogado. Hasta definirlo, el aviso al donante es neutro (el aporte suma y queda registrado) y NO promete ningún mecanismo de excedente.
+- Implementado en `donate/[id].tsx`: aviso inline cuando el monto supera la meta + Alert de confirmación ("Donar igual" / "Cambiar monto"), permitiendo siempre. Validación de monto > 0 ya estaba.
+- Bug reportado por Gastón que originó esto: se podía donar más que la meta sin ningún aviso.
+
+### 24 jul 2026 (sesión 3)
+- Perfil: medallas ahora tapeables, abren un modal lindo con la medalla (estado desbloqueada/bloqueada) y una frase de altruismo al azar (array `ALTRUISM_PHRASES` en `profile.tsx`).
+- Donar: agregado monto personalizado (input numérico "Otro monto" que deselecciona los chips y valida > 0).
+- BUG RESUELTO "no se podía volver a donar": raíz = la pantalla vive dentro de un `Tabs` (no se desmonta), y tras confirmar quedaba `submitting=true` para siempre, dejando el botón disabled. Fix: `useFocusEffect` resetea el estado al tomar foco + `setSubmitting(false)` antes de navegar. Aprendizaje general: en este proyecto las pantallas de Tabs conservan estado entre visitas; resetear en focus si hace falta.
+- Archivos tocados: `src/app/profile.tsx`, `src/app/donate/[id].tsx`. Typecheck limpio en los míos.
 
 ### 24 jul 2026 (sesión 2, tarde)
 - Construida pantalla de Perfil (`src/app/profile.tsx`): donado + recibido, medallas (primer aporte, 3 causas, 10 causas, meta cumplida) y nivel (Solidario/Comprometido/Referente), todo derivado de datos reales de Supabase.
