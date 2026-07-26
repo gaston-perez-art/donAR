@@ -151,6 +151,36 @@ const emptyActivity: MyActivity = {
   contributions: [],
 };
 
+/** Una fila del ranking mensual de donantes. */
+export type RankingEntry = {
+  donorId: string;
+  name: string;
+  points: number;
+  isMe: boolean;
+};
+
+/**
+ * Puntos de un donante en el mes, versión núcleo de la fórmula del paper:
+ * +50 por aporte, +1 cada $1.000 con tope 150 por causa, +100 por causa
+ * completada. Falta (rebanada siguiente): racha semanal x1,2 y +200 identidad.
+ */
+function pointsForDonor(rows: { amount: number; causeId: string; completed: boolean }[]): number {
+  let apoyar = 0;
+  const sumByCause = new Map<string, number>();
+  const completedCauses = new Set<string>();
+  for (const r of rows) {
+    apoyar += 50;
+    sumByCause.set(r.causeId, (sumByCause.get(r.causeId) ?? 0) + r.amount);
+    if (r.completed) completedCauses.add(r.causeId);
+  }
+  let monto = 0;
+  for (const total of sumByCause.values()) {
+    monto += Math.min(Math.floor(total / 1000), 150);
+  }
+  const completar = completedCauses.size * 100;
+  return apoyar + monto + completar;
+}
+
 type CausesContextValue = {
   causes: Cause[];
   myCauses: Cause[];
@@ -164,6 +194,7 @@ type CausesContextValue = {
   getContributions: (causeId: string) => Promise<Contribution[]>;
   donate: (causeId: string, amount: number, message: string, anonymous: boolean) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
+  getMonthlyRanking: () => Promise<RankingEntry[]>;
   isCurator: boolean;
   refreshIsCurator: () => Promise<void>;
   pendingCauses: Cause[];
@@ -425,6 +456,64 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     };
   }, [userId, causes]);
 
+  const getMonthlyRanking = useCallback(async (): Promise<RankingEntry[]> => {
+    const uid = userId ?? (await ensureSession());
+
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+
+    // Aportes del mes calendario, con el estado de la causa embebido.
+    const { data, error } = await supabase
+      .from('contributions')
+      .select('donor_id, amount, cause_id, causes(status)')
+      .gte('created_at', start.toISOString());
+    if (error) {
+      console.warn('getMonthlyRanking error:', error.message);
+      return [];
+    }
+
+    // Solo entran al ranking los donantes con identidad (mail vinculado).
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .eq('is_registered', true);
+    const nameById = new Map<string, string>(
+      (profiles ?? []).map((p: any) => [p.id, p.display_name || 'Donante']),
+    );
+
+    // Agrupar aportes por donante (solo los registrados).
+    const rowsByDonor = new Map<string, { amount: number; causeId: string; completed: boolean }[]>();
+    for (const row of data ?? []) {
+      const donorId = (row as any).donor_id as string | null;
+      if (!donorId || !nameById.has(donorId)) continue;
+      const cause = Array.isArray((row as any).causes) ? (row as any).causes[0] : (row as any).causes;
+      const entry = {
+        amount: Number((row as any).amount) || 0,
+        causeId: (row as any).cause_id as string,
+        completed: cause?.status === 'completed',
+      };
+      const list = rowsByDonor.get(donorId);
+      if (list) list.push(entry);
+      else rowsByDonor.set(donorId, [entry]);
+    }
+
+    const ranking: RankingEntry[] = [];
+    for (const [donorId, rows] of rowsByDonor) {
+      const points = pointsForDonor(rows);
+      if (points <= 0) continue;
+      ranking.push({
+        donorId,
+        name: nameById.get(donorId) ?? 'Donante',
+        points,
+        isMe: donorId === uid,
+      });
+    }
+
+    ranking.sort((a, b) => b.points - a.points);
+    return ranking;
+  }, [userId]);
+
   const getReviewInfo = useCallback(async (causeId: string): Promise<ReviewInfo> => {
     const empty: ReviewInfo = {
       dniFrontPath: null,
@@ -498,6 +587,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getContributions,
       donate,
       getMyActivity,
+      getMonthlyRanking,
       isCurator,
       refreshIsCurator,
       pendingCauses: causes.filter((c) => c.status === 'review' || c.status === 'needs_info'),
@@ -518,6 +608,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getContributions,
       donate,
       getMyActivity,
+      getMonthlyRanking,
       isCurator,
       refreshIsCurator,
       getReviewInfo,

@@ -62,6 +62,23 @@ export async function confirmLogin(email: string, token: string): Promise<{ erro
   return { error: error?.message ?? null };
 }
 
+/**
+ * Marca el perfil propio como registrado y le pone un nombre para mostrar en el
+ * ranking, derivado del mail (la parte antes del @, capitalizada). Se llama al
+ * vincular o loguear con mail, y como self-heal para cuentas ya vinculadas.
+ */
+export async function ensureRegisteredProfile(email: string): Promise<void> {
+  const uid = await ensureSession();
+  if (!uid) return;
+  const local = (email.split('@')[0] || 'Donante').trim();
+  const displayName = local.charAt(0).toUpperCase() + local.slice(1);
+  const { error } = await supabase
+    .from('profiles')
+    .update({ display_name: displayName, is_registered: true })
+    .eq('id', uid);
+  if (error) console.warn('ensureRegisteredProfile error:', error.message);
+}
+
 /** True si la sesión actual es de un curador (marcado a mano en profiles). */
 export async function isCurator(): Promise<boolean> {
   const uid = await ensureSession();

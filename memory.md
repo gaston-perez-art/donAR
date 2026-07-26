@@ -2,7 +2,7 @@
 
 Archivo vivo. Se lee al inicio de cada sesión y se actualiza al cerrar. Registra estado, decisiones tomadas, supuestos abiertos y próximos pasos. Complementa (no reemplaza) el "Paper fundacional" y el "Contexto del proyecto y como trabajo".
 
-Última actualización: 26 de julio de 2026 (sesión: curaduría real con evidencia, identidad cross-device, separación curador/donante, QA del flujo de donación y de creación de causa).
+Última actualización: 26 de julio de 2026 (sesión: pulido a fondo del flujo de crear causa por feedback de Gastón; arranque de ranking mensual).
 
 ---
 
@@ -41,11 +41,12 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 - [x] **Curaduría real** (26 jul): la causa nace en estado `review`, no se auto-aprueba más. Se pide evidencia (DNI frente/dorso, selfie, documento de respaldo) subida a un bucket privado de Storage. Un curador (por ahora Gastón, marcado a mano con `profiles.is_curator`) la revisa en `/curar` y aprueba, rechaza o pide info. El creador ve el estado de su causa en el feed ("Tus causas") y en el detalle, con motivo si corresponde y botón para reenviar tras un "pedido de info".
 - [x] Perfil único (donado + recibido), medallas y nivel con datos reales de Supabase.
 - [x] **Identidad cross-device** (26 jul): vincular la sesión anónima a un mail real (código de 6 dígitos, no magic link, para no depender de deep linking en Expo Go). Permite recuperar el historial desde otro dispositivo. Requirió SMTP propio (Resend) porque Supabase no deja editar las plantillas de mail sin uno.
-- [x] Imagen ilustrativa opcional en la causa (`image_url`), con fallback al emoji + color de siempre.
+- [x] **Fotos de portada opcionales** (hasta 2, columna `image_urls text[]`, bucket público `cause-covers`): carrusel horizontal con puntitos en `cause-card` y `cause/[id]`; fallback al emoji + color si no hay ninguna. Reemplazó la `image_url` (una sola) del 25 jul.
+- [x] **Pulido del flujo de crear causa** (26 jul, feedback de Gastón): fecha de cierre solo por calendario (iOS `display="inline"`, Android diálogo nativo; el spinner en Modal renderizaba vacío con la nueva arquitectura de RN) lo que elimina fechas inválidas; `minimumDate` fijo al montar (antes se recalculaba en cada render); monto y cierre en filas separadas con chips de monto sugerido editables; cobro con un solo campo "Alias o CBU" (método inferido: 22 dígitos = cbu); "volver" en cobro/review apunta al paso anterior del flujo (antes caía al tab activo).
 - [x] Limpieza: eliminado todo el scaffold muerto del template de Expo (`app-tabs`, `themed-text/view`, `collapsible`, `animated-icon`, `use-theme`, `use-color-scheme`, `constants/theme.ts`) que nunca se conectó a la app real. `npx tsc --noEmit` corre sin errores.
 - [x] **Curador y donante ya no comparten navegación** (26 jul): si la cuenta es curador, la app entera es el panel de curaduría (`src/screens/curar-screen.tsx`, ya no vive en `src/app/`, se decide en `_layout.tsx` antes de montar cualquier tab). "Cerrar sesión" (nuevo, `signOut` en el store) vuelve a una sesión anónima limpia para probar como donante. Perfil también tiene "Cerrar sesión" junto al mail vinculado.
 - [x] **Modal de confirmación al enviar una causa a revisión** (26 jul): felicitación, frase, SLA (24 hs hábiles) y botón directo al estado de la causa. Antes navegaba al feed en silencio, sensación de "no pasó nada".
-- [ ] Ranking mensual + lógica de puntos (placeholder, dice "Próximamente").
+- [~] Ranking mensual + lógica de puntos: EN CURSO (arrancó 26 jul). Antes era placeholder "Próximamente".
 - [ ] Actividad (placeholder, dice "Próximamente"). Decisión de Gastón: se deja TBD, valor post-MVP.
 - [ ] Causa finalizada (happy / unhappy).
 - [ ] Integración real de pago (Mercado Pago). Hoy `donate()` es un insert directo en Supabase, sin pasarela real (consistente con la decisión "MVP conecta, no custodia").
@@ -122,15 +123,28 @@ Fuera por ahora: custodia de fondos y regulación asociada, beneficios materiale
 2. Definir el fee inicial y testear su percepción.
 3. OK final de Gastón sobre la lista de causas vetadas.
 4. Probar el flujo de curaduría real con una causa ajena de punta a punta (crear con otra sesión, revisar como curador, aprobar/rechazar/pedir info) y confirmar que la experiencia se siente sólida.
-5. Ranking mensual + lógica de puntos.
+5. Ranking mensual + lógica de puntos. ← EN CURSO.
 6. Causa finalizada (happy / unhappy).
-7. Evaluar si conviene edición real en el reenvío tras "pedido de info", o si alcanza con el flujo actual (reenviar tal cual) para esta etapa de pruebas.
-8. Verificar un dominio propio en Resend si se necesita mandar mails a donantes reales (no solo a Gastón).
-9. Integración real de pago (Mercado Pago) cuando el flujo esté validado con gente real.
+7. Pulir la historia con IA al crear una causa. DECISIÓN 26 jul: pospuesto. Costo por uso es casi nulo (Haiku 4.5, fracción de centavo por historia); lo caro es la infraestructura: NO se puede llamar a la API de Anthropic directo desde la app (expondría la clave), hay que interponer una Supabase Edge Function que guarde la API key como secreto, y Gastón necesita cuenta propia en Anthropic con facturación. Se retoma cuando él lo decida.
+8. Evaluar si conviene edición real en el reenvío tras "pedido de info", o si alcanza con el flujo actual (reenviar tal cual) para esta etapa de pruebas.
+9. Verificar un dominio propio en Resend si se necesita mandar mails a donantes reales (no solo a Gastón).
+10. Integración real de pago (Mercado Pago) cuando el flujo esté validado con gente real.
 
 ---
 
 ## 9. Registro de sesiones (log)
+
+### 26 jul 2026 (sesión 8, noche)
+- **Pulido a fondo del flujo de crear causa**, todo por feedback de Gastón probando en su iPhone:
+  - Datepicker roto (renderizaba una barra gris vacía): causa = `display="spinner"` dentro de un `Modal` con la nueva arquitectura de RN. Fix: la fecha se elige SOLO tocando el campo (se sacó el input de texto libre), iOS usa `display="inline"` (calendario), Android su diálogo nativo. Bonus: `minimumDate` estaba inline (`new Date()`) y se recalculaba en cada render corriendo el mínimo mientras se giraba la rueda; ahora fijo al montar con `useState(() => startOfToday())`.
+  - Validación de fecha: al ser solo-picker con mínimo=hoy es imposible ingresar una inválida (22/22 o pasada). El gate de abajo lista "Falta: una fecha de cierre válida".
+  - Montos pre-seteados se mezclaban con la fecha: separados en filas independientes (Monto+chips / Fecha), a sugerencia de Gastón. Chips de monto ($100k/$500k/$1M/$3M) que rellenan pero dejan editar.
+  - Cobro: sacado el selector Mercado Pago/CBU (era redundante, mismo campo de texto). Ahora un solo input "Alias o CBU"; el método se infiere (regex 22 dígitos = cbu, si no = mp) para que curador/review sigan mostrando la etiqueta correcta.
+  - "Crash" al volver atrás en la confirmación: NO era crash, `router.back()` caía al tab activo (create/cobro/review son pantallas hermanas del mismo Tab, no una pila). Fix: cada "volver" apunta al paso anterior explícito (`router.replace('/create')` etc). Como todo cuelga del mismo `draft`, editar ya funcionó sin más.
+  - Fotos de portada (feedback: "estaría bueno subir 1-2 y verlas como carrusel"): implementado. Hasta 2, opcionales, bucket público `cause-covers`, columna `image_urls text[]` (reemplazó `image_url`). Carrusel horizontal con `ScrollView pagingEnabled` + puntitos en `cause-card` y `cause/[id]`; fallback emoji+color. Subida con `uploadCoverPhoto` (fetch+arrayBuffer, mismo patrón que la evidencia). Seed actualizado. `expo-file-system`/`base64-arraybuffer` ya se habían sacado en la sesión anterior.
+  - Historia con IA: Gastón preguntó por pulir la historia con IA. Se le explicó (con la skill claude-api cargada para no inventar números): costo por uso casi nulo, pero necesita Edge Function + su cuenta Anthropic. DECIDIÓ posponerlo (ver Próximos pasos #7).
+- **Aprendizaje de infra Supabase (Resend, del feedback previo):** Supabase ya no deja editar plantillas de mail sin un SMTP propio configurado. Por eso hubo que dar de alta Resend (gratis, sin tarjeta) para que el código de 6 dígitos (`{{ .Token }}`) funcione. El sender de prueba `onboarding@resend.dev` probablemente solo entrega al mail de la cuenta de Resend.
+- **Patrón de migraciones idempotentes:** una migración con `drop column ... / update ... array[col_vieja]` falla si ya se corrió antes (la columna vieja ya no existe). Aprendizaje: al pasarle una migración a Gastón para re-correr, hacerla idempotente (`add if not exists`, `drop if exists`, `drop policy if exists` antes de `create policy`, `on conflict do nothing` en buckets). Pasó con `cause-covers`.
 
 ### 26 jul 2026 (sesión 7, mañana/tarde)
 - Priorización con matriz esfuerzo/impacto de los pendientes del backlog; Gastón eligió avanzar con identidad cross-device (#3), limpieza de código muerto (#5) y curaduría real (#6), en ese orden.

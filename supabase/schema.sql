@@ -14,6 +14,8 @@ create table profiles (
   identity_status identity_state not null default 'unverified',
   points int not null default 0,
   is_curator boolean not null default false,
+  display_name text,
+  is_registered boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -194,3 +196,10 @@ create policy "cover file insert own" on storage.objects for insert
   with check (bucket_id = 'cause-covers' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "cover file public read" on storage.objects for select
   using (bucket_id = 'cause-covers');
+
+-- 26 jul 2026 (ranking): identidad para el ranking mensual. Al vincular el mail,
+-- el perfil se marca is_registered=true y guarda un display_name (derivado del
+-- mail). Solo los registrados entran al ranking; los anónimos figuran como
+-- 'Usuario' y quedan afuera. profiles ya es legible por cualquiera (RLS).
+alter table profiles add column if not exists display_name text;
+alter table profiles add column if not exists is_registered boolean not null default false;

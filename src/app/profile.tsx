@@ -14,7 +14,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
-import { confirmLinkEmail, confirmLogin, linkEmail, loginWithEmail, supabase } from '@/lib/supabase';
+import {
+  confirmLinkEmail,
+  confirmLogin,
+  ensureRegisteredProfile,
+  linkEmail,
+  loginWithEmail,
+  supabase,
+} from '@/lib/supabase';
 import { useCauses, type MyActivity } from '@/store/causes-store';
 
 /** Frases de altruismo. Se elige una al azar al abrir una medalla. */
@@ -150,6 +157,9 @@ function AccountLink({ onLinked }: { onLinked: () => void }) {
       return;
     }
 
+    // Ya tiene identidad: marcar el perfil como registrado para el ranking.
+    await ensureRegisteredProfile(email.trim());
+
     setOpen(false);
     setStep('email');
     setEmail('');
@@ -221,7 +231,11 @@ export default function ProfileScreen() {
 
   const refreshAccount = useCallback(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setAccountEmail(data.user?.is_anonymous ? null : (data.user?.email ?? null));
+      const email = data.user?.is_anonymous ? null : (data.user?.email ?? null);
+      setAccountEmail(email);
+      // Self-heal: cuentas vinculadas antes de existir el ranking no tienen
+      // is_registered/display_name. Se completa acá una vez.
+      if (email) ensureRegisteredProfile(email);
     });
   }, []);
 
