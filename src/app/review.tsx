@@ -1,16 +1,38 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
+/** Frases para el modal de "enviada a revisión". Una al azar, como en Perfil. */
+const SENT_PHRASES = [
+  'Contar tu historia ya es un paso grande. Gracias por la confianza.',
+  'Cada causa que se revisa a conciencia protege a quien dona y a quien pide.',
+  'Ya diste el primer paso. Ahora un curador se encarga del resto.',
+  'La verificación existe para que confíen en vos. Vale la pena la espera.',
+];
+
+function randomPhrase(): string {
+  return SENT_PHRASES[Math.floor(Math.random() * SENT_PHRASES.length)];
+}
+
 export default function ReviewScreen() {
   const router = useRouter();
   const { draft, publishDraft } = useCauses();
   const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState<{ causeId: string; phrase: string } | null>(null);
 
   // La pantalla vive en un Tab y no se desmonta: si no se resetea acá, un
   // segundo intento arranca con submitting=true y el botón queda tildado.
@@ -29,7 +51,7 @@ export default function ReviewScreen() {
     try {
       const created = await publishDraft();
       if (created) {
-        router.navigate('/');
+        setSent({ causeId: created.id, phrase: randomPhrase() });
         return;
       }
       Alert.alert(
@@ -63,7 +85,7 @@ export default function ReviewScreen() {
         <Text style={styles.h2}>Tu causa está en revisión</Text>
         <Text style={styles.sub}>
           Un curador de DonAR verifica tu historia, tu documentación y tu cuenta de cobro. Te
-          avisamos cuando esté publicada, normalmente en menos de 48 hs.
+          avisamos cuando esté publicada, normalmente en menos de 24 hs hábiles.
         </Text>
 
         <View style={styles.summary}>
@@ -100,6 +122,31 @@ export default function ReviewScreen() {
             : 'Un curador revisa tu identidad, tu documentación y tu cuenta de cobro antes de publicarla.'}
         </Text>
       </View>
+
+      <Modal visible={!!sent} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.backdrop}>
+          <View style={styles.sentCard}>
+            <Text style={{ fontSize: 48 }}>🎉</Text>
+            <Text style={styles.sentTitle}>¡Listo, la enviamos a revisión!</Text>
+            <Text style={styles.sentPhrase}>“{sent?.phrase}”</Text>
+            <View style={styles.sentInfo}>
+              <Text style={styles.sentInfoText}>
+                Un curador la revisa en menos de 24 hs hábiles. Vas a ver el estado (en revisión,
+                publicada, o si te pedimos algo más) en el feed, en "Tus causas".
+              </Text>
+            </View>
+            <Pressable
+              style={styles.sentBtn}
+              onPress={() => {
+                const causeId = sent?.causeId;
+                setSent(null);
+                if (causeId) router.replace(`/cause/${causeId}`);
+              }}>
+              <Text style={styles.sentBtnText}>Ver el estado de mi causa</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -215,4 +262,52 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   footnote: { fontSize: 11, color: Colors.muted, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 15 },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20,40,60,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  sentCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
+    alignItems: 'center',
+  },
+  sentTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: Colors.ink,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    marginTop: Spacing.md,
+  },
+  sentPhrase: {
+    fontSize: 14.5,
+    fontStyle: 'italic',
+    color: '#33434F',
+    textAlign: 'center',
+    lineHeight: 21,
+    marginTop: Spacing.lg,
+  },
+  sentInfo: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.skyTint,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    marginTop: Spacing.xl,
+  },
+  sentInfoText: { fontSize: 12.5, lineHeight: 18, color: '#2A4A5E', textAlign: 'center' },
+  sentBtn: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.brand,
+    borderRadius: Radius.md,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+  },
+  sentBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
