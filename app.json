@@ -42,7 +42,8 @@
         {
           "photosPermission": "DonAR necesita acceder a tus fotos para subir el DNI, la selfie y la documentación de tu causa."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

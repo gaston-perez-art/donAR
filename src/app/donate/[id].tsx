@@ -1,5 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useState } from 'react';
 import {
   Alert,
@@ -15,6 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { createMpCheckout } from '@/lib/mercadopago';
 import { useCauses } from '@/store/causes-store';
 
 const AMOUNTS = [2000, 5000, 10000, 20000, 50000];
@@ -72,12 +75,46 @@ export default function DonateScreen() {
   const willExceed = !!cause && valid && cause.raised + amount > cause.goal;
 
   const doDonate = async () => {
-    if (submitting || !valid) return;
+    if (submitting || !valid || !cause) return;
     setSubmitting(true);
+
+    // Abre el checkout de Mercado Pago (sandbox). Al volver aprobado, recién
+    // ahí registramos la donación como aporte real de la causa.
+    const returnUrl = Linking.createURL('mp-return');
+    const { url, error } = await createMpCheckout({
+      causeId: cause.id,
+      title: cause.title,
+      amount,
+      returnUrl,
+    });
+    if (error || !url) {
+      setSubmitting(false);
+      Alert.alert('No pudimos abrir el pago', error ?? 'Probá de nuevo en un momento.');
+      return;
+    }
+
+    const result = await WebBrowser.openAuthSessionAsync(url, returnUrl);
+
+    if (result.type !== 'success' || !result.url) {
+      // El usuario cerró el checkout sin terminar.
+      setSubmitting(false);
+      return;
+    }
+
+    const params = Linking.parse(result.url).queryParams ?? {};
+    const status = (params.status ?? params.collection_status) as string | undefined;
+    if (status !== 'approved') {
+      setSubmitting(false);
+      Alert.alert('Pago no completado', 'El pago no se aprobó. Podés intentarlo de nuevo.');
+      return;
+    }
+
     const ok = await donate(String(id), amount, message, anonymous);
     setSubmitting(false);
     if (ok) {
       router.replace(`/gracias?amount=${amount}`);
+    } else {
+      Alert.alert('Registramos un problema', 'El pago salió, pero no pudimos guardar tu aporte. Avisanos.');
     }
   };
 
@@ -188,9 +225,9 @@ export default function DonateScreen() {
           disabled={submitting || !valid}>
           <Text style={styles.btnText}>
             {submitting
-              ? 'Procesando...'
+              ? 'Abriendo Mercado Pago...'
               : valid
-                ? `Confirmar aporte de ${formatARS(amount)}`
+                ? `Pagar ${formatARS(amount)} con Mercado Pago`
                 : 'Ingresá un monto'}
           </Text>
         </Pressable>
