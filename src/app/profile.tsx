@@ -212,7 +212,7 @@ function AccountLink({ onLinked }: { onLinked: () => void }) {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { getMyActivity, isCurator, refreshIsCurator, pendingCauses } = useCauses();
+  const { getMyActivity, refreshIsCurator, signOut } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMedal, setOpenMedal] = useState<Medal | null>(null);
@@ -284,21 +284,16 @@ export default function ProfileScreen() {
         {/* Cuenta: vincular mail para no perder el historial en otro celular */}
         <View style={styles.accountSection}>
           {accountEmail ? (
-            <Text style={styles.accountLinked}>✓ Vinculado con {accountEmail}</Text>
+            <View style={styles.accountLinkedRow}>
+              <Text style={styles.accountLinked}>✓ Vinculado con {accountEmail}</Text>
+              <Pressable onPress={signOut}>
+                <Text style={styles.signOutLink}>Cerrar sesión</Text>
+              </Pressable>
+            </View>
           ) : (
             <AccountLink onLinked={refreshAccount} />
           )}
         </View>
-
-        {isCurator && (
-          <View style={styles.accountSection}>
-            <Pressable style={styles.curatorBtn} onPress={() => router.push('/curar')}>
-              <Text style={styles.curatorBtnText}>
-                Panel de curador{pendingCauses.length > 0 ? ` · ${pendingCauses.length} pendientes` : ''}
-              </Text>
-            </Pressable>
-          </View>
-        )}
 
         {/* Progreso de nivel */}
         <View style={styles.levelCard}>
@@ -447,7 +442,14 @@ const styles = StyleSheet.create({
   },
   levelPillText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12.5 },
   accountSection: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
-  accountLinked: { fontSize: 12.5, color: Colors.happy, fontWeight: '700' },
+  accountLinkedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  accountLinked: { fontSize: 12.5, color: Colors.happy, fontWeight: '700', flexShrink: 1 },
+  signOutLink: { fontSize: 12, color: Colors.muted, fontWeight: '700', textDecorationLine: 'underline' },
   accountLinkBtn: {
     alignSelf: 'flex-start',
     backgroundColor: Colors.skySoft,
@@ -483,14 +485,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   accountBtnText: { color: '#fff', fontWeight: '700', fontSize: 13.5 },
-  curatorBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: Colors.ink,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  curatorBtnText: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
   levelCard: {
     marginHorizontal: Spacing.xl,
     marginBottom: Spacing.lg,

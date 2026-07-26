@@ -1,6 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -31,11 +29,14 @@ const EVIDENCE_LABELS: { key: keyof ReviewInfo; label: string }[] = [
   { key: 'backupDocPath', label: 'Documento de respaldo' },
 ];
 
+/**
+ * Toda la app para un curador: sin tabs, sin feed, sin perfil de donante.
+ * La renderiza directo _layout.tsx cuando isCurator es true, no es una ruta.
+ * "Cerrar sesión" es la única salida, vuelve a una sesión anónima nueva.
+ */
 export default function CurarScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isCurator, pendingCauses, getReviewInfo, reviewCause, refreshIsCurator } = useCauses();
-  const [checking, setChecking] = useState(true);
+  const { pendingCauses, getReviewInfo, reviewCause, signOut } = useCauses();
   const [selected, setSelected] = useState<Cause | null>(null);
   const [info, setInfo] = useState<ReviewInfo | null>(null);
   const [urls, setUrls] = useState<Record<string, string | null>>({});
@@ -43,16 +44,6 @@ export default function CurarScreen() {
   const [noteMode, setNoteMode] = useState<'reject' | 'needs_info' | null>(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  useFocusEffect(
-    useCallback(() => {
-      let alive = true;
-      refreshIsCurator().then(() => alive && setChecking(false));
-      return () => {
-        alive = false;
-      };
-    }, [refreshIsCurator]),
-  );
 
   const open = async (cause: Cause) => {
     setSelected(cause);
@@ -92,39 +83,16 @@ export default function CurarScreen() {
     if (ok) close();
   };
 
-  if (checking) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.brand} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!isCurator) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.header}>
-          <Pressable style={styles.back} onPress={() => router.back()}>
-            <Text style={styles.backText}>‹</Text>
-          </Pressable>
-          <Text style={styles.title}>Curaduría</Text>
-        </View>
-        <View style={styles.center}>
-          <Text style={styles.muted}>No tenés acceso a esta pantalla.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.back} onPress={() => router.back()}>
-          <Text style={styles.backText}>‹</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Causas pendientes</Text>
+          <Text style={styles.subtitle}>Panel de curador</Text>
+        </View>
+        <Pressable style={styles.signOutBtn} onPress={signOut}>
+          <Text style={styles.signOutText}>Cerrar sesión</Text>
         </Pressable>
-        <Text style={styles.title}>Causas pendientes</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
@@ -154,7 +122,7 @@ export default function CurarScreen() {
 
       <Modal visible={!!selected} animationType="slide" onRequestClose={close}>
         <SafeAreaView style={styles.safe} edges={['top']}>
-          <View style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + Spacing.md }]}>
             <Pressable style={styles.back} onPress={close}>
               <Text style={styles.backText}>‹</Text>
             </Pressable>
@@ -254,6 +222,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+  },
+  signOutBtn: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  signOutText: { fontSize: 12, fontWeight: '700', color: Colors.muted },
   back: {
     width: 40,
     height: 40,
@@ -266,6 +250,7 @@ const styles = StyleSheet.create({
   },
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink, flexShrink: 1 },
+  subtitle: { fontSize: 11.5, color: Colors.muted, marginTop: 1 },
   list: { padding: Spacing.lg, gap: Spacing.md },
   card: {
     backgroundColor: '#fff',

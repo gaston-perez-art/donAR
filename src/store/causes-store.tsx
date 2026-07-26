@@ -159,6 +159,7 @@ type CausesContextValue = {
   getReviewInfo: (causeId: string) => Promise<ReviewInfo>;
   reviewCause: (causeId: string, action: ReviewAction, note?: string) => Promise<boolean>;
   resubmitCause: (causeId: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
 };
 
 const CausesContext = createContext<CausesContextValue | null>(null);
@@ -201,6 +202,18 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetDraft = useCallback(() => setDraftState(emptyDraft), []);
+
+  /** Cierra la sesión actual y arranca una anónima nueva, como recién instalada. */
+  const signOut = useCallback(async () => {
+    setLoading(true);
+    await supabase.auth.signOut();
+    setDraftState(emptyDraft);
+    const uid = await ensureSession();
+    setUserId(uid);
+    await fetchCauses(uid);
+    await refreshIsCurator();
+    setLoading(false);
+  }, [fetchCauses, refreshIsCurator]);
 
   const refresh = useCallback(() => fetchCauses(userId), [fetchCauses, userId]);
 
@@ -454,6 +467,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReviewInfo,
       reviewCause,
       resubmitCause,
+      signOut,
     }),
     [
       causes,
@@ -472,6 +486,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReviewInfo,
       reviewCause,
       resubmitCause,
+      signOut,
     ],
   );
 
