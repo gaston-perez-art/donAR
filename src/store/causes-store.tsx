@@ -246,11 +246,12 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    await supabase.from('cause_payouts').insert({
+    const { error: payoutError } = await supabase.from('cause_payouts').insert({
       cause_id: inserted.id,
       method: draft.payoutMethod,
       alias: draft.alias.trim(),
     });
+    if (payoutError) console.warn('guardar cobro error:', payoutError.message);
 
     const files: [EvidenceFile, 'dni-front' | 'dni-back' | 'selfie' | 'backup-doc'][] = [
       [draft.dniFront, 'dni-front'],
@@ -282,7 +283,10 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         paths[columnByKind[kind]] = path;
       }),
     );
-    await supabase.from('cause_evidence').insert({ cause_id: inserted.id, ...paths });
+    const { error: evidenceError } = await supabase
+      .from('cause_evidence')
+      .insert({ cause_id: inserted.id, ...paths });
+    if (evidenceError) console.warn('guardar evidencia error:', evidenceError.message);
 
     setDraftState(emptyDraft);
     await fetchCauses(uid);

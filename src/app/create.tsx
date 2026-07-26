@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -42,17 +43,23 @@ export default function CreateScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(new Date());
 
-  const canContinue =
-    draft.title.trim().length > 0 &&
-    draft.goal.trim().length > 0 &&
-    !!draft.dniFront &&
-    !!draft.dniBack &&
-    !!draft.selfie &&
-    !!draft.backupDoc;
+  const missing: string[] = [];
+  if (!draft.title.trim()) missing.push('el título');
+  if (!draft.goal.trim()) missing.push('el monto');
+  for (const { key, label } of EVIDENCE_FIELDS) {
+    if (!draft[key]) missing.push(label);
+  }
+  const canContinue = missing.length === 0;
 
   const pickEvidence = async (key: EvidenceKey) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
+    if (!perm.granted) {
+      Alert.alert(
+        'Necesitamos acceso a tus fotos',
+        'Sin permiso no podemos subir la evidencia. Activalo desde Ajustes del celular > DonAR > Fotos.',
+      );
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.6,
@@ -187,6 +194,9 @@ export default function CreateScreen() {
           onPress={() => router.push('/cobro')}>
           <Text style={styles.btnText}>Continuar</Text>
         </Pressable>
+        {!canContinue && (
+          <Text style={styles.missingText}>Falta: {missing.join(', ')}</Text>
+        )}
       </View>
 
       <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
@@ -295,6 +305,7 @@ const styles = StyleSheet.create({
   uploadIcon: { fontSize: 28, marginBottom: Spacing.sm },
   helper: { fontSize: 11.5, color: Colors.muted, marginTop: Spacing.sm, lineHeight: 16 },
   footer: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
+  missingText: { fontSize: 11.5, color: Colors.muted, textAlign: 'center', marginTop: Spacing.sm },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#AFC8DD' },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },

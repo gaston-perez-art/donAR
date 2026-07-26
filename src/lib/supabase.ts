@@ -2,8 +2,6 @@ import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
-import { decode as decodeBase64 } from 'base64-arraybuffer';
-import { File } from 'expo-file-system';
 
 // Project URL y publishable key. La key publishable es pública: es seguro
 // tenerla en el cliente. NUNCA poner acá la service/secret key.
@@ -88,16 +86,23 @@ export async function uploadEvidence(
   const uid = await ensureSession();
   if (!uid) return { path: null, error: 'No hay sesión' };
 
-  const ext = contentType.includes('pdf') ? 'pdf' : 'jpg';
-  const path = `${uid}/${causeId}/${kind}.${ext}`;
+  try {
+    const ext = contentType.includes('pdf') ? 'pdf' : 'jpg';
+    const path = `${uid}/${causeId}/${kind}.${ext}`;
 
-  const base64 = await new File(localUri).base64();
-  const { error } = await supabase.storage
-    .from('cause-evidence')
-    .upload(path, decodeBase64(base64), { contentType, upsert: true });
+    const response = await fetch(localUri);
+    const arrayBuffer = await response.arrayBuffer();
 
-  if (error) return { path: null, error: error.message };
-  return { path, error: null };
+    const { error } = await supabase.storage
+      .from('cause-evidence')
+      .upload(path, arrayBuffer, { contentType, upsert: true });
+
+    if (error) return { path: null, error: error.message };
+    return { path, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error subiendo el archivo';
+    return { path: null, error: message };
+  }
 }
 
 /** URL temporal (10 min) para ver un archivo de evidencia privado. */

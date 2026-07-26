@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
@@ -26,10 +26,23 @@ export default function ReviewScreen() {
   const publish = async () => {
     if (submitting) return;
     setSubmitting(true);
-    const created = await publishDraft();
-    if (created) {
-      router.navigate('/');
-    } else {
+    try {
+      const created = await publishDraft();
+      if (created) {
+        router.navigate('/');
+        return;
+      }
+      Alert.alert(
+        'No pudimos enviar tu causa',
+        'Revisá tu conexión e intentá de nuevo. Si el problema sigue, avisanos.',
+      );
+    } catch (err) {
+      console.warn('publish error:', err);
+      Alert.alert(
+        'No pudimos enviar tu causa',
+        'Revisá tu conexión e intentá de nuevo. Si el problema sigue, avisanos.',
+      );
+    } finally {
       setSubmitting(false);
     }
   };
