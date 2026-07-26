@@ -111,3 +111,36 @@ export async function getEvidenceUrl(path: string): Promise<string | null> {
   if (error) return null;
   return data.signedUrl;
 }
+
+/**
+ * Sube una foto de portada (opcional, pública) al bucket cause-covers.
+ * A diferencia de la evidencia, cualquiera la puede ver: es lo que se
+ * muestra en el feed. Devuelve la URL pública lista para usar.
+ */
+export async function uploadCoverPhoto(
+  localUri: string,
+  causeId: string,
+  index: number,
+  contentType: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const uid = await ensureSession();
+  if (!uid) return { url: null, error: 'No hay sesión' };
+
+  try {
+    const path = `${uid}/${causeId}/cover-${index}.jpg`;
+
+    const response = await fetch(localUri);
+    const arrayBuffer = await response.arrayBuffer();
+
+    const { error } = await supabase.storage
+      .from('cause-covers')
+      .upload(path, arrayBuffer, { contentType, upsert: true });
+
+    if (error) return { url: null, error: error.message };
+    const { data } = supabase.storage.from('cause-covers').getPublicUrl(path);
+    return { url: data.publicUrl, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error subiendo la foto';
+    return { url: null, error: message };
+  }
+}

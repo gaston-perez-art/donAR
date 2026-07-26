@@ -1,4 +1,14 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import {
+  Image,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import type { Cause } from '@/data/causes';
@@ -9,19 +19,46 @@ type Props = {
   mine?: boolean;
 };
 
+const COVER_HEIGHT = 180;
+
 /** Airbnb-style cause card: cover image area, title, progress bar and amounts. */
 export function CauseCard({ cause, onPress, mine }: Props) {
   const pct = Math.min(100, Math.round((cause.raised / cause.goal) * 100));
   const done = cause.status === 'completed';
+  const images = cause.imageUrls;
+  const [coverWidth, setCoverWidth] = useState(0);
+  const [activeImage, setActiveImage] = useState(0);
+
+  const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!coverWidth) return;
+    setActiveImage(Math.round(e.nativeEvent.contentOffset.x / coverWidth));
+  };
 
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       onPress={onPress}>
-      <View style={[styles.cover, { backgroundColor: cause.coverTint }]}>
-        {cause.imageUrl ? (
-          <Image source={{ uri: cause.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : null}
+      <View
+        style={[styles.cover, { backgroundColor: cause.coverTint }]}
+        onLayout={(e) => setCoverWidth(e.nativeEvent.layout.width)}>
+        {images.length > 0 && coverWidth > 0 && (
+          <ScrollView
+            horizontal
+            pagingEnabled
+            scrollEnabled={images.length > 1}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onScrollEnd}
+            style={StyleSheet.absoluteFill}>
+            {images.map((uri, i) => (
+              <Image
+                key={i}
+                source={{ uri }}
+                style={{ width: coverWidth, height: COVER_HEIGHT }}
+                resizeMode="cover"
+              />
+            ))}
+          </ScrollView>
+        )}
         <View style={styles.badgeRow}>
           <View style={styles.badge}>
             <View style={[styles.tick, done && styles.tickHappy]}>
@@ -37,7 +74,14 @@ export function CauseCard({ cause, onPress, mine }: Props) {
             </View>
           )}
         </View>
-        {!cause.imageUrl && <Text style={styles.emoji}>{cause.emoji}</Text>}
+        {images.length === 0 && <Text style={styles.emoji}>{cause.emoji}</Text>}
+        {images.length > 1 && (
+          <View style={styles.dots}>
+            {images.map((_, i) => (
+              <View key={i} style={[styles.dot, i === activeImage && styles.dotActive]} />
+            ))}
+          </View>
+        )}
       </View>
 
       <View style={styles.body}>
@@ -71,7 +115,7 @@ const styles = StyleSheet.create({
   card: { marginHorizontal: Spacing.lg, marginBottom: Spacing.xl },
   pressed: { opacity: 0.85 },
   cover: {
-    height: 180,
+    height: COVER_HEIGHT,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     justifyContent: 'flex-start',
@@ -108,6 +152,15 @@ const styles = StyleSheet.create({
   badgeText: { color: Colors.brandDark, fontSize: 11.5, fontWeight: '700' },
   badgeTextHappy: { color: '#0F7A49' },
   emoji: { position: 'absolute', bottom: 10, right: 14, fontSize: 44 },
+  dots: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.55)' },
+  dotActive: { backgroundColor: '#fff' },
   body: { paddingTop: Spacing.md, paddingHorizontal: Spacing.xs },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink, letterSpacing: -0.2 },
   who: { fontSize: 13, color: Colors.muted, marginTop: 3, marginBottom: Spacing.md },

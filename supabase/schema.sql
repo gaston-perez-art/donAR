@@ -28,7 +28,7 @@ create table causes (
   status cause_status not null default 'review',
   emoji text default '💙',
   cover_tint text default '#CFE6FB',
-  image_url text,
+  image_urls text[] not null default '{}',
   verified boolean not null default false,
   review_note text,
   reviewed_at timestamptz,
@@ -178,3 +178,19 @@ create policy "evidence file select curator" on storage.objects for select
     bucket_id = 'cause-evidence'
     and exists (select 1 from profiles p where p.id = auth.uid() and p.is_curator)
   );
+
+-- 26 jul 2026 (noche): fotos de portada opcionales (hasta 2), públicas.
+-- Distintas de la evidencia: cualquiera las puede ver, es lo que se muestra
+-- en el feed. image_url (una sola) se reemplaza por image_urls (array).
+alter table causes add column if not exists image_urls text[] not null default '{}';
+update causes set image_urls = array[image_url] where image_url is not null and image_urls = '{}';
+alter table causes drop column if exists image_url;
+
+insert into storage.buckets (id, name, public)
+values ('cause-covers', 'cause-covers', true)
+on conflict (id) do nothing;
+
+create policy "cover file insert own" on storage.objects for insert
+  with check (bucket_id = 'cause-covers' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "cover file public read" on storage.objects for select
+  using (bucket_id = 'cause-covers');

@@ -1,4 +1,4 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -21,6 +21,7 @@ import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type EvidenceFile } from '@/store/causes-store';
 
 type EvidenceKey = 'dniFront' | 'dniBack' | 'selfie' | 'backupDoc';
+type PhotoKey = EvidenceKey | 'coverPhoto1' | 'coverPhoto2';
 
 const EVIDENCE_FIELDS: { key: EvidenceKey; label: string; hint: string }[] = [
   { key: 'dniFront', label: 'DNI (frente)', hint: 'Foto legible del frente' },
@@ -29,12 +30,37 @@ const EVIDENCE_FIELDS: { key: EvidenceKey; label: string; hint: string }[] = [
   { key: 'backupDoc', label: 'Documento de respaldo', hint: 'Orden médica, presupuesto, etc.' },
 ];
 
+const COVER_FIELDS: { key: 'coverPhoto1' | 'coverPhoto2'; label: string }[] = [
+  { key: 'coverPhoto1', label: 'Foto 1' },
+  { key: 'coverPhoto2', label: 'Foto 2' },
+];
+
+const GOAL_PRESETS = [100000, 500000, 1000000, 3000000];
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const formatDMY = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function parseDMY(dmy: string): Date {
   const m = dmy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : new Date();
+  return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : startOfToday();
+}
+
+/** Válida de verdad (no "31/02") y no anterior a hoy. */
+function isValidFutureDate(dmy: string): boolean {
+  const m = dmy.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return false;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  const year = Number(m[3]);
+  const d = new Date(year, month - 1, day);
+  const isRealDate = d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+  return isRealDate && d.getTime() >= startOfToday().getTime();
 }
 
 export default function CreateScreen() {
@@ -42,21 +68,25 @@ export default function CreateScreen() {
   const { draft, setDraft } = useCauses();
   const [showPicker, setShowPicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(new Date());
+  // Fijo al montar: si fuera `new Date()` inline en el picker, se recalcula en
+  // cada render y el mínimo se corre mientras el usuario gira la rueda.
+  const [minDate] = useState(() => startOfToday());
 
   const missing: string[] = [];
   if (!draft.title.trim()) missing.push('el título');
   if (!draft.goal.trim()) missing.push('el monto');
+  if (!draft.deadline.trim() || !isValidFutureDate(draft.deadline)) missing.push('una fecha de cierre válida');
   for (const { key, label } of EVIDENCE_FIELDS) {
     if (!draft[key]) missing.push(label);
   }
   const canContinue = missing.length === 0;
 
-  const pickEvidence = async (key: EvidenceKey) => {
+  const pickPhoto = async (key: PhotoKey) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert(
         'Necesitamos acceso a tus fotos',
-        'Sin permiso no podemos subir la evidencia. Activalo desde Ajustes del celular > DonAR > Fotos.',
+        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > DonAR > Fotos.',
       );
       return;
     }
@@ -76,23 +106,23 @@ export default function CreateScreen() {
     setDraft({ goal: digits ? formatARS(Number(digits)) : '' });
   };
 
-  // Autoformato DD/MM/AAAA mientras escribe.
-  const onChangeDate = (text: string) => {
-    const d = text.replace(/\D/g, '').slice(0, 8);
-    let out = d;
-    if (d.length > 4) out = `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
-    else if (d.length > 2) out = `${d.slice(0, 2)}/${d.slice(2)}`;
-    setDraft({ deadline: out });
-  };
+  const goalDigits = draft.goal.replace(/\D/g, '');
+  const pickGoalPreset = (amount: number) => setDraft({ goal: formatARS(amount) });
 
   const openPicker = () => {
-    setTempDate(parseDMY(draft.deadline));
+    setTempDate(draft.deadline ? parseDMY(draft.deadline) : minDate);
     setShowPicker(true);
   };
 
   const confirmPicker = () => {
     setDraft({ deadline: formatDMY(tempDate) });
     setShowPicker(false);
+  };
+
+  // Android muestra su propio diálogo nativo: se setea la fecha en el onChange.
+  const onAndroidDateChange = (event: DateTimePickerEvent, d?: Date) => {
+    setShowPicker(false);
+    if (event.type === 'set' && d) setDraft({ deadline: formatDMY(d) });
   };
 
   return (
@@ -129,45 +159,70 @@ export default function CreateScreen() {
             />
           </Field>
 
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Field label="Monto que necesitás">
-                <TextInput
-                  style={styles.input}
-                  placeholder="$3.000.000"
-                  placeholderTextColor={Colors.muted}
-                  value={draft.goal}
-                  onChangeText={onChangeGoal}
-                  keyboardType="number-pad"
-                />
-              </Field>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Field label="Cierre">
-                <View style={styles.dateWrap}>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD/MM/AAAA"
-                    placeholderTextColor={Colors.muted}
-                    value={draft.deadline}
-                    onChangeText={onChangeDate}
-                    keyboardType="number-pad"
-                    maxLength={10}
-                  />
-                  <Pressable style={styles.calBtn} onPress={openPicker} hitSlop={8}>
-                    <Text style={styles.calIcon}>📅</Text>
+          <Field label="Monto que necesitás">
+            <TextInput
+              style={styles.input}
+              placeholder="$3.000.000"
+              placeholderTextColor={Colors.muted}
+              value={draft.goal}
+              onChangeText={onChangeGoal}
+              keyboardType="number-pad"
+            />
+            <View style={styles.goalChips}>
+              {GOAL_PRESETS.map((amount) => {
+                const sel = String(amount) === goalDigits;
+                return (
+                  <Pressable
+                    key={amount}
+                    style={[styles.goalChip, sel && styles.goalChipSel]}
+                    onPress={() => pickGoalPreset(amount)}>
+                    <Text style={[styles.goalChipText, sel && styles.goalChipTextSel]}>
+                      {formatARS(amount)}
+                    </Text>
                   </Pressable>
-                </View>
-              </Field>
+                );
+              })}
             </View>
-          </View>
+          </Field>
+
+          <Field label="Fecha de cierre">
+            <Pressable style={styles.dateField} onPress={openPicker}>
+              <Text style={draft.deadline ? styles.dateText : styles.datePlaceholder}>
+                {draft.deadline || 'Tocá para elegir una fecha'}
+              </Text>
+              <Text style={styles.calIcon}>📅</Text>
+            </Pressable>
+          </Field>
+
+          <Field label="Fotos de portada (opcional)">
+            <View style={styles.evidenceGrid}>
+              {COVER_FIELDS.map(({ key, label }) => {
+                const file = draft[key];
+                return (
+                  <Pressable key={key} style={styles.coverSlot} onPress={() => pickPhoto(key)}>
+                    {file ? (
+                      <Image source={{ uri: file.uri }} style={styles.evidenceThumb} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.uploadIcon}>🖼️</Text>
+                    )}
+                    <Text style={styles.evidenceLabel}>{label}</Text>
+                    <Text style={styles.evidenceHint}>{file ? 'Toqué para cambiar' : 'Sin foto'}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.helper}>
+              Se ven en el feed. Si subís las dos, la gente puede deslizar entre ambas. Si no subís
+              ninguna, mostramos un color con un ícono.
+            </Text>
+          </Field>
 
           <Field label="Evidencia para verificar tu causa">
             <View style={styles.evidenceGrid}>
               {EVIDENCE_FIELDS.map(({ key, label, hint }) => {
                 const file = draft[key];
                 return (
-                  <Pressable key={key} style={styles.evidenceSlot} onPress={() => pickEvidence(key)}>
+                  <Pressable key={key} style={styles.evidenceSlot} onPress={() => pickPhoto(key)}>
                     {file ? (
                       <Image source={{ uri: file.uri }} style={styles.evidenceThumb} resizeMode="cover" />
                     ) : (
@@ -199,28 +254,42 @@ export default function CreateScreen() {
         )}
       </View>
 
-      <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowPicker(false)}>
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.sheetTitle}>Elegí la fecha de cierre</Text>
-            <DateTimePicker
-              value={tempDate}
-              mode="date"
-              display="spinner"
-              minimumDate={new Date()}
-              onChange={(_e, d) => d && setTempDate(d)}
-            />
-            <View style={styles.sheetActions}>
-              <Pressable style={styles.sheetBtn} onPress={() => setShowPicker(false)}>
-                <Text style={styles.sheetCancel}>Cancelar</Text>
-              </Pressable>
-              <Pressable style={[styles.sheetBtn, styles.sheetPrimary]} onPress={confirmPicker}>
-                <Text style={styles.sheetDone}>Listo</Text>
-              </Pressable>
-            </View>
+      {Platform.OS === 'android' && showPicker && (
+        <DateTimePicker
+          value={tempDate}
+          mode="date"
+          display="calendar"
+          minimumDate={minDate}
+          onChange={onAndroidDateChange}
+        />
+      )}
+
+      {Platform.OS === 'ios' && (
+        <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
+          <Pressable style={styles.overlay} onPress={() => setShowPicker(false)}>
+            <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.sheetTitle}>Elegí la fecha de cierre</Text>
+              <DateTimePicker
+                value={tempDate}
+                mode="date"
+                display="inline"
+                minimumDate={minDate}
+                themeVariant="light"
+                onChange={(_e, d) => d && setTempDate(d)}
+                style={styles.iosPicker}
+              />
+              <View style={styles.sheetActions}>
+                <Pressable style={styles.sheetBtn} onPress={() => setShowPicker(false)}>
+                  <Text style={styles.sheetCancel}>Cancelar</Text>
+                </Pressable>
+                <Pressable style={[styles.sheetBtn, styles.sheetPrimary]} onPress={confirmPicker}>
+                  <Text style={styles.sheetDone}>Listo</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -267,20 +336,33 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     backgroundColor: '#fff',
   },
-  dateWrap: {
+  dateField: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     borderWidth: 1.5,
     borderColor: Colors.line,
     borderRadius: Radius.md,
     backgroundColor: '#fff',
-    paddingRight: 10,
+    padding: 15,
   },
-  dateInput: { flex: 1, padding: 15, fontSize: 15, color: Colors.ink },
-  calBtn: { paddingHorizontal: 4 },
+  dateText: { fontSize: 15, color: Colors.ink },
+  datePlaceholder: { fontSize: 15, color: Colors.muted },
   calIcon: { fontSize: 20 },
+  iosPicker: { alignSelf: 'center', marginVertical: Spacing.sm },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
-  row: { flexDirection: 'row', gap: Spacing.md },
+  goalChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.sm },
+  goalChip: {
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+  },
+  goalChipSel: { borderColor: Colors.brand, backgroundColor: Colors.skySoft },
+  goalChipText: { fontSize: 12.5, fontWeight: '700', color: Colors.ink },
+  goalChipTextSel: { color: Colors.brandDark },
   evidenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   evidenceSlot: {
     width: '47%',
@@ -292,6 +374,17 @@ const styles = StyleSheet.create({
     padding: 16,
     alignItems: 'center',
     backgroundColor: Colors.skyTint,
+    overflow: 'hidden',
+  },
+  coverSlot: {
+    width: '47%',
+    flexGrow: 1,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    padding: 16,
+    alignItems: 'center',
+    backgroundColor: '#fff',
     overflow: 'hidden',
   },
   evidenceThumb: {

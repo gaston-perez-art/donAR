@@ -5,42 +5,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
+/** CBU son 22 dígitos exactos. Cualquier otra cosa se trata como alias. */
+function isCBU(text: string): boolean {
+  return /^\d{22}$/.test(text.replace(/\s/g, ''));
+}
+
 export default function CobroScreen() {
   const router = useRouter();
   const { draft, setDraft } = useCauses();
 
-  const Option = ({
-    value,
-    icon,
-    title,
-    subtitle,
-  }: {
-    value: 'mp' | 'cbu';
-    icon: string;
-    title: string;
-    subtitle: string;
-  }) => {
-    const selected = draft.payoutMethod === value;
-    return (
-      <Pressable
-        style={[styles.opt, selected && styles.optSel]}
-        onPress={() => setDraft({ payoutMethod: value })}>
-        <View style={styles.optIcon}>
-          <Text style={{ fontSize: 20 }}>{icon}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.optTitle}>{title}</Text>
-          <Text style={styles.optSub}>{subtitle}</Text>
-        </View>
-        <View style={[styles.radio, selected && styles.radioSel]} />
-      </Pressable>
-    );
+  const onChangeAlias = (alias: string) => {
+    setDraft({ alias, payoutMethod: isCBU(alias) ? 'cbu' : 'mp' });
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.back} onPress={() => router.back()}>
+        <Pressable style={styles.back} onPress={() => router.replace('/create')}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>¿Dónde recibís el dinero?</Text>
@@ -52,18 +33,15 @@ export default function CobroScreen() {
           causa.
         </Text>
 
-        <Option value="mp" icon="💙" title="Alias de Mercado Pago" subtitle="Recomendado. Fácil de compartir" />
-        <Option value="cbu" icon="🏦" title="CBU o alias bancario" subtitle="Tu cuenta bancaria" />
-
         <View style={styles.field}>
           <Text style={styles.label}>Alias o CBU</Text>
           <TextInput
             style={styles.input}
-            placeholder="mateo.gomez.mp"
+            placeholder="mateo.gomez.mp o tu CBU de 22 dígitos"
             placeholderTextColor={Colors.muted}
             autoCapitalize="none"
             value={draft.alias}
-            onChangeText={(alias) => setDraft({ alias })}
+            onChangeText={onChangeAlias}
           />
         </View>
 
@@ -113,36 +91,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   body: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   intro: { fontSize: 13.5, color: Colors.muted, lineHeight: 20, marginVertical: Spacing.md },
-  opt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    borderWidth: 1.5,
-    borderColor: Colors.line,
-    borderRadius: Radius.md,
-    padding: 15,
-    marginBottom: Spacing.md,
-    backgroundColor: '#fff',
-  },
-  optSel: { borderColor: Colors.brand, backgroundColor: Colors.skySoft },
-  optIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: Colors.skyTint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optTitle: { fontSize: 14.5, fontWeight: '700', color: Colors.ink },
-  optSub: { fontSize: 11.5, color: Colors.muted, marginTop: 2 },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: Colors.line,
-  },
-  radioSel: { borderColor: Colors.brand, backgroundColor: Colors.brand },
   field: { marginVertical: Spacing.md },
   label: { fontSize: 12.5, color: Colors.muted, fontWeight: '600', marginBottom: Spacing.sm },
   input: {

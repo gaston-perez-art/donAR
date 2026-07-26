@@ -72,7 +72,7 @@ export default function ReviewScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.back} onPress={() => router.back()}>
+        <Pressable style={styles.back} onPress={() => router.replace('/cobro')}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>Revisión</Text>

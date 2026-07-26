@@ -6,8 +6,8 @@
  * sesión en el celu) y publica la causa a nombre de esa sesión, igual que
  * hace la app al crear una causa. No usa ninguna clave privada.
  *
- * Requiere: haber corrido antes en el SQL Editor de Supabase el ALTER al
- * final de supabase/schema.sql (agrega la columna image_url).
+ * Requiere: haber corrido antes en el SQL Editor de Supabase las migraciones
+ * al final de supabase/schema.sql (columna image_urls, etc).
  *
  * Uso: node scripts/seed-demo-cause.mjs
  */
@@ -38,7 +38,7 @@ async function main() {
       verified: true,
       emoji: '🍲',
       cover_tint: '#FBE9CF',
-      image_url: 'https://picsum.photos/seed/donar-comedor-los-pinos/800/600',
+      image_urls: ['https://picsum.photos/seed/donar-comedor-los-pinos/800/600'],
     })
     .select()
     .single();

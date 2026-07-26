@@ -5,7 +5,8 @@ export type Cause = {
   who: string;
   emoji: string;
   coverTint: string;
-  imageUrl?: string | null;
+  /** Fotos de portada, opcionales, hasta 2. Vacío cae al emoji + color. */
+  imageUrls: string[];
   raised: number;
   goal: number;
   daysLeft: number;

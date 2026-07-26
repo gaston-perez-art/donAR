@@ -1,6 +1,15 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
@@ -28,6 +37,8 @@ export default function CauseDetailScreen() {
   const cause = getCause(String(id));
   const [contribs, setContribs] = useState<Contribution[]>([]);
   const [resubmitting, setResubmitting] = useState(false);
+  const [heroWidth, setHeroWidth] = useState(0);
+  const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
     if (id) getContributions(String(id)).then(setContribs);
@@ -102,17 +113,39 @@ export default function CauseDetailScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-        <View style={[styles.hero, { backgroundColor: cause.coverTint }]}>
-          {cause.imageUrl ? (
-            <Image source={{ uri: cause.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          ) : null}
+        <View
+          style={[styles.hero, { backgroundColor: cause.coverTint }]}
+          onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}>
+          {cause.imageUrls.length > 0 && heroWidth > 0 && (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              scrollEnabled={cause.imageUrls.length > 1}
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+                if (!heroWidth) return;
+                setActiveImage(Math.round(e.nativeEvent.contentOffset.x / heroWidth));
+              }}
+              style={StyleSheet.absoluteFill}>
+              {cause.imageUrls.map((uri, i) => (
+                <Image key={i} source={{ uri }} style={{ width: heroWidth, height: 200 }} resizeMode="cover" />
+              ))}
+            </ScrollView>
+          )}
           <View style={styles.badge}>
             <View style={[styles.tick, done && { backgroundColor: Colors.happy }]}>
               <Text style={styles.tickText}>✓</Text>
             </View>
             <Text style={styles.badgeText}>{done ? 'Meta alcanzada' : 'Causa verificada por DonAR'}</Text>
           </View>
-          {!cause.imageUrl && <Text style={styles.heroEmoji}>{cause.emoji}</Text>}
+          {cause.imageUrls.length === 0 && <Text style={styles.heroEmoji}>{cause.emoji}</Text>}
+          {cause.imageUrls.length > 1 && (
+            <View style={styles.heroDots}>
+              {cause.imageUrls.map((_, i) => (
+                <View key={i} style={[styles.heroDot, i === activeImage && styles.heroDotActive]} />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.body}>
@@ -235,6 +268,15 @@ const styles = StyleSheet.create({
   tickText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   badgeText: { color: Colors.brandDark, fontSize: 11.5, fontWeight: '700' },
   heroEmoji: { position: 'absolute', bottom: 16, right: 18, fontSize: 58 },
+  heroDots: {
+    position: 'absolute',
+    bottom: 14,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  heroDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.55)' },
+  heroDotActive: { backgroundColor: '#fff' },
   body: { padding: Spacing.xl },
   causeTitle: { fontSize: 20, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3, lineHeight: 26 },
   who: { fontSize: 13, color: Colors.muted, marginTop: 8, marginBottom: 16 },

@@ -9,7 +9,13 @@ import {
 } from 'react';
 
 import type { Cause } from '@/data/causes';
-import { ensureSession, isCurator as fetchIsCurator, supabase, uploadEvidence } from '@/lib/supabase';
+import {
+  ensureSession,
+  isCurator as fetchIsCurator,
+  supabase,
+  uploadCoverPhoto,
+  uploadEvidence,
+} from '@/lib/supabase';
 
 /**
  * Data layer. Ahora habla con Supabase. Las pantallas no saben de dónde viene
@@ -29,6 +35,9 @@ export type CauseDraft = {
   dniBack: EvidenceFile;
   selfie: EvidenceFile;
   backupDoc: EvidenceFile;
+  /** Fotos de portada, opcionales. */
+  coverPhoto1: EvidenceFile;
+  coverPhoto2: EvidenceFile;
 };
 
 const emptyDraft: CauseDraft = {
@@ -42,6 +51,8 @@ const emptyDraft: CauseDraft = {
   dniBack: null,
   selfie: null,
   backupDoc: null,
+  coverPhoto1: null,
+  coverPhoto2: null,
 };
 
 const TINTS = ['#CFE6FB', '#D7ECFB', '#E9F5FE', '#C7F0DC'];
@@ -74,7 +85,7 @@ function mapRow(row: any, userId: string | null): Cause {
     who: mine ? 'Vos' : 'Persona verificada',
     emoji: row.emoji || '💙',
     coverTint: row.cover_tint || '#CFE6FB',
-    imageUrl: row.image_url ?? null,
+    imageUrls: row.image_urls ?? [],
     createdAt: row.created_at,
     raised,
     goal,
@@ -287,6 +298,28 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       .from('cause_evidence')
       .insert({ cause_id: inserted.id, ...paths });
     if (evidenceError) console.warn('guardar evidencia error:', evidenceError.message);
+
+    // Fotos de portada: opcionales, en paralelo, públicas (no evidencia).
+    const coverFiles = [draft.coverPhoto1, draft.coverPhoto2].filter(
+      (f): f is NonNullable<EvidenceFile> => !!f,
+    );
+    if (coverFiles.length > 0) {
+      const uploaded = await Promise.all(
+        coverFiles.map((file, i) => uploadCoverPhoto(file.uri, inserted.id, i, file.mimeType)),
+      );
+      const imageUrls = uploaded.map((r) => r.url).filter((u): u is string => !!u);
+      uploaded.forEach((r) => {
+        if (r.error) console.warn('subir foto de portada error:', r.error);
+      });
+      if (imageUrls.length > 0) {
+        const { error: coverError } = await supabase
+          .from('causes')
+          .update({ image_urls: imageUrls })
+          .eq('id', inserted.id);
+        if (coverError) console.warn('guardar fotos de portada error:', coverError.message);
+        else inserted.image_urls = imageUrls;
+      }
+    }
 
     setDraftState(emptyDraft);
     await fetchCauses(uid);
