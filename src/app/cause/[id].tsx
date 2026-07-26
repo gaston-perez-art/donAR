@@ -1,17 +1,33 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type Contribution } from '@/store/causes-store';
 
+const STATUS_COPY: Record<string, { title: string; sub: string }> = {
+  review: {
+    title: 'Tu causa está en revisión',
+    sub: 'Un curador está verificando tu identidad, tu documentación y tu cuenta de cobro.',
+  },
+  needs_info: {
+    title: 'Te pedimos más información',
+    sub: 'Contactanos por el medio que usaste para crear la causa y reenviá lo que falta.',
+  },
+  rejected: {
+    title: 'Tu causa fue rechazada',
+    sub: '',
+  },
+};
+
 export default function CauseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getCause, getContributions } = useCauses();
+  const { getCause, getContributions, resubmitCause } = useCauses();
   const cause = getCause(String(id));
   const [contribs, setContribs] = useState<Contribution[]>([]);
+  const [resubmitting, setResubmitting] = useState(false);
 
   useEffect(() => {
     if (id) getContributions(String(id)).then(setContribs);
@@ -35,6 +51,46 @@ export default function CauseDetailScreen() {
 
   const pct = Math.min(100, Math.round((cause.raised / cause.goal) * 100));
   const done = cause.status === 'completed';
+  const pending = cause.mine && cause.status !== 'active' && cause.status !== 'completed';
+
+  const resubmit = async () => {
+    if (resubmitting) return;
+    setResubmitting(true);
+    await resubmitCause(cause.id);
+    setResubmitting(false);
+  };
+
+  if (pending) {
+    const copy = STATUS_COPY[cause.status] ?? STATUS_COPY.review;
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.header}>
+          <Pressable style={styles.back} onPress={() => router.back()}>
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
+          <Text style={styles.title}>Tu causa</Text>
+        </View>
+        <ScrollView contentContainerStyle={styles.pendingBody}>
+          <Text style={{ fontSize: 44 }}>{cause.status === 'rejected' ? '✕' : '⏳'}</Text>
+          <Text style={styles.h2}>{copy.title}</Text>
+          {copy.sub ? <Text style={styles.pendingSub}>{copy.sub}</Text> : null}
+          {cause.reviewNote ? (
+            <View style={styles.noteCard}>
+              <Text style={styles.noteLabel}>Mensaje del curador</Text>
+              <Text style={styles.noteText}>{cause.reviewNote}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+        {cause.status === 'needs_info' && (
+          <View style={styles.cta}>
+            <Pressable style={styles.btn} onPress={resubmit} disabled={resubmitting}>
+              <Text style={styles.btnText}>{resubmitting ? 'Enviando...' : 'Reenviar a revisión'}</Text>
+            </Pressable>
+          </View>
+        )}
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -47,13 +103,16 @@ export default function CauseDetailScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
         <View style={[styles.hero, { backgroundColor: cause.coverTint }]}>
+          {cause.imageUrl ? (
+            <Image source={{ uri: cause.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : null}
           <View style={styles.badge}>
             <View style={[styles.tick, done && { backgroundColor: Colors.happy }]}>
               <Text style={styles.tickText}>✓</Text>
             </View>
             <Text style={styles.badgeText}>{done ? 'Meta alcanzada' : 'Causa verificada por DonAR'}</Text>
           </View>
-          <Text style={styles.heroEmoji}>{cause.emoji}</Text>
+          {!cause.imageUrl && <Text style={styles.heroEmoji}>{cause.emoji}</Text>}
         </View>
 
         <View style={styles.body}>
@@ -135,6 +194,25 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.muted, fontSize: 13.5, lineHeight: 20 },
+  pendingBody: { alignItems: 'center', padding: Spacing.xl, paddingTop: Spacing.xxl },
+  h2: { fontSize: 20, fontWeight: '800', color: Colors.ink, letterSpacing: -0.4, marginTop: Spacing.lg, textAlign: 'center' },
+  pendingSub: {
+    fontSize: 14,
+    color: Colors.muted,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    maxWidth: 300,
+  },
+  noteCard: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.skyTint,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    marginTop: Spacing.xl,
+  },
+  noteLabel: { fontSize: 11.5, fontWeight: '700', color: Colors.brandDark, marginBottom: 4 },
+  noteText: { fontSize: 13.5, color: '#2A4A5E', lineHeight: 19 },
   hero: { height: 200, padding: Spacing.md, justifyContent: 'flex-start' },
   badge: {
     flexDirection: 'row',

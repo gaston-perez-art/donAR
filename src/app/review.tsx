@@ -1,6 +1,7 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
@@ -11,10 +12,17 @@ export default function ReviewScreen() {
   const { draft, publishDraft } = useCauses();
   const [submitting, setSubmitting] = useState(false);
 
+  // La pantalla vive en un Tab y no se desmonta: si no se resetea acá, un
+  // segundo intento arranca con submitting=true y el botón queda tildado.
+  useFocusEffect(
+    useCallback(() => {
+      setSubmitting(false);
+    }, []),
+  );
+
   const goalNumber = parseInt(draft.goal.replace(/\D/g, ''), 10) || 0;
 
-  // Simulates curator approval so the creation flow can be tested end to end.
-  // The submitting guard prevents a double tap creating two causes.
+  // El submitting guard evita que un doble tap cree dos causas.
   const publish = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -64,12 +72,19 @@ export default function ReviewScreen() {
           style={[styles.btn, submitting && styles.btnDisabled]}
           onPress={publish}
           disabled={submitting}>
-          <Text style={styles.btnText}>
-            {submitting ? 'Publicando...' : 'Publicar (simular aprobación)'}
-          </Text>
+          {submitting ? (
+            <View style={styles.btnRow}>
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.btnText}>Subiendo evidencia...</Text>
+            </View>
+          ) : (
+            <Text style={styles.btnText}>Enviar a revisión</Text>
+          )}
         </Pressable>
         <Text style={styles.footnote}>
-          En el MVP real, este paso lo hace la curaduría. Acá lo simulamos para probar el flujo.
+          {submitting
+            ? 'Puede tardar unos segundos, son 4 archivos.'
+            : 'Un curador revisa tu identidad, tu documentación y tu cuenta de cobro antes de publicarla.'}
         </Text>
       </View>
     </SafeAreaView>
@@ -185,5 +200,6 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#AFC8DD' },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   footnote: { fontSize: 11, color: Colors.muted, textAlign: 'center', marginTop: Spacing.sm, lineHeight: 15 },
 });

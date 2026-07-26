@@ -14,7 +14,7 @@ export function Placeholder({ emoji, title, subtitle }: Props) {
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.sub}>{subtitle}</Text>
         <View style={styles.pill}>
-          <Text style={styles.pillText}>Próxima rebanada</Text>
+          <Text style={styles.pillText}>Próximamente</Text>
         </View>
       </View>
     </SafeAreaView>

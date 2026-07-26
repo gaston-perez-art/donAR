@@ -2,7 +2,7 @@
 
 Archivo vivo. Se lee al inicio de cada sesión y se actualiza al cerrar. Registra estado, decisiones tomadas, supuestos abiertos y próximos pasos. Complementa (no reemplaza) el "Paper fundacional" y el "Contexto del proyecto y como trabajo".
 
-Última actualización: 24 de julio de 2026 (sesión: flujo de verificación).
+Última actualización: 26 de julio de 2026 (sesión: curaduría real con evidencia, identidad cross-device, QA del flujo de donación).
 
 ---
 
@@ -22,31 +22,42 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 - Prohibido el guion largo (—) en cualquier texto.
 - Se arranca por el problema y el usuario, no por la tecnología. Validar antes de invertir.
 - Antes de codear: ficha del proyecto cerrada + stack propuesto con OK de Gastón.
+- Cuando una tarea tiene varias piezas grandes (schema + storage + UI + pantalla nueva), armar y mostrar una lista de tareas para no perder el hilo, e ir marcando el avance real.
 
 ---
 
 ## 3. Estado general del proyecto
 
-- **Etapa actual:** construcción del POC móvil en marcha (NO es solo definición de producto: ya hay código funcionando).
-- **Repo:** carpeta local `~/Documents/donAR`, git en rama `main`, remoto `origin` = https://github.com/gaston-perez-art/donAR.git. Local sincronizado con `origin/main` (commit c39ca02 al 24 jul 2026). CONFIRMADO por Gastón: commitear directo a `main` es intencional para el POC (no hace falta rama+PR). CONFIRMADO: Expo SDK 54 es el correcto (ignorar la mención a v57 en AGENTS.md).
-- **Documentos base:** Paper fundacional v0.2 y manual de trabajo. Copias también dentro del repo en `docs/` (CONTEXTO.md, paper-fundacional-donar.md, prototipo-donar.html).
+- **Etapa actual:** POC móvil con flujo de donación y curaduría real de punta a punta funcionando (feed → detalle → donar, y crear causa → evidencia → revisión de un curador → publicada). Falta integración real de pago (Mercado Pago) y verificación automática de identidad; ambas conscientemente fuera del MVP.
+- **Repo:** carpeta local `~/Documents/donAR`, git en rama `main`, remoto `origin` = https://github.com/gaston-perez-art/donAR.git. Commitear directo a `main` es intencional para el POC (confirmado por Gastón, no hace falta rama+PR).
+- **Documentos base:** Paper fundacional v0.2, manual de trabajo, y `Flujo de verificacion de causas.md` (v0.1, define qué verifica el curador y la máquina de estados). Copias también en `docs/` (CONTEXTO.md, paper-fundacional-donar.md, prototipo-donar.html).
 - **Ficha del proyecto:** definida. Stack decidido (ver sección 4).
 
 ### Avance de rebanadas (código real, no solo README)
 - [x] Base Expo corriendo + navegación por tabs con botón + centrado.
-- [x] Feed de causas verificadas (arrancó con mock; hay `src/data/causes.ts`).
-- [x] Detalle de causa + donación con registro en Supabase (pantallas `cause/[id]`, `donate/[id]`).
-- [x] Crear causa e2e + store local (`create.tsx`, `src/store/causes-store.tsx`).
-- [~] Cobro (`cobro.tsx`) y pantalla de gracias (`gracias.tsx`) y review (`review.tsx`) presentes; revisar estado real.
-- [x] Perfil único (donado + recibido), medallas y nivel con datos reales de Supabase (24 jul). Falta commitear (ver nota abajo).
-- [ ] Ranking mensual + lógica de puntos (placeholder).
+- [x] Feed de causas verificadas, con datos reales de Supabase (`causes_public`).
+- [x] Detalle de causa + donación con registro en Supabase (pantallas `cause/[id]`, `donate/[id]`), con trazabilidad visible (lista de aportes).
+- [x] Crear causa e2e con store local (`create.tsx`, `src/store/causes-store.tsx`).
+- [x] **Curaduría real** (26 jul): la causa nace en estado `review`, no se auto-aprueba más. Se pide evidencia (DNI frente/dorso, selfie, documento de respaldo) subida a un bucket privado de Storage. Un curador (por ahora Gastón, marcado a mano con `profiles.is_curator`) la revisa en `/curar` y aprueba, rechaza o pide info. El creador ve el estado de su causa en el feed ("Tus causas") y en el detalle, con motivo si corresponde y botón para reenviar tras un "pedido de info".
+- [x] Perfil único (donado + recibido), medallas y nivel con datos reales de Supabase.
+- [x] **Identidad cross-device** (26 jul): vincular la sesión anónima a un mail real (código de 6 dígitos, no magic link, para no depender de deep linking en Expo Go). Permite recuperar el historial desde otro dispositivo. Requirió SMTP propio (Resend) porque Supabase no deja editar las plantillas de mail sin uno.
+- [x] Imagen ilustrativa opcional en la causa (`image_url`), con fallback al emoji + color de siempre.
+- [x] Limpieza: eliminado todo el scaffold muerto del template de Expo (`app-tabs`, `themed-text/view`, `collapsible`, `animated-icon`, `use-theme`, `use-color-scheme`, `constants/theme.ts`) que nunca se conectó a la app real. `npx tsc --noEmit` corre sin errores.
+- [ ] Ranking mensual + lógica de puntos (placeholder, dice "Próximamente").
+- [ ] Actividad (placeholder, dice "Próximamente"). Decisión de Gastón: se deja TBD, valor post-MVP.
 - [ ] Causa finalizada (happy / unhappy).
+- [ ] Integración real de pago (Mercado Pago). Hoy `donate()` es un insert directo en Supabase, sin pasarela real (consistente con la decisión "MVP conecta, no custodia").
+- [ ] Reenvío con edición real tras "pedido de info": hoy el botón "Reenviar a revisión" solo cambia el estado, no permite editar los datos de la causa antes de reenviar. Simplificación consciente, documentada como deuda.
 
 ### Estructura del repo (resumen)
-`src/app/` rutas Expo Router (index=feed, cause/[id], donate/[id], create, cobro, gracias, review, activity, ranking, profile, explore). `src/components/` (cause-card, tab bar, ui). `src/constants/` (donar-theme, theme). `src/lib/supabase.ts`. `src/store/causes-store.tsx`. `supabase/schema.sql`.
+`src/app/` rutas Expo Router: `index` (feed), `cause/[id]`, `donate/[id]`, `create`, `cobro`, `review`, `gracias`, `curar` (panel de curador), `activity`/`ranking` (placeholders), `profile`. `src/components/` (cause-card, donar-tab-bar, placeholder, ui/). `src/constants/donar-theme.ts` (única fuente de theme; `constants/theme.ts` viejo del scaffold, eliminado). `src/lib/supabase.ts` (cliente + auth: sesión anónima, vincular/loguear con mail y código, evidencia a Storage). `src/store/causes-store.tsx` (toda la data layer: causas, donaciones, actividad, curaduría). `supabase/schema.sql` (esquema completo + migraciones al final, fecha por fecha). `scripts/seed-demo-cause.mjs` (siembra una causa que no es de quien lo corre, útil para probar donación sin que cuente como "recibido" propio).
+
+### Infraestructura externa (fuera del repo, config manual en dashboards)
+- **Supabase**: proyecto `fyaxvofpqqlvtudmnmxi`. Auth con sesiones anónimas por default, ascendidas a cuenta real por mail. Storage: bucket privado `cause-evidence` (RLS: solo dueño de la causa y curador leen). SQL Editor es la única vía de migración (no hay CLI linkeado ni service role key en el repo).
+- **Resend**: SMTP custom para que Supabase pueda mandar mails con plantilla editada (código de 6 dígitos en vez de magic link). Sender de prueba `onboarding@resend.dev`, sin dominio propio verificado todavía: probablemente solo entrega al mail con el que Gastón se registró en Resend. Verificar dominio propio es un paso futuro si se necesita mandar a donantes reales.
 
 ### Versión de Expo (resuelto)
-Usar Expo SDK 54, confirmado por Gastón. La mención a v57 en AGENTS.md se ignora.
+Usar Expo SDK 54, confirmado por Gastón.
 
 ---
 
@@ -55,30 +66,33 @@ Usar Expo SDK 54, confirmado por Gastón. La mención a v57 en AGENTS.md se igno
 | Decisión | Qué se decidió | Por qué / qué se resigna |
 |---|---|---|
 | Flujo del dinero | Híbrido por etapas. MVP: la app conecta, no custodia (transferencia con comprobante o gateway que liquida directo al beneficiado). Etapa 2: custodia con retención automática del fee | MVP liviano en lo legal, valida demanda sin ser fintech regulada. Se resigna control sobre el dinero; se compensa con verificación y trazabilidad |
-| Modelo de negocio | Fee = porcentaje sobre el total recaudado por causa que cierra. % exacto por definir, techo de percepción tolerable ~5% (referencia Maratea) | Alinea negocio con éxito de la causa: la app cobra solo cuando el dinero llega. Se resigna: rinde poco hasta tener escala |
+| Modelo de negocio | Fee = porcentaje sobre el total recaudado por causa que cierra. % exacto por definir, techo de percepción tolerable ~5% (referencia Maratea) | Alinea negocio con éxito de la causa. Se resigna: rinde poco hasta tener escala |
 | Gamificación | MVP por reconocimiento no monetario (niveles, medallas, rachas, historial). Beneficios materiales de sponsors = fase 2 | Sin incentivo perverso; permite medir si vuelven por la causa o por el premio |
-| Antifraude MVP | Curaduría manual: un curador humano aprueba/rechaza cada causa antes de publicar | A baja escala, ser el cuello de botella es fortaleza. Se resigna escalabilidad (se sistematiza en fase 2) |
-| Plataforma | App móvil (Android + iOS) + landing web | El público vive en el celular; la landing da credibilidad y permite compartir. Supuesto: si el volumen inicial se sostiene con web responsive, se posterga lo nativo |
-| Verificación: identidad | DNI (frente/dorso) + selfie con DNI, revisión manual del curador | Suficiente y barato a baja escala. Servicio externo (Renaper/biometría) = fase 2. Deuda: comparar a ojo no frena un documento falso bien hecho |
-| Verificación: SLA | 24 hs hábiles para revisar una causa | Buena experiencia para necesidades urgentes. Costo: exige disponibilidad casi diaria del curador; primer número que presiona al escalar |
-| Verificación: destino del dinero | Al CBU/alias del beneficiado, a nombre del mismo DNI. Destino declarado queda registrado y visible. Pago directo al proveedor opcional para salud de monto alto | Simple y encaja con "conectar sin custodiar". Se resigna garantía de uso; se mitiga con identidad expuesta + trazabilidad pública |
+| Antifraude MVP | Curaduría manual: un curador humano aprueba/rechaza cada causa antes de publicar. Implementado en código el 26 jul: máquina de estados `review` → `needs_info`/`rejected`/`active`, con evidencia (DNI+selfie+documento) en Storage privado | A baja escala, ser el cuello de botella es fortaleza. Un solo curador marcado a mano (`profiles.is_curator`), sin sistema de roles: alcanza para uno |
+| Identidad del donante | Sesión anónima por default (Supabase Auth), ascendible a cuenta real vinculando un mail. Código de 6 dígitos, no magic link | Un magic link no vuelve limpio a la app en Expo Go sin dev client; el código evita depender de deep linking. Se resigna un tap menos de fricción a cambio de que funcione hoy |
+| Plataforma | App móvil (Android + iOS) + landing web | El público vive en el celular; la landing da credibilidad y permite compartir |
+| Verificación: identidad | DNI (frente/dorso) + selfie con DNI, revisión manual del curador, archivos en Storage privado | Suficiente y barato a baja escala. Servicio externo (Renaper/biometría) = fase 2. Deuda: comparar a ojo no frena un documento falso bien hecho |
+| Verificación: SLA | 24 hs hábiles para revisar una causa | Buena experiencia para necesidades urgentes. Primer número que presiona al escalar |
+| Verificación: destino del dinero | Al CBU/alias del beneficiado. Curador ve el alias/método en `/curar` para verificarlo | Simple y encaja con "conectar sin custodiar" |
 | Verificación: estados de causa | Borrador → En revisión → (Necesita info) → Publicada / Rechazada → Cerrada | "Necesita info" evita rechazar causas legítimas por un papel faltante |
 | Verificación: qué juzga el curador | Solo verdad (identidad real, necesidad respaldada por doc de tercero, destino verificable). NO juzga si la causa "merece" | Evita el riesgo ético de jerarquizar dolores |
-| Stack | Expo SDK 54 + React Native + Expo Router + TypeScript. StyleSheet con theme central (`src/constants/donar-theme.ts`), sin librería de estilos extra. Backend: Supabase. Pagos: Mercado Pago | Un solo código iOS/Android, reutiliza React/JS, se prueba en celular con Expo Go sin cuenta Apple. SDK fijado en 54 por compatibilidad con Expo Go de la App Store. Menos dependencias = menos mantenimiento |
+| Stack | Expo SDK 54 + React Native + Expo Router + TypeScript. StyleSheet con theme central (`src/constants/donar-theme.ts`). Backend: Supabase (DB + Auth + Storage). SMTP: Resend. Pagos: Mercado Pago (no integrado aún) | Un solo código iOS/Android, se prueba en celular con Expo Go sin cuenta Apple ni build nativo. Menos dependencias = menos mantenimiento |
+| Google Sign-In | Evaluado y descartado por ahora | Requiere build nativo (EAS dev client) con credenciales OAuth, incompatible con correr todo por Expo Go. Se retoma cuando el proyecto pase a build nativo (va a pasar antes de subir a las stores) |
 
 ---
 
 ## 5. Supuestos abiertos (a validar, NO confirmados)
 
-- **Regulatorio (el más caro):** que "conectar sin custodiar" no configure intermediación financiera regulada en Argentina (BCRA / registro PSP). A confirmar con abogado. Es el supuesto que puede cambiar todo.
+- **Regulatorio (el más caro):** que "conectar sin custodiar" no configure intermediación financiera regulada en Argentina (BCRA / registro PSP). A confirmar con abogado.
 - **Fee:** el porcentaje inicial y su percepción con usuarios reales. Sin testear.
 - **Nomenclatura:** "beneficiado" / "benefactor" son provisorios; testear nombres que no estigmaticen a quien pide antes de la UI.
 - **Lista de causas vetadas:** propuesta (políticas/partidarias, deudas/juego, emprendimientos con fin de lucro, salud sin respaldo médico). Falta OK final de Gastón.
 - **Umbral "monto alto" en salud** que dispara pago directo al proveedor: sin definir.
 - **Detección de duplicados:** hoy a ojo del curador; falta criterio concreto.
-- **CBU de terceros:** su encuadre legal entra en la consulta con abogado sobre "conectar sin custodiar".
-- **Destino del excedente:** qué pasa con la plata que supera la meta de una causa. Sin definir. Trazabilidad + legal (abogado). Hoy se permite donar de más con aviso neutro.
+- **Destino del excedente:** qué pasa con la plata que supera la meta de una causa. Sin definir. Hoy se permite donar de más con aviso neutro.
 - **Nativo vs. web:** si el volumen inicial se sostiene con web responsive, se posterga el desarrollo nativo.
+- **Reenvío tras "pedido de info" sin edición real:** el creador no puede editar los datos de la causa antes de reenviar, solo confirma que ya resolvió lo que se le pidió (por fuera de la app). Deuda a resolver si se prueba con gente real y se vuelve un problema.
+- **Resend sin dominio propio:** el sender de prueba (`onboarding@resend.dev`) probablemente solo entrega al mail de la cuenta de Resend. No probado con un donante real todavía.
 
 ---
 
@@ -94,70 +108,80 @@ Usar Expo SDK 54, confirmado por Gastón. La mención a v57 en AGENTS.md se igno
 
 Dentro: (1) publicar causa, (2) verificación por curaduría manual, (3) donar y registrar aporte, (4) trazabilidad visible, (5) gamificación por reconocimiento.
 
-Fuera por ahora: custodia de fondos y regulación asociada, beneficios materiales/sponsors, verificación automática a escala, ranking público competitivo, retiros/wallets/saldo interno.
+Fuera por ahora: custodia de fondos y regulación asociada, beneficios materiales/sponsors, verificación automática a escala, ranking público competitivo, retiros/wallets/saldo interno, integración real de pago (Mercado Pago), edición de causa al reenviar tras pedido de info.
 
 ---
 
-## 8. Próximos pasos (del paper, sección 13)
+## 8. Próximos pasos
 
-1. Confirmar con abogado el encuadre regulatorio de "conectar sin custodiar".
+1. Confirmar con abogado el encuadre regulatorio de "conectar sin custodiar". (Sigue pendiente, es el supuesto que más puede cambiar el modelo.)
 2. Definir el fee inicial y testear su percepción.
-3. Diseñar el flujo de verificación de causas con criterios concretos. ← HECHO (v0.1, doc "Flujo de verificacion de causas.md"). Falta OK final de la lista de vetos.
-4. Prototipar el recorrido de una causa punta a punta. ← EN CÓDIGO: feed → detalle → donación con Supabase ya andan; crear causa e2e también.
-5. Elegir stack y construir por rebanadas verticales. ← STACK ELEGIDO (Expo/Supabase/MP). Construcción por rebanadas en curso.
-
-### Rebanadas siguientes (código)
-- Conectar el flujo de verificación diseñado (v0.1) con las pantallas `create` → `review` → publicación.
-- Perfil único (donado + recibido) y Actividad.
-- Ranking mensual + lógica de puntos de gamificación.
-- Causa finalizada (happy / unhappy).
-- Resolver inconsistencia Expo SDK 54 vs. AGENTS.md (v57).
+3. OK final de Gastón sobre la lista de causas vetadas.
+4. Probar el flujo de curaduría real con una causa ajena de punta a punta (crear con otra sesión, revisar como curador, aprobar/rechazar/pedir info) y confirmar que la experiencia se siente sólida.
+5. Ranking mensual + lógica de puntos.
+6. Causa finalizada (happy / unhappy).
+7. Evaluar si conviene edición real en el reenvío tras "pedido de info", o si alcanza con el flujo actual (reenviar tal cual) para esta etapa de pruebas.
+8. Verificar un dominio propio en Resend si se necesita mandar mails a donantes reales (no solo a Gastón).
+9. Integración real de pago (Mercado Pago) cuando el flujo esté validado con gente real.
 
 ---
 
 ## 9. Registro de sesiones (log)
 
+### 26 jul 2026 (sesión 7, mañana/tarde)
+- Priorización con matriz esfuerzo/impacto de los pendientes del backlog; Gastón eligió avanzar con identidad cross-device (#3), limpieza de código muerto (#5) y curaduría real (#6), en ese orden.
+- **#5 limpieza:** eliminado todo el scaffold del template de Expo sin uso real (`app-tabs`, `app-tabs.web`, `themed-text/view`, `hint-row`, `web-badge`, `ui/collapsible`, `animated-icon` + variantes, `hooks/use-theme`, `hooks/use-color-scheme` + variantes, `constants/theme.ts`), confirmado que nada en `src/app/` los importaba. `data/causes.ts` (mock) reemplazado por solo el tipo `Cause`, ya no se usa como datos. `npx tsc --noEmit` pasó de ~15 errores a limpio.
+- **#3 identidad cross-device:** implementado vincular/recuperar cuenta por mail con código de 6 dígitos (no magic link, por la limitación de deep linking en Expo Go). Nuevas funciones en `src/lib/supabase.ts`: `linkEmail`, `confirmLinkEmail`, `loginWithEmail`, `confirmLogin`. UI en `profile.tsx` (componente `AccountLink`). Requirió configurar SMTP custom (Resend, gratis) porque Supabase no deja editar plantillas de mail (para exponer `{{ .Token }}`) sin uno propio. Gastón vinculó su mail real y quedó operativo.
+- **#6 curaduría real:** la causa ya no se auto-aprueba. Nuevo esquema: `profiles.is_curator`, `causes.review_note`/`reviewed_at`, estados `needs_info`/`rejected` sumados al enum, tabla `cause_evidence` (DNI frente/dorso, selfie, documento de respaldo) y bucket privado de Storage `cause-evidence`, todo con RLS (dueño + curador). `create.tsx` pide las 4 fotos con `expo-image-picker`; subida a Storage vía `expo-file-system` + `base64-arraybuffer` (patrón estándar para RN). Nueva pantalla `/curar`: cola de causas pendientes, ve la evidencia con URLs firmadas, botones Aprobar/Rechazar/Pedir info. El creador ve el estado en el feed ("Tus causas") y en el detalle de su causa, con el motivo si corresponde y botón "Reenviar a revisión" para `needs_info` (reenvía tal cual, sin edición, deuda documentada). Gastón se marcó a sí mismo como curador vía SQL puntual después de vincular su mail.
+- **Seed de prueba:** creado `scripts/seed-demo-cause.mjs`, siembra una causa a nombre de una sesión anónima nueva (no la de quien lo corre), para poder donar sin que cuente como "recibido" propio. Corrido una vez en la base real.
+- **QA de Gastón sobre lo construido**, todo resuelto en la misma sesión:
+  - Header del modal de evidencia en `/curar` tapado por el Dynamic Island del iPhone 14 Pro → `SafeAreaView` no calcula bien el inset dentro de un `Modal` de React Native; arreglado con `useSafeAreaInsets()` explícito en el header del modal.
+  - Subida de evidencia muy lenta → las 4 fotos subían secuencialmente; cambiado a `Promise.all` (paralelo). Sumado spinner real ("Subiendo evidencia...") en vez de solo texto.
+  - Botón de "Enviar a revisión" se quedaba tildado en un segundo intento → mismo bug de clase que ya había pasado con el botón de donar (pantallas de Tab no se desmontan, `submitting` quedaba en `true` después de un envío exitoso). Arreglado con `useFocusEffect` reseteando el estado al enfocar. **Patrón a recordar:** cualquier estado local de "submitting/loading" en una pantalla que vive en un Tab necesita resetearse en focus, no solo en el catch de error.
+  - Pantalla de cobro (`cobro.tsx`) prometía "Vincular Mercado Pago" pero era el mismo campo de texto libre que CBU, sin conexión real → renombrado a "Alias de Mercado Pago" / "CBU o alias bancario", copy honesto sobre lo que realmente pasa (no se construyó integración real, fuera de alcance).
+  - Confirmado (sin cambios, ya andaba bien): una causa `en revisión` nunca llega al feed de otros usuarios, ni siquiera a nivel de los permisos de la base (RLS); solo la ve quien la creó, en su propia sección "Tus causas".
+
+### 25 jul 2026 (sesión 6)
+- Primera charla de validación del proyecto: no es una pavada, hay demanda real (precedente Maratea), pero el supuesto regulatorio sigue siendo el que más puede cambiar el modelo.
+- Backlog priorizado con matriz esfuerzo (tokens estimados) x impacto (valor para el objetivo de hoy: flujo de donación + visualización de un donante).
+- Bug de QA de Gastón: todas las causas eran propias, entonces donar quedaba igual a recibido, imposible de testear la distinción. Resuelto: sumado soporte de imagen ilustrativa (`image_url`, con fallback a emoji+color) y creado `scripts/seed-demo-cause.mjs` para sembrar una causa ajena.
+- Confirmado que el detalle de causa ya mostraba trazabilidad (aportes recientes) correctamente, sin cambios necesarios.
+- Placeholder de Ranking/Actividad: texto cambiado de "Próxima rebanada" a "Próximamente" (a pedido de Gastón). Actividad se deja TBD, valor post-MVP.
+- `supabase/schema.sql` reorganizado con una sección de migraciones al final, fecha por fecha, para no tener que repegar el archivo entero cada vez (patrón que se repitió en la sesión siguiente).
+
 ### 24 jul 2026 (sesión 5)
-- Corregido `AGENTS.md`: ahora es el punto de entrada para Claude Code / Cowork. Apunta a memory.md como fuente de verdad, fija SDK 54, reglas de trabajo de Gastón, git directo a main OK, y nota de los errores TS preexistentes. Reemplazó la nota vieja y errónea de Expo v57.
-- Creada skill de estilo en el repo: `.claude/skills/estilo-gaston/SKILL.md` (con frontmatter name+description). Así Claude Code la levanta sola al abrir el proyecto. Es la versión viva y compartida entre Cowork y Claude Code.
-- Aclaración honesta a Gastón: una skill no se autoactualiza sola; se edita en el lugar cuando corrige un borrador o dice "no suena a mí". La sección "Mantenimiento" de la skill lo deja escrito.
-- Continuidad Cowork -> Claude Code: el chat en sí no se transfiere, pero todo lo importante vive en el repo (memory.md, docs/, AGENTS.md, skill de estilo). Abrir Claude Code en ~/Documents/donAR y pedir "leé memory.md y AGENTS.md".
+- Corregido `AGENTS.md`: punto de entrada para Claude Code / Cowork, apunta a memory.md, fija SDK 54, reglas de trabajo de Gastón, git directo a main OK.
+- Creada skill de estilo en el repo: `.claude/skills/estilo-gaston/SKILL.md`.
+- Continuidad Cowork -> Claude Code: el chat no se transfiere, pero todo lo importante vive en el repo (memory.md, docs/, AGENTS.md, skill de estilo).
 
 ### 24 jul 2026 (sesión 4)
-- DECISIÓN de producto: la meta de una causa es un OBJETIVO, no un techo. Se puede donar aunque la causa ya llegó o supere la meta, siempre CON AVISO al donante (Gastón lo eligió). Causas SIN monto = descartadas para el MVP (la meta es lo que ancla la verificación, la UX y evita la colecta abierta tipo Maratea).
-- NUEVO PENDIENTE (importante): definir el DESTINO DEL EXCEDENTE cuando una causa supera su meta. Es pregunta de trazabilidad + legal; entra en la consulta con el abogado. Hasta definirlo, el aviso al donante es neutro (el aporte suma y queda registrado) y NO promete ningún mecanismo de excedente.
-- Implementado en `donate/[id].tsx`: aviso inline cuando el monto supera la meta + Alert de confirmación ("Donar igual" / "Cambiar monto"), permitiendo siempre. Validación de monto > 0 ya estaba.
-- Bug reportado por Gastón que originó esto: se podía donar más que la meta sin ningún aviso.
+- DECISIÓN de producto: la meta de una causa es un OBJETIVO, no un techo. Se puede donar aunque la causa ya llegó o supere la meta, con aviso al donante. Causas SIN monto = descartadas para el MVP.
+- Implementado en `donate/[id].tsx`: aviso inline + confirmación al superar la meta.
+- PENDIENTE (legal + trazabilidad): destino del excedente cuando una causa supera su meta. Hasta definirlo, el aviso es neutro.
 
 ### 24 jul 2026 (sesión 3)
-- Perfil: medallas ahora tapeables, abren un modal lindo con la medalla (estado desbloqueada/bloqueada) y una frase de altruismo al azar (array `ALTRUISM_PHRASES` en `profile.tsx`).
-- Donar: agregado monto personalizado (input numérico "Otro monto" que deselecciona los chips y valida > 0).
-- BUG RESUELTO "no se podía volver a donar": raíz = la pantalla vive dentro de un `Tabs` (no se desmonta), y tras confirmar quedaba `submitting=true` para siempre, dejando el botón disabled. Fix: `useFocusEffect` resetea el estado al tomar foco + `setSubmitting(false)` antes de navegar. Aprendizaje general: en este proyecto las pantallas de Tabs conservan estado entre visitas; resetear en focus si hace falta.
-- Archivos tocados: `src/app/profile.tsx`, `src/app/donate/[id].tsx`. Typecheck limpio en los míos.
+- Perfil: medallas tapeables con modal (estado + frase de altruismo al azar).
+- Donar: agregado monto personalizado.
+- BUG RESUELTO "no se podía volver a donar": pantallas de Tabs no se desmontan, `submitting=true` quedaba para siempre. Fix con `useFocusEffect`. Este mismo patrón de bug volvió a aparecer el 26 jul en `review.tsx`; queda como algo a revisar por default en cualquier pantalla nueva con estado de envío.
 
 ### 24 jul 2026 (sesión 2, tarde)
-- Construida pantalla de Perfil (`src/app/profile.tsx`): donado + recibido, medallas (primer aporte, 3 causas, 10 causas, meta cumplida) y nivel (Solidario/Comprometido/Referente), todo derivado de datos reales de Supabase.
-- Agregado al store `getMyActivity()` y tipos `MyContribution` / `MyActivity` (`src/store/causes-store.tsx`).
-- Typecheck: mis archivos limpios. El repo tiene errores TS preexistentes (animated-icon, app-tabs, collapsible, use-theme, mock data/causes.ts sin `story`) que NO frenan a Metro. No los toqué (fuera de alcance).
-- PENDIENTE COMMIT: no se pudo commitear desde la sesión (`.git/index.lock` bloqueado por permisos del mount). Gastón lo hace: `rm -f .git/index.lock && git add src/app/profile.tsx src/store/causes-store.tsx && git commit -m "..."`.
-- Confirmado: SDK 54 correcto, commit directo a main correcto. Local sincronizado con origin/main.
+- Construida pantalla de Perfil: donado + recibido, medallas y nivel, derivado de datos reales de Supabase.
+- Agregado `getMyActivity()` al store.
 
 ### 24 jul 2026 (sesión 1)
-- Retomamos el proyecto. Revisados paper fundacional y manual de trabajo.
+- Retomado el proyecto. Revisados paper fundacional y manual de trabajo.
 - Creado este memory.md.
-- Diseñado el flujo de verificación de causas (paso 3), v0.1. Documento: "Flujo de verificacion de causas.md".
-- Decisiones cerradas: identidad DNI+selfie manual, SLA 24 hs hábiles, dinero al CBU del beneficiado verificado, máquina de estados con "Necesita info", el curador verifica verdad y no mérito.
-- Pendiente: OK final de Gastón sobre la lista de causas vetadas.
-- Conectada carpeta local `~/Documents/donAR` con escritura: el memory vive y se actualiza ahí solo.
-- CORRECCIÓN: descubierto que el repo ya tiene POC avanzado (Expo + Supabase, 4 commits). Actualizadas secciones 3, 4 y 8 con el estado real.
-- Próxima sesión sugerida: conectar el flujo de verificación (v0.1) con las pantallas create/review, o seguir con perfil/actividad/ranking.
+- Diseñado el flujo de verificación de causas v0.1 (documento aparte), implementado en código recién el 26 jul.
+- Descubierto que el repo ya tenía POC avanzado (Expo + Supabase) antes de esta ronda de sesiones.
 
 ---
 
 ## 10. Persistencia (cómo se guarda esto)
 
-Este archivo vive en la carpeta local `~/Documents/donAR`, conectada a las sesiones con permiso de escritura. Claude lo lee al arrancar y lo actualiza al cerrar cada sesión, sin intervención de Gastón. La copia importada de solo lectura del proyecto "App solidaria" en Claude.ai sirve de contexto de fondo, pero la versión viva es esta.
+Este archivo vive en la carpeta local `~/Documents/donAR`. Claude lo lee al arrancar y lo actualiza al cerrar cada sesión, sin intervención de Gastón.
 
 ## 11. Pendientes / dudas para Gastón
 
-- OK final sobre la lista de causas vetadas (sección 5 de este memory).
+- OK final sobre la lista de causas vetadas (sección 5).
+- Definir si vale la pena construir edición real en el reenvío tras "pedido de info", o si el flujo actual alcanza por ahora.
+- Decidir cuándo verificar un dominio propio en Resend (necesario para mandar mails a donantes reales, no solo a Gastón).

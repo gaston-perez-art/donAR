@@ -9,12 +9,14 @@ import {
 } from 'react';
 
 import type { Cause } from '@/data/causes';
-import { ensureSession, supabase } from '@/lib/supabase';
+import { ensureSession, isCurator as fetchIsCurator, supabase, uploadEvidence } from '@/lib/supabase';
 
 /**
  * Data layer. Ahora habla con Supabase. Las pantallas no saben de dónde viene
  * la data: solo usan este store.
  */
+
+export type EvidenceFile = { uri: string; mimeType: string } | null;
 
 export type CauseDraft = {
   title: string;
@@ -23,6 +25,10 @@ export type CauseDraft = {
   deadline: string;
   payoutMethod: 'mp' | 'cbu';
   alias: string;
+  dniFront: EvidenceFile;
+  dniBack: EvidenceFile;
+  selfie: EvidenceFile;
+  backupDoc: EvidenceFile;
 };
 
 const emptyDraft: CauseDraft = {
@@ -32,6 +38,10 @@ const emptyDraft: CauseDraft = {
   deadline: '',
   payoutMethod: 'mp',
   alias: '',
+  dniFront: null,
+  dniBack: null,
+  selfie: null,
+  backupDoc: null,
 };
 
 const TINTS = ['#CFE6FB', '#D7ECFB', '#E9F5FE', '#C7F0DC'];
@@ -64,14 +74,28 @@ function mapRow(row: any, userId: string | null): Cause {
     who: mine ? 'Vos' : 'Persona verificada',
     emoji: row.emoji || '💙',
     coverTint: row.cover_tint || '#CFE6FB',
+    imageUrl: row.image_url ?? null,
+    createdAt: row.created_at,
     raised,
     goal,
     daysLeft,
     status: row.status,
     verified: row.verified,
+    reviewNote: row.review_note ?? null,
     mine,
   };
 }
+
+export type ReviewInfo = {
+  dniFrontPath: string | null;
+  dniBackPath: string | null;
+  selfiePath: string | null;
+  backupDocPath: string | null;
+  payoutMethod: 'mp' | 'cbu' | null;
+  payoutAlias: string | null;
+};
+
+export type ReviewAction = 'approve' | 'reject' | 'needs_info';
 
 export type Contribution = {
   id: string;
@@ -129,6 +153,12 @@ type CausesContextValue = {
   getContributions: (causeId: string) => Promise<Contribution[]>;
   donate: (causeId: string, amount: number, message: string, anonymous: boolean) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
+  isCurator: boolean;
+  refreshIsCurator: () => Promise<void>;
+  pendingCauses: Cause[];
+  getReviewInfo: (causeId: string) => Promise<ReviewInfo>;
+  reviewCause: (causeId: string, action: ReviewAction, note?: string) => Promise<boolean>;
+  resubmitCause: (causeId: string) => Promise<boolean>;
 };
 
 const CausesContext = createContext<CausesContextValue | null>(null);
@@ -138,6 +168,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [draft, setDraftState] = useState<CauseDraft>(emptyDraft);
+  const [isCurator, setIsCurator] = useState(false);
 
   const fetchCauses = useCallback(async (uid: string | null) => {
     const { data, error } = await supabase
@@ -151,14 +182,19 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     setCauses((data ?? []).map((row) => mapRow(row, uid)));
   }, []);
 
+  const refreshIsCurator = useCallback(async () => {
+    setIsCurator(await fetchIsCurator());
+  }, []);
+
   useEffect(() => {
     (async () => {
       const uid = await ensureSession();
       setUserId(uid);
       await fetchCauses(uid);
+      await refreshIsCurator();
       setLoading(false);
     })();
-  }, [fetchCauses]);
+  }, [fetchCauses, refreshIsCurator]);
 
   const setDraft = useCallback((patch: Partial<CauseDraft>) => {
     setDraftState((prev) => ({ ...prev, ...patch }));
@@ -175,7 +211,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       return null;
     }
 
-    // status 'active' simula la aprobación de curaduría para probar el flujo e2e.
+    // Nace 'en revisión': un curador la aprueba, pide info o rechaza (ver reviewCause).
     const { data: inserted, error } = await supabase
       .from('causes')
       .insert({
@@ -184,8 +220,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         story: draft.story.trim() || null,
         goal_amount: parseAmount(draft.goal) || 100000,
         deadline: toISODate(draft.deadline),
-        status: 'active',
-        verified: true,
+        status: 'review',
+        verified: false,
         emoji: '💙',
         cover_tint: TINTS[Math.floor(Math.random() * TINTS.length)],
       })
@@ -202,6 +238,38 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       method: draft.payoutMethod,
       alias: draft.alias.trim(),
     });
+
+    const files: [EvidenceFile, 'dni-front' | 'dni-back' | 'selfie' | 'backup-doc'][] = [
+      [draft.dniFront, 'dni-front'],
+      [draft.dniBack, 'dni-back'],
+      [draft.selfie, 'selfie'],
+      [draft.backupDoc, 'backup-doc'],
+    ];
+    const paths: Record<string, string | null> = {
+      dni_front_url: null,
+      dni_back_url: null,
+      selfie_url: null,
+      backup_doc_url: null,
+    };
+    const columnByKind: Record<string, string> = {
+      'dni-front': 'dni_front_url',
+      'dni-back': 'dni_back_url',
+      selfie: 'selfie_url',
+      'backup-doc': 'backup_doc_url',
+    };
+    // Las 4 subidas son independientes: van en paralelo para no sumar sus tiempos.
+    await Promise.all(
+      files.map(async ([file, kind]) => {
+        if (!file) return;
+        const { path, error: uploadError } = await uploadEvidence(file.uri, inserted.id, kind, file.mimeType);
+        if (uploadError) {
+          console.warn(`subir evidencia (${kind}) error:`, uploadError);
+          return;
+        }
+        paths[columnByKind[kind]] = path;
+      }),
+    );
+    await supabase.from('cause_evidence').insert({ cause_id: inserted.id, ...paths });
 
     setDraftState(emptyDraft);
     await fetchCauses(uid);
@@ -307,6 +375,65 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     };
   }, [userId, causes]);
 
+  const getReviewInfo = useCallback(async (causeId: string): Promise<ReviewInfo> => {
+    const empty: ReviewInfo = {
+      dniFrontPath: null,
+      dniBackPath: null,
+      selfiePath: null,
+      backupDocPath: null,
+      payoutMethod: null,
+      payoutAlias: null,
+    };
+    const [{ data: evidence }, { data: payout }] = await Promise.all([
+      supabase.from('cause_evidence').select('*').eq('cause_id', causeId).maybeSingle(),
+      supabase.from('cause_payouts').select('*').eq('cause_id', causeId).maybeSingle(),
+    ]);
+    return {
+      dniFrontPath: evidence?.dni_front_url ?? null,
+      dniBackPath: evidence?.dni_back_url ?? null,
+      selfiePath: evidence?.selfie_url ?? null,
+      backupDocPath: evidence?.backup_doc_url ?? null,
+      payoutMethod: payout?.method ?? null,
+      payoutAlias: payout?.alias ?? null,
+    };
+  }, []);
+
+  const reviewCause = useCallback(
+    async (causeId: string, action: ReviewAction, note?: string): Promise<boolean> => {
+      const patch =
+        action === 'approve'
+          ? { status: 'active', verified: true, review_note: null, reviewed_at: new Date().toISOString() }
+          : action === 'reject'
+            ? { status: 'rejected', verified: false, review_note: note ?? null, reviewed_at: new Date().toISOString() }
+            : { status: 'needs_info', review_note: note ?? null, reviewed_at: new Date().toISOString() };
+
+      const { error } = await supabase.from('causes').update(patch).eq('id', causeId);
+      if (error) {
+        console.warn('reviewCause error:', error.message);
+        return false;
+      }
+      await fetchCauses(userId);
+      return true;
+    },
+    [fetchCauses, userId],
+  );
+
+  const resubmitCause = useCallback(
+    async (causeId: string): Promise<boolean> => {
+      const { error } = await supabase
+        .from('causes')
+        .update({ status: 'review', review_note: null })
+        .eq('id', causeId);
+      if (error) {
+        console.warn('resubmitCause error:', error.message);
+        return false;
+      }
+      await fetchCauses(userId);
+      return true;
+    },
+    [fetchCauses, userId],
+  );
+
   const value = useMemo<CausesContextValue>(
     () => ({
       causes,
@@ -321,8 +448,31 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getContributions,
       donate,
       getMyActivity,
+      isCurator,
+      refreshIsCurator,
+      pendingCauses: causes.filter((c) => c.status === 'review' || c.status === 'needs_info'),
+      getReviewInfo,
+      reviewCause,
+      resubmitCause,
     }),
-    [causes, loading, draft, setDraft, resetDraft, publishDraft, refresh, getCause, getContributions, donate, getMyActivity],
+    [
+      causes,
+      loading,
+      draft,
+      setDraft,
+      resetDraft,
+      publishDraft,
+      refresh,
+      getCause,
+      getContributions,
+      donate,
+      getMyActivity,
+      isCurator,
+      refreshIsCurator,
+      getReviewInfo,
+      reviewCause,
+      resubmitCause,
+    ],
   );
 
   return <CausesContext.Provider value={value}>{children}</CausesContext.Provider>;

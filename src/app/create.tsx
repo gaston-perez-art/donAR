@@ -1,7 +1,9 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,7 +17,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
-import { useCauses } from '@/store/causes-store';
+import { useCauses, type EvidenceFile } from '@/store/causes-store';
+
+type EvidenceKey = 'dniFront' | 'dniBack' | 'selfie' | 'backupDoc';
+
+const EVIDENCE_FIELDS: { key: EvidenceKey; label: string; hint: string }[] = [
+  { key: 'dniFront', label: 'DNI (frente)', hint: 'Foto legible del frente' },
+  { key: 'dniBack', label: 'DNI (dorso)', hint: 'Foto legible del dorso' },
+  { key: 'selfie', label: 'Selfie con tu DNI', hint: 'Confirma que sos vos' },
+  { key: 'backupDoc', label: 'Documento de respaldo', hint: 'Orden médica, presupuesto, etc.' },
+];
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const formatDMY = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
@@ -31,7 +42,27 @@ export default function CreateScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(new Date());
 
-  const canContinue = draft.title.trim().length > 0 && draft.goal.trim().length > 0;
+  const canContinue =
+    draft.title.trim().length > 0 &&
+    draft.goal.trim().length > 0 &&
+    !!draft.dniFront &&
+    !!draft.dniBack &&
+    !!draft.selfie &&
+    !!draft.backupDoc;
+
+  const pickEvidence = async (key: EvidenceKey) => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    const file: EvidenceFile = { uri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' };
+    setDraft({ [key]: file } as Partial<typeof draft>);
+  };
 
   const onChangeGoal = (text: string) => {
     const digits = text.replace(/\D/g, '');
@@ -124,13 +155,25 @@ export default function CreateScreen() {
             </View>
           </View>
 
-          <Field label="Evidencia que respalda tu causa">
-            <View style={styles.upload}>
-              <Text style={styles.uploadIcon}>📎</Text>
-              <Text style={styles.uploadText}>Subí presupuesto, diagnóstico o documentación</Text>
+          <Field label="Evidencia para verificar tu causa">
+            <View style={styles.evidenceGrid}>
+              {EVIDENCE_FIELDS.map(({ key, label, hint }) => {
+                const file = draft[key];
+                return (
+                  <Pressable key={key} style={styles.evidenceSlot} onPress={() => pickEvidence(key)}>
+                    {file ? (
+                      <Image source={{ uri: file.uri }} style={styles.evidenceThumb} resizeMode="cover" />
+                    ) : (
+                      <Text style={styles.uploadIcon}>📎</Text>
+                    )}
+                    <Text style={styles.evidenceLabel}>{label}</Text>
+                    <Text style={styles.evidenceHint}>{file ? 'Toqué para cambiar' : hint}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
             <Text style={styles.helper}>
-              Necesitás identidad verificada para publicar. Un curador revisa tu causa antes de que
+              Necesitamos identidad verificada para publicar. Un curador revisa tu causa antes de que
               salga.
             </Text>
           </Field>
@@ -228,17 +271,28 @@ const styles = StyleSheet.create({
   calIcon: { fontSize: 20 },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
   row: { flexDirection: 'row', gap: Spacing.md },
-  upload: {
+  evidenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  evidenceSlot: {
+    width: '47%',
+    flexGrow: 1,
     borderWidth: 1.6,
     borderColor: '#B9D3E8',
     borderStyle: 'dashed',
     borderRadius: Radius.md,
-    padding: 24,
+    padding: 16,
     alignItems: 'center',
     backgroundColor: Colors.skyTint,
+    overflow: 'hidden',
   },
+  evidenceThumb: {
+    width: '100%',
+    height: 64,
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.sm,
+  },
+  evidenceLabel: { fontSize: 12.5, fontWeight: '700', color: Colors.ink, textAlign: 'center' },
+  evidenceHint: { fontSize: 11, color: Colors.muted, textAlign: 'center', marginTop: 2 },
   uploadIcon: { fontSize: 28, marginBottom: Spacing.sm },
-  uploadText: { fontSize: 13, color: Colors.muted, textAlign: 'center' },
   helper: { fontSize: 11.5, color: Colors.muted, marginTop: Spacing.sm, lineHeight: 16 },
   footer: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },

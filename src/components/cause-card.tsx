@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import type { Cause } from '@/data/causes';
@@ -19,6 +19,9 @@ export function CauseCard({ cause, onPress, mine }: Props) {
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
       onPress={onPress}>
       <View style={[styles.cover, { backgroundColor: cause.coverTint }]}>
+        {cause.imageUrl ? (
+          <Image source={{ uri: cause.imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : null}
         <View style={styles.badgeRow}>
           <View style={styles.badge}>
             <View style={[styles.tick, done && styles.tickHappy]}>
@@ -34,7 +37,7 @@ export function CauseCard({ cause, onPress, mine }: Props) {
             </View>
           )}
         </View>
-        <Text style={styles.emoji}>{cause.emoji}</Text>
+        {!cause.imageUrl && <Text style={styles.emoji}>{cause.emoji}</Text>}
       </View>
 
       <View style={styles.body}>

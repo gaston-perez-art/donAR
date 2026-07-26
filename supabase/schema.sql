@@ -2,7 +2,7 @@
 -- Pegar completo en Supabase > SQL Editor > New query > Run.
 
 -- ========== Enums ==========
-create type cause_status as enum ('review', 'active', 'completed', 'closed');
+create type cause_status as enum ('review', 'needs_info', 'active', 'rejected', 'completed', 'closed');
 create type payout_method as enum ('mp', 'cbu');
 create type identity_state as enum ('unverified', 'pending', 'verified', 'rejected');
 
@@ -13,6 +13,7 @@ create table profiles (
   initials text,
   identity_status identity_state not null default 'unverified',
   points int not null default 0,
+  is_curator boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -27,7 +28,10 @@ create table causes (
   status cause_status not null default 'review',
   emoji text default '💙',
   cover_tint text default '#CFE6FB',
+  image_url text,
   verified boolean not null default false,
+  review_note text,
+  reviewed_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -110,3 +114,67 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- ========== Migraciones (correr solo lo nuevo en una base ya creada) ==========
+-- 25 jul 2026: soporte de imagen ilustrativa en la causa.
+alter table causes add column if not exists image_url text;
+
+-- 26 jul 2026: curaduría real (deja de auto-aprobarse la causa al crearla).
+-- Estados nuevos de la máquina de estados del flujo de verificación.
+alter type cause_status add value if not exists 'needs_info';
+alter type cause_status add value if not exists 'rejected';
+
+-- Quién es curador. Por ahora, una persona (vos), marcada a mano después de
+-- vincular tu mail real (ver instrucciones aparte).
+alter table profiles add column if not exists is_curator boolean not null default false;
+
+-- Motivo que deja el curador al pedir info o rechazar.
+alter table causes add column if not exists review_note text;
+alter table causes add column if not exists reviewed_at timestamptz;
+
+-- Evidencia de la causa (DNI frente/dorso, selfie, documento de respaldo).
+-- Tabla aparte, igual que cause_payouts: privada, no forma parte de causes_public.
+create table if not exists cause_evidence (
+  cause_id uuid primary key references causes(id) on delete cascade,
+  dni_front_url text,
+  dni_back_url text,
+  selfie_url text,
+  backup_doc_url text,
+  updated_at timestamptz not null default now()
+);
+alter table cause_evidence enable row level security;
+
+create policy "evidence owner read" on cause_evidence for select
+  using (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+create policy "evidence owner insert" on cause_evidence for insert
+  with check (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+create policy "evidence owner update" on cause_evidence for update
+  using (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+create policy "evidence curator read" on cause_evidence for select
+  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_curator));
+
+-- El curador necesita leer y actualizar causas ajenas en revisión, y ver a
+-- dónde se cobra (para verificar el destino del dinero). Políticas
+-- adicionales: se suman (OR) a las que ya existían, no las reemplazan.
+create policy "causes curator read" on causes for select
+  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_curator));
+create policy "causes curator update" on causes for update
+  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_curator));
+create policy "payouts curator read" on cause_payouts for select
+  using (exists (select 1 from profiles p where p.id = auth.uid() and p.is_curator));
+
+-- Bucket privado para la evidencia. Nadie la lee salvo el dueño de la causa
+-- y un curador.
+insert into storage.buckets (id, name, public)
+values ('cause-evidence', 'cause-evidence', false)
+on conflict (id) do nothing;
+
+create policy "evidence file insert own" on storage.objects for insert
+  with check (bucket_id = 'cause-evidence' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "evidence file select own" on storage.objects for select
+  using (bucket_id = 'cause-evidence' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "evidence file select curator" on storage.objects for select
+  using (
+    bucket_id = 'cause-evidence'
+    and exists (select 1 from profiles p where p.id = auth.uid() and p.is_curator)
+  );

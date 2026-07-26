@@ -1,17 +1,25 @@
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
-import { Colors, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { Colors, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
+
+const STATUS_LABEL: Record<string, string> = {
+  review: 'En revisión',
+  needs_info: 'Te pedimos información',
+  rejected: 'Rechazada',
+  closed: 'Cerrada',
+};
 
 export default function FeedScreen() {
   const router = useRouter();
-  const { causes, loading } = useCauses();
+  const { causes, myCauses, loading } = useCauses();
 
   const active = causes.filter((c) => c.status === 'active');
   const completed = causes.filter((c) => c.status === 'completed');
+  const myPending = myCauses.filter((c) => c.status !== 'active' && c.status !== 'completed');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -28,6 +36,31 @@ export default function FeedScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: TabBarHeight + Spacing.xl }}>
+        {myPending.length > 0 && (
+          <>
+            <View style={styles.sec}>
+              <Text style={styles.secTitle}>Tus causas</Text>
+              <Text style={styles.secSub}>Así va tu trámite de verificación</Text>
+            </View>
+            {myPending.map((c) => (
+              <Pressable
+                key={c.id}
+                style={styles.myCauseCard}
+                onPress={() => router.push(`/cause/${c.id}`)}>
+                <Text style={styles.myCauseTitle} numberOfLines={1}>
+                  {c.title}
+                </Text>
+                <View style={[styles.myCausePill, c.status === 'rejected' && styles.myCausePillBad]}>
+                  <Text
+                    style={[styles.myCausePillText, c.status === 'rejected' && styles.myCausePillTextBad]}>
+                    {STATUS_LABEL[c.status] ?? c.status}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </>
+        )}
+
         <View style={styles.sec}>
           <Text style={styles.secTitle}>Causas verificadas cerca tuyo</Text>
           <Text style={styles.secSub}>Cada causa fue revisada antes de publicarse</Text>
@@ -95,6 +128,24 @@ const styles = StyleSheet.create({
   sec: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md, paddingTop: Spacing.xs },
   secTitle: { fontSize: 17, fontWeight: '700', color: Colors.ink, letterSpacing: -0.3 },
   secSub: { fontSize: 12.5, color: Colors.muted, marginTop: 2 },
+  myCauseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.md,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+  },
+  myCauseTitle: { fontSize: 14, fontWeight: '600', color: Colors.ink, flex: 1 },
+  myCausePill: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
+  myCausePillBad: { backgroundColor: '#FBE9E9' },
+  myCausePillText: { fontSize: 11, fontWeight: '700', color: '#8A6D00' },
+  myCausePillTextBad: { color: '#C0392B' },
   empty: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxl },
   emptyEmoji: { fontSize: 44, marginBottom: Spacing.md },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.ink },

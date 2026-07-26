@@ -1,10 +1,20 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { confirmLinkEmail, confirmLogin, linkEmail, loginWithEmail, supabase } from '@/lib/supabase';
 import { useCauses, type MyActivity } from '@/store/causes-store';
 
 /** Frases de altruismo. Se elige una al azar al abrir una medalla. */
@@ -81,13 +91,139 @@ function medalsFor(a: MyActivity): Medal[] {
   ];
 }
 
+/**
+ * Vincula la sesión anónima a un mail (o recupera una cuenta ya vinculada en
+ * otro dispositivo), para no perder el historial al cambiar de celular.
+ * Un solo input de mail: si el mail ya está registrado, cae solo al login.
+ */
+function AccountLink({ onLinked }: { onLinked: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [mode, setMode] = useState<'link' | 'login'>('link');
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const sendCode = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setSending(true);
+    setError(null);
+
+    const link = await linkEmail(trimmed);
+    if (!link.error) {
+      setMode('link');
+      setStep('code');
+      setSending(false);
+      return;
+    }
+
+    if (link.error.toLowerCase().includes('regist') || link.error.toLowerCase().includes('already')) {
+      const login = await loginWithEmail(trimmed);
+      setSending(false);
+      if (login.error) {
+        setError('No pudimos enviar el código. Probá de nuevo.');
+        return;
+      }
+      setMode('login');
+      setStep('code');
+      return;
+    }
+
+    setSending(false);
+    setError(link.error);
+  };
+
+  const confirmCode = async () => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    setSending(true);
+    setError(null);
+
+    const result =
+      mode === 'link' ? await confirmLinkEmail(email.trim(), trimmed) : await confirmLogin(email.trim(), trimmed);
+    setSending(false);
+
+    if (result.error) {
+      setError('Código incorrecto o vencido.');
+      return;
+    }
+
+    setOpen(false);
+    setStep('email');
+    setEmail('');
+    setCode('');
+    onLinked();
+  };
+
+  if (!open) {
+    return (
+      <Pressable style={styles.accountLinkBtn} onPress={() => setOpen(true)}>
+        <Text style={styles.accountLinkBtnText}>Vincular mi mail para no perder tu historial</Text>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={styles.accountCard}>
+      {step === 'email' ? (
+        <>
+          <Text style={styles.accountTitle}>Guardá tu historial</Text>
+          <Text style={styles.accountHint}>
+            Te mandamos un código a tu mail. Sirve para recuperar tu perfil desde otro celular.
+          </Text>
+          <TextInput
+            style={styles.accountInput}
+            placeholder="tu@mail.com"
+            placeholderTextColor={Colors.muted}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+          />
+          {error ? <Text style={styles.accountError}>{error}</Text> : null}
+          <Pressable style={styles.accountBtn} onPress={sendCode} disabled={sending}>
+            <Text style={styles.accountBtnText}>{sending ? 'Enviando...' : 'Enviar código'}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={styles.accountTitle}>Revisá tu mail</Text>
+          <Text style={styles.accountHint}>Te mandamos un código a {email}.</Text>
+          <TextInput
+            style={styles.accountInput}
+            placeholder="Código de 6 dígitos"
+            placeholderTextColor={Colors.muted}
+            keyboardType="number-pad"
+            value={code}
+            onChangeText={setCode}
+          />
+          {error ? <Text style={styles.accountError}>{error}</Text> : null}
+          <Pressable style={styles.accountBtn} onPress={confirmCode} disabled={sending}>
+            <Text style={styles.accountBtnText}>{sending ? 'Confirmando...' : 'Confirmar'}</Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const { getMyActivity } = useCauses();
+  const { getMyActivity, isCurator, refreshIsCurator, pendingCauses } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMedal, setOpenMedal] = useState<Medal | null>(null);
   const [phrase, setPhrase] = useState('');
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
+
+  const refreshAccount = useCallback(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setAccountEmail(data.user?.is_anonymous ? null : (data.user?.email ?? null));
+    });
+  }, []);
 
   const showMedal = (m: Medal) => {
     setPhrase(randomPhrase());
@@ -104,10 +240,12 @@ export default function ProfileScreen() {
           setLoading(false);
         }
       });
+      refreshAccount();
+      refreshIsCurator();
       return () => {
         alive = false;
       };
-    }, [getMyActivity]),
+    }, [getMyActivity, refreshAccount, refreshIsCurator]),
   );
 
   if (loading || !activity) {
@@ -142,6 +280,25 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
+
+        {/* Cuenta: vincular mail para no perder el historial en otro celular */}
+        <View style={styles.accountSection}>
+          {accountEmail ? (
+            <Text style={styles.accountLinked}>✓ Vinculado con {accountEmail}</Text>
+          ) : (
+            <AccountLink onLinked={refreshAccount} />
+          )}
+        </View>
+
+        {isCurator && (
+          <View style={styles.accountSection}>
+            <Pressable style={styles.curatorBtn} onPress={() => router.push('/curar')}>
+              <Text style={styles.curatorBtnText}>
+                Panel de curador{pendingCauses.length > 0 ? ` · ${pendingCauses.length} pendientes` : ''}
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Progreso de nivel */}
         <View style={styles.levelCard}>
@@ -289,6 +446,51 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   levelPillText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12.5 },
+  accountSection: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
+  accountLinked: { fontSize: 12.5, color: Colors.happy, fontWeight: '700' },
+  accountLinkBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.skySoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  accountLinkBtnText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12.5 },
+  accountCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+  },
+  accountTitle: { fontSize: 15, fontWeight: '700', color: Colors.ink },
+  accountHint: { fontSize: 12.5, color: Colors.muted, marginTop: 4, marginBottom: Spacing.md, lineHeight: 18 },
+  accountInput: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 14,
+    color: Colors.ink,
+    marginBottom: Spacing.sm,
+  },
+  accountError: { fontSize: 12, color: '#D64545', marginBottom: Spacing.sm },
+  accountBtn: {
+    backgroundColor: Colors.brand,
+    borderRadius: Radius.sm,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  accountBtnText: { color: '#fff', fontWeight: '700', fontSize: 13.5 },
+  curatorBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.ink,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  curatorBtnText: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
   levelCard: {
     marginHorizontal: Spacing.xl,
     marginBottom: Spacing.lg,

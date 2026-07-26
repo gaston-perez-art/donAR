@@ -52,13 +52,8 @@ export default function CobroScreen() {
           causa.
         </Text>
 
-        <Option
-          value="mp"
-          icon="💙"
-          title="Vincular Mercado Pago"
-          subtitle="Recomendado. La plata entra al instante"
-        />
-        <Option value="cbu" icon="🏦" title="Cargar CBU o alias" subtitle="Tu cuenta bancaria" />
+        <Option value="mp" icon="💙" title="Alias de Mercado Pago" subtitle="Recomendado. Fácil de compartir" />
+        <Option value="cbu" icon="🏦" title="CBU o alias bancario" subtitle="Tu cuenta bancaria" />
 
         <View style={styles.field}>
           <Text style={styles.label}>Alias o CBU</Text>

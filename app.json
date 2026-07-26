@@ -36,7 +36,13 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DonAR necesita acceder a tus fotos para subir el DNI, la selfie y la documentación de tu causa."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
