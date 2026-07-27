@@ -208,6 +208,37 @@ El pago por Mercado Pago tal como está hoy (checkout que cobra a una sola cuent
 
 ---
 
+## 11.c. Encuadre legal y cómo se cobra sin custodiar
+
+Sección clave y el supuesto más caro del proyecto. Basada en investigación de la regulación argentina vigente (jul 2026). **No es asesoramiento legal: hay que confirmarlo con un abogado especializado en fintech/BCRA.** Fuentes al pie del documento de contexto.
+
+### El disparador de la regulación es TENER la plata, no conectar
+
+El régimen del BCRA gira alrededor de una figura: el **PSPCP** (Proveedor de Servicios de Pago que ofrece **Cuentas de Pago**). Lo que obliga a registrarse y cumplir el régimen completo es **ofrecer cuentas de pago donde el cliente tiene un saldo que la plataforma administra**. La norma incluso exige que los PSPCP mantengan el 100% de los fondos de clientes en cuentas "recaudadoras" en bancos. Es decir: **la regulación existe para quien guarda plata de terceros.**
+
+Consecuencia para donAR: si la plataforma **nunca tiene un saldo de nadie** (la plata va directa del donante al beneficiado), la lectura más fuerte es que **no es un PSPCP** y queda fuera del régimen. Ese es exactamente el objetivo del diseño "conectar sin custodiar".
+
+### Cómo se cobra la comisión sin custodiar (la paradoja resuelta)
+
+Pregunta natural: si la plata no pasa por donAR, ¿cómo se cobra el fee? **Lo resuelve la pasarela de pago, no donAR.** Mercado Pago (y cualquier gateway serio) tiene **split de pagos / marketplace**: en el momento del pago, MP parte el monto automáticamente y manda el grueso al beneficiado y la comisión a la cuenta de donAR, atómicamente. La plata del beneficiado nunca toca la cuenta de donAR; donAR recibe **solo su comisión propia**, que es ingreso suyo, no fondos de terceros. Recibir tu propia comisión ≠ custodiar plata ajena. Por eso el split deja cobrar y quedar afuera del problema a la vez.
+
+Para la **transferencia directa** (CBU→CBU) no hay forma de cortar la comisión en el medio: ese es el carril de confianza, sin fee. Se puede monetizar con un **aporte voluntario del donante** a donAR (modelo GoFundMe: comisión 0%, aporte opcional arriba).
+
+### Los otros dos frentes legales
+
+- **Crowdfunding de donación = zona gris.** El régimen de la CNV para "Plataformas de Financiamiento Colectivo" es para crowdfunding de **inversión** (acciones), no donaciones. Las donaciones quedaron **excluidas** de ese marco: no necesitás licencia de la CNV, pero vivís sin un marco propio.
+- **Lavado de activos (UIF): el riesgo más subestimado.** El crowdfunding solidario está señalado como herramienta de riesgo de lavado, por la falta de rigor sobre el **origen y destino** de los fondos. Acá el diseño de donAR juega a favor: **identidad verificada + trazabilidad son la defensa.** Según el volumen, donAR podría ser "sujeto obligado" ante la UIF (con deberes de reporte).
+
+### La decisión de MVP que sale de todo esto
+
+El MVP arranca **solo con transferencia directa + aporte voluntario a la plataforma**: cero custodia, cero comisión obligatoria → el modelo más limpio legalmente, y de paso un experimento de willingness-to-pay (¿la gente banca el proyecto sin obligación?). **Mercado Pago queda apagado en el código (no borrado)**, listo para prenderse cuando exista el split de pagos (cobro sin custodia) y el OK legal. El régimen se está endureciendo (Comunicación "A" 8432/2026 sumó la figura "PSPCP como Servicio" y más exigencias UIF), así que la consulta legal es la primera ficha a mover.
+
+### Pregunta afinada para el abogado
+
+> "donAR conecta a quien pide con quien dona. La plata va directa entre ellos: por transferencia CBU→CBU, o (a futuro) por Mercado Pago con split de pagos, donde MP liquida al beneficiado y a donAR le deposita solo su comisión en su propia cuenta. **Nunca hay un saldo de fondos de terceros.** 1) ¿Esto queda fuera del régimen PSPCP del BCRA? 2) Recibir la comisión propia vía split, ¿cuenta como tenencia de fondos de terceros? 3) ¿donAR es sujeto obligado ante la UIF por canalizar donaciones, y qué controles de origen/destino necesita? 4) ¿Qué cambia si en el futuro retiene la plata para descontar la comisión (custodia)?"
+
+---
+
 ## 12. Qué validar y cómo medirlo
 
 La pregunta que gobierna el MVP no es si la app es linda de construir, sino si resuelve el problema real de alguien. Se traduce en tres hipótesis, cada una con una métrica, no una sensación.

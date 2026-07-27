@@ -29,6 +29,11 @@ function parseAmount(text: string): number {
   return digits ? parseInt(digits, 10) : 0;
 }
 
+// MVP: solo transferencia (no-custodial, sin comisión → afuera del régimen PSP).
+// Mercado Pago queda apagado, no borrado: se prende cuando exista el split de
+// pagos (cobrar el fee sin custodiar) y el OK legal. Ver docs/paper sección legal.
+const MP_ENABLED = false;
+
 export default function DonateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -112,7 +117,7 @@ export default function DonateScreen() {
     const ok = await donate(String(id), amount, message, anonymous);
     setSubmitting(false);
     if (ok) {
-      router.replace(`/gracias?amount=${amount}`);
+      router.replace(`/gracias?amount=${amount}&cause=${cause.id}`);
     } else {
       Alert.alert('Registramos un problema', 'El pago salió, pero no pudimos guardar tu aporte. Avisanos.');
     }
@@ -227,23 +232,30 @@ export default function DonateScreen() {
       </KeyboardAvoidingView>
 
       <View style={styles.cta}>
+        {MP_ENABLED && (
+          <Pressable
+            style={[styles.btn, (submitting || !valid) && styles.btnDisabled]}
+            onPress={() => confirm('mp')}
+            disabled={submitting || !valid}>
+            <Text style={styles.btnText}>
+              {submitting
+                ? 'Abriendo Mercado Pago...'
+                : valid
+                  ? `Pagar ${formatARS(amount)} con Mercado Pago`
+                  : 'Ingresá un monto'}
+            </Text>
+          </Pressable>
+        )}
         <Pressable
-          style={[styles.btn, (submitting || !valid) && styles.btnDisabled]}
-          onPress={() => confirm('mp')}
-          disabled={submitting || !valid}>
-          <Text style={styles.btnText}>
-            {submitting
-              ? 'Abriendo Mercado Pago...'
-              : valid
-                ? `Pagar ${formatARS(amount)} con Mercado Pago`
-                : 'Ingresá un monto'}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.btnAlt, (submitting || !valid) && styles.btnAltDisabled]}
+          style={[
+            MP_ENABLED ? styles.btnAlt : styles.btn,
+            (submitting || !valid) && (MP_ENABLED ? styles.btnAltDisabled : styles.btnDisabled),
+          ]}
           onPress={() => confirm('transfer')}
           disabled={submitting || !valid}>
-          <Text style={styles.btnAltText}>Transferir yo mismo</Text>
+          <Text style={MP_ENABLED ? styles.btnAltText : styles.btnText}>
+            {valid ? `Transferir ${formatARS(amount)}` : 'Ingresá un monto'}
+          </Text>
         </Pressable>
       </View>
     </SafeAreaView>

@@ -49,6 +49,15 @@ src/
   data/                causes (datos mock)
 ```
 
+## Encuadre legal (clave)
+
+El modelo es "conectar sin custodiar": la plata va **directa** del donante al beneficiado, donAR **nunca la tiene**. Esto importa porque en Argentina el régimen de Proveedores de Servicios de Pago (PSPCP) del BCRA se dispara por **tener/administrar fondos de terceros en cuentas de pago** — no por conectar. Si donAR no guarda saldo de nadie, la lectura más fuerte es que queda **fuera** de ese régimen.
+
+- **Cómo se cobra sin custodiar (a futuro):** con **split de pagos** de Mercado Pago, la pasarela le manda al beneficiado su parte y a donAR **solo su comisión** (ingreso propio, no fondos de terceros), en el mismo pago. No hay custodia.
+- **MVP actual:** solo **transferencia directa** + **aporte voluntario** a la plataforma (modelo GoFundMe). Cero custodia, cero comisión obligatoria = el modelo más limpio legalmente. Mercado Pago está **apagado con un flag** (`MP_ENABLED = false` en `src/app/donate/[id].tsx`), no borrado, listo para cuando exista el split + OK legal.
+- **Riesgo subestimado:** lavado de activos (UIF). La identidad verificada + trazabilidad son la defensa.
+- **Todo esto es investigación, no asesoramiento legal.** Detalle completo y pregunta afinada para el abogado en el paper fundacional (sección 11.c). El encuadre regulatorio es el supuesto más caro del proyecto y hay que confirmarlo con un abogado fintech/BCRA antes de escalar.
+
 ## Flujo de trabajo
 
 Rama por cambio, commits chicos, PR con descripción. Nunca commitear directo a `main`. Secretos siempre en variables de entorno, nunca en el código.

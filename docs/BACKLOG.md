@@ -16,7 +16,10 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ✅ **1.3** "Mis causas" accesible desde el Perfil: cada fila lleva al detalle/panel de esa causa.
 
 ## Épica 2 — Métodos de pago del donante
-- ✅ **2.1** Mercado Pago (checkout sandbox). *Nota: es demo custodial — cobra a una sola cuenta, no va al beneficiado. On-axis solo con split de pagos (ver Parqueado).*
+> **DECISIÓN MVP (27 jul):** solo **transferencia directa** + **aporte voluntario** a donAR (modelo GoFundMe). Cero custodia, cero comisión obligatoria = el modelo más limpio legalmente (ver paper 11.c). **Mercado Pago apagado con flag** (`MP_ENABLED = false`), no borrado; se prende con split de pagos + OK legal.
+
+- ✅ **2.1** Mercado Pago (checkout sandbox) — **PARQUEADO tras flag.** Código intacto. Era demo custodial (cobra a una cuenta); on-axis solo con split de pagos.
+- ✅ **2.4** Aporte voluntario a la plataforma ("Bancá el proyecto", opcional) en la pantalla post-transferencia. Muestra el alias de donAR (copiable) + auto-reporte "ya aporté" (tabla `platform_support`, para medir willingness-to-pay). **TODO: poner el alias real de donAR en `gracias.tsx` (`DONAR_ALIAS`).**
 - ✅ **2.2** Bifurcación en la pantalla de donar: "Pagar con Mercado Pago" o "Transferir yo mismo".
 - ✅ **2.3** Flujo de transferencia (`transfer/[id].tsx`): muestra el alias del beneficiado (copiable), el donante sube el comprobante, el aporte entra `pending` (no cuenta para la meta hasta confirmarse). Bucket privado `transfer-receipts`. En la lista de aportes se tagea "por confirmar".
 

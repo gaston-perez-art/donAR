@@ -209,6 +209,7 @@ type CausesContextValue = {
     receiptUri: string,
   ) => Promise<boolean>;
   reviewTransfer: (contributionId: string, approve: boolean) => Promise<boolean>;
+  recordPlatformSupport: (causeId?: string) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
   getMonthlyRanking: () => Promise<RankingEntry[]>;
   isCurator: boolean;
@@ -476,6 +477,22 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     [userId, fetchCauses],
   );
 
+  const recordPlatformSupport = useCallback(
+    async (causeId?: string): Promise<boolean> => {
+      const uid = userId ?? (await ensureSession());
+      if (!uid) return false;
+      const { error } = await supabase
+        .from('platform_support')
+        .insert({ supporter_id: uid, cause_id: causeId ?? null });
+      if (error) {
+        console.warn('recordPlatformSupport error:', error.message);
+        return false;
+      }
+      return true;
+    },
+    [userId],
+  );
+
   const reviewTransfer = useCallback(
     async (contributionId: string, approve: boolean): Promise<boolean> => {
       // Solo el dueño de la causa (RLS lo valida). Aprobar -> 'approved': suma a
@@ -679,6 +696,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getPayout,
       submitTransfer,
       reviewTransfer,
+      recordPlatformSupport,
       getMyActivity,
       getMonthlyRanking,
       isCurator,
@@ -703,6 +721,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getPayout,
       submitTransfer,
       reviewTransfer,
+      recordPlatformSupport,
       getMyActivity,
       getMonthlyRanking,
       isCurator,

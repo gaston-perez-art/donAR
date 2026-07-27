@@ -96,6 +96,8 @@ Usar Expo SDK 54, confirmado por Gastón.
 | **Confianza del dinero sin custodia** (27 jul, DECISIÓN CLAVE) | Modelo antifraude del pago por transferencia: (1) transparencia (comprobante público), (2) el BENEFICIADO confirma que le llegó (es el único que ve la plata; sus incentivos alinean con la verdad), (3) identidad verificada. Regla de oro: **solo lo confirmado suma** a la meta/puntos/kudos. Documentado en el paper, sección 11.b | donAR NO está en el camino de la plata (ese es el punto de "no custodiar"), así que nunca puede PROBAR que llegó. El modelo es transparencia + confirmación + identidad, no prueba criptográfica. El hueco (colusión para inflar) es vanidad, no robo; lo encarecen curaduría + identidad. El MVP hace el fraude caro y visible, no lo elimina |
 | **Dos métodos de pago** (27 jul) | El donante elige: (a) Mercado Pago, (b) Transferencia con comprobante. La transferencia es el flujo canónico del MVP (no-custodial, el del paper). MP como está es un demo custodial hasta tener split de pagos | Detalle y secuencia de construcción en `docs/BACKLOG.md` |
 | Monto mínimo para pedir | Va a haber un piso para crear una causa (que no se pida $1) | Evita ruido y pedidos no serios. Valor exacto por definir |
+| **Encuadre legal + cómo se cobra sin custodiar** (27 jul, investigado en fuentes BCRA/CNV) | El régimen PSPCP del BCRA se dispara por TENER fondos de terceros (cuentas de pago con saldo), no por conectar. Si donAR nunca guarda saldo, lectura más fuerte = afuera. Se cobra sin custodiar vía SPLIT DE PAGOS de MP (la pasarela le manda a donAR solo su comisión propia). Donaciones = zona gris (fuera del crowdfunding CNV, que es de inversión). Riesgo real subestimado: lavado/UIF; identidad+trazabilidad son la defensa. Documentado en paper 11.c + README. NO es asesoramiento legal, falta abogado | Es el supuesto más caro. El régimen se endurece (Com. A 8432/2026). La consulta legal es la primera ficha a mover |
+| **MVP de pago = transferencia + aporte voluntario** (27 jul, idea de Gastón) | MVP solo con transferencia directa (no-custodial, sin comisión → afuera de PSP) + "aporte voluntario a donAR" en la pantalla post-transferencia (modelo GoFundMe: comisión 0%, propina opcional del donante). Doble propósito: legal limpio + experimento de willingness-to-pay ("qué tan solidarios son"). MP apagado con flag `MP_ENABLED=false` en `donate/[id]`, NO borrado. Tabla `platform_support` registra el auto-reporte "ya aporté" | Recibir comisión/aporte propio ≠ custodiar plata ajena. El split (para cobrar sin custodiar en MP) queda para cuando haya OK legal |
 
 ---
 
@@ -147,6 +149,13 @@ Fuera del código, lo que sigue bloqueando la etapa 2:
 ---
 
 ## 9. Registro de sesiones (log)
+
+### 27 jul 2026 (sesión 10, madrugada tardía)
+- **Informe del fundador** (artifact visual): a pedido de Gastón, con data real de git (cadencia, night-owl 61% después de medianoche), scorecard vs promedio (cadencia 9, profesionalismo 9, seniority producto 8, expertise 7.5, originalidad 7), análisis de originalidad y de monetización. URL: https://claude.ai/code/artifact/c29f0199-c6df-40cc-98bd-f382be5d75bf
+- **Explicado lo legal en criollo** (a Gastón le cuesta lo legal) e **investigadas las fuentes reales** (BCRA PSPCP, CNV crowdfunding, UIF). Hallazgo central: el régimen se dispara por TENER plata, no por conectar. Ver decisiones y paper 11.c.
+- **Pregunta de negocio de Gastón: "¿cómo cobro la comisión si la plata no pasa por mí?"** → resuelto: el SPLIT DE PAGOS de la pasarela le manda a donAR solo su comisión propia; recibir comisión propia ≠ custodiar. Para transferencia pura, aporte voluntario del donante (GoFundMe).
+- **IDEA de Gastón para el MVP (muy buena):** apagar MP, dejar solo transferencia + un paso de "aporte voluntario a donAR" (modelo GoFundMe). IMPLEMENTADO: `MP_ENABLED=false` (flag, no borrado) en `donate/[id]`; transferencia es el único método; pantalla post-transferencia con card "Bancá el proyecto" (alias de donAR copiable + auto-reporte "ya aporté" a tabla `platform_support`). TODO: poner el alias real de donAR en `gracias.tsx` (hoy placeholder `donar.proyecto`).
+- **Documentación legal sumada donde corresponde** (Gastón dijo "es clave"): paper sección 11.c nueva, README sección "Encuadre legal", memory (decisiones), backlog.
 
 ### 27 jul 2026 (sesión 9, madrugada)
 - **Ranking mensual construido** (fórmula núcleo del paper, solo donantes con mail vinculado). Ver avance de rebanadas.

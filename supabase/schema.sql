@@ -262,3 +262,21 @@ create policy "receipt read cause owner" on storage.objects for select
 -- status). Hoy no hay policy de UPDATE en contributions, así que RLS lo bloquea.
 create policy "contributions cause owner update" on contributions for update
   using (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+
+-- 27 jul 2026 (aporte voluntario a la plataforma). MVP sin comisión: el donante
+-- puede, opcionalmente, aportar a donAR "a voluntad" para bancar el proyecto.
+-- Es ingreso propio de donAR (no fondos de terceros), y un experimento de
+-- willingness-to-pay. Esta tabla registra el auto-reporte "ya colaboré" para
+-- medir cuántos aportan (el importe real llega por transferencia directa al
+-- alias de donAR, fuera de la app).
+create table if not exists platform_support (
+  id uuid primary key default gen_random_uuid(),
+  supporter_id uuid references profiles(id) on delete set null,
+  cause_id uuid references causes(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+alter table platform_support enable row level security;
+create policy "platform_support insert" on platform_support for insert
+  with check (auth.uid() = supporter_id or supporter_id is null);
+create policy "platform_support read own" on platform_support for select
+  using (auth.uid() = supporter_id);

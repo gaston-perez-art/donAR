@@ -64,7 +64,7 @@ export default function TransferScreen() {
     const ok = await submitTransfer(String(id), n, message ?? '', anon === '1', receiptUri);
     setSubmitting(false);
     if (ok) {
-      router.replace(`/gracias?amount=${n}&pending=1`);
+      router.replace(`/gracias?amount=${n}&pending=1&cause=${id}`);
     } else {
       Alert.alert('No pudimos registrar tu transferencia', 'Probá de nuevo en un momento.');
     }
