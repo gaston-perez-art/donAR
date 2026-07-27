@@ -2,7 +2,7 @@
 
 Archivo vivo. Se lee al inicio de cada sesión y se actualiza al cerrar. Registra estado, decisiones tomadas, supuestos abiertos y próximos pasos. Complementa (no reemplaza) el "Paper fundacional" y el "Contexto del proyecto y como trabajo".
 
-Última actualización: 26 de julio de 2026 (sesión: pulido a fondo del flujo de crear causa por feedback de Gastón; arranque de ranking mensual).
+Última actualización: 27 de julio de 2026 (sesión: MP sandbox andando; sesión de producto grande = dos métodos de pago, cierre+agradecimiento, modelo de confianza del dinero; se creó docs/BACKLOG.md y se documentó fraude en el paper).
 
 ---
 
@@ -15,6 +15,8 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 ## 2. Cómo trabajar con Gastón (recordatorio permanente)
 
 - Al hueso: directo, sin relleno ni preámbulo.
+- **Actualizar `memory.md` de forma RECURRENTE, no solo al cerrar** (pedido explícito de Gastón, 27 jul). Mantenerlo vivo durante la sesión, no dejar que quede viejo. Igual con la doc de negocio (`docs/paper-fundacional-donar.md`, `docs/BACKLOG.md`) cuando surge algo clave.
+- Cuando Gastón entra en "explosión de creatividad" y tira muchas ideas desordenadas, el rol es ANCLAR: no codear al toque, ordenar en backlog/mapa, marcar tensiones y dependencias, y recién después priorizar. Él lo pidió textual: "mantené el orden, el eje y el expertise en producto world class, no te me pierdas".
 - Nunca inventar: toda afirmación con sustento (fuente, archivo, doc, razonamiento). Los supuestos se marcan como supuestos.
 - Trato profesional y medido (terapeuta con paciente).
 - Preguntar antes de asumir si la decisión cambia el resultado; si es detalle menor con default obvio, tomarlo y avisar en una línea.
@@ -30,7 +32,7 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 
 - **Etapa actual:** POC móvil con flujo de donación y curaduría real de punta a punta funcionando (feed → detalle → donar, y crear causa → evidencia → revisión de un curador → publicada). Falta integración real de pago (Mercado Pago) y verificación automática de identidad; ambas conscientemente fuera del MVP.
 - **Repo:** carpeta local `~/Documents/donAR`, git en rama `main`, remoto `origin` = https://github.com/gaston-perez-art/donAR.git. Commitear directo a `main` es intencional para el POC (confirmado por Gastón, no hace falta rama+PR).
-- **Documentos base:** Paper fundacional v0.2, manual de trabajo, y `Flujo de verificacion de causas.md` (v0.1, define qué verifica el curador y la máquina de estados). Copias también en `docs/` (CONTEXTO.md, paper-fundacional-donar.md, prototipo-donar.html).
+- **Documentos base:** Paper fundacional v0.2, manual de trabajo, y `Flujo de verificacion de causas.md` (v0.1). Copias en `docs/` (CONTEXTO.md, paper-fundacional-donar.md, prototipo-donar.html). **`docs/BACKLOG.md`** (27 jul): backlog vivo del producto por épicas (qué falta y en qué orden). El paper ahora incluye la sección **11.b "Confianza del dinero sin custodia"** (modelo antifraude del pago, ver sección 4 de este memory).
 - **Ficha del proyecto:** definida. Stack decidido (ver sección 4).
 
 ### Avance de rebanadas (código real, no solo README)
@@ -46,11 +48,14 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 - [x] Limpieza: eliminado todo el scaffold muerto del template de Expo (`app-tabs`, `themed-text/view`, `collapsible`, `animated-icon`, `use-theme`, `use-color-scheme`, `constants/theme.ts`) que nunca se conectó a la app real. `npx tsc --noEmit` corre sin errores.
 - [x] **Curador y donante ya no comparten navegación** (26 jul): si la cuenta es curador, la app entera es el panel de curaduría (`src/screens/curar-screen.tsx`, ya no vive en `src/app/`, se decide en `_layout.tsx` antes de montar cualquier tab). "Cerrar sesión" (nuevo, `signOut` en el store) vuelve a una sesión anónima limpia para probar como donante. Perfil también tiene "Cerrar sesión" junto al mail vinculado.
 - [x] **Modal de confirmación al enviar una causa a revisión** (26 jul): felicitación, frase, SLA (24 hs hábiles) y botón directo al estado de la causa. Antes navegaba al feed en silencio, sensación de "no pasó nada".
-- [~] Ranking mensual + lógica de puntos: EN CURSO (arrancó 26 jul). Antes era placeholder "Próximamente".
+- [x] **Ranking mensual + puntos** (26-27 jul): fórmula núcleo del paper (+50 por aporte, +1 cada $1.000 tope 150/causa, +100 por causa completada). Solo entran donantes con mail vinculado (`profiles.is_registered` + `display_name`). Racha x1,2 y +200 identidad quedan para después.
+- [x] **Mercado Pago sandbox** (27 jul): el botón de donar abre el checkout real de MP en modo sandbox (tarjetas de prueba, sin plata real). Edge Function `mp-create-preference` (Deno, deployada por Gastón en el dashboard, secreto `MP_ACCESS_TOKEN` con el token de PRUEBA). `src/lib/mercadopago.ts` + wiring en `donate/[id].tsx` con `expo-web-browser`. ANDA: probado con un usuario de prueba comprador. IMPORTANTE: es un demo CUSTODIAL (cobra a la cuenta dueña del token = donAR, NO al alias del beneficiado). El alias/CBU declarado solo se guarda y se le muestra al curador, no está conectado al pago. Para que sea no-custodial hace falta split de pagos (ver backlog, parqueado + legal).
 - [ ] Actividad (placeholder, dice "Próximamente"). Decisión de Gastón: se deja TBD, valor post-MVP.
-- [ ] Causa finalizada (happy / unhappy).
-- [ ] Integración real de pago (Mercado Pago). Hoy `donate()` es un insert directo en Supabase, sin pasarela real (consistente con la decisión "MVP conecta, no custodia").
+- [ ] **GRAN sesión de producto (27 jul), todo el detalle en `docs/BACKLOG.md`.** Resumen de lo que se definió y queda por construir, por épicas: (1) Panel de "mi causa" (vista del creador: recaudado/meta, aportes, y home de las confirmaciones); (2) dos métodos de pago = MP + transferencia con comprobante; (3) confirmación del aporte por transferencia (el beneficiado confirma que le llegó); (4) cierre de causa (por tiempo o por meta) + mini-reporte + flujo de agradecimiento del beneficiado a los donantes; (5) puntos coherentes = solo lo confirmado suma; (6) monto mínimo para pedir una causa.
 - [ ] Reenvío con edición real tras "pedido de info": hoy el botón "Reenviar a revisión" solo cambia el estado, no permite editar los datos de la causa antes de reenviar. Simplificación consciente, documentada como deuda.
+
+### Bug abierto
+- **La foto de portada no se ve** (27 jul): se suben al bucket `cause-covers` pero no se muestran en feed/detalle. Revisar bucket público, `image_urls` guardadas, y el render del carrusel. En el backlog.
 
 ### Estructura del repo (resumen)
 `src/app/` rutas Expo Router: `index` (feed), `cause/[id]`, `donate/[id]`, `create`, `cobro`, `review`, `gracias`, `activity`/`ranking` (placeholders), `profile`. `_layout.tsx` decide antes de montar nada si la cuenta es curador; si lo es, renderiza `src/screens/curar-screen.tsx` directo (no es una ruta, es el modo completo de la app para esa identidad, sin tabs). `src/components/` (cause-card, donar-tab-bar, placeholder, ui/). `src/constants/donar-theme.ts` (única fuente de theme; `constants/theme.ts` viejo del scaffold, eliminado). `src/lib/supabase.ts` (cliente + auth: sesión anónima, vincular/loguear con mail y código, `signOut`, evidencia a Storage). `src/store/causes-store.tsx` (toda la data layer: causas, donaciones, actividad, curaduría, `isCurator`/`signOut`). `supabase/schema.sql` (esquema completo + migraciones al final, fecha por fecha). `scripts/seed-demo-cause.mjs` (siembra una causa que no es de quien lo corre, útil para probar donación sin que cuente como "recibido" propio).
@@ -58,6 +63,7 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 ### Infraestructura externa (fuera del repo, config manual en dashboards)
 - **Supabase**: proyecto `fyaxvofpqqlvtudmnmxi`. Auth con sesiones anónimas por default, ascendidas a cuenta real por mail. Storage: bucket privado `cause-evidence` (RLS: solo dueño de la causa y curador leen). SQL Editor es la única vía de migración (no hay CLI linkeado ni service role key en el repo).
 - **Resend**: SMTP custom para que Supabase pueda mandar mails con plantilla editada (código de 6 dígitos en vez de magic link). Sender de prueba `onboarding@resend.dev`, sin dominio propio verificado todavía: probablemente solo entrega al mail con el que Gastón se registró en Resend. Verificar dominio propio es un paso futuro si se necesita mandar a donantes reales.
+- **Mercado Pago**: app de desarrollador de Gastón, tipo Checkout Pro. Edge Function `mp-create-preference` deployada en el dashboard de Supabase (con `Deno.serve` nativo, NO el import de deno.land/std que falla al bundlear), secreto `MP_ACCESS_TOKEN` = token de PRUEBA (pestaña "Prueba" del panel; los tokens de prueba hoy empiezan con `APP_USR-`, MP retiró el prefijo `TEST-`). Para probar en sandbox hay que crear un "usuario de prueba comprador" en el panel de MP y loguearse con ESE en el checkout, no con la cuenta real (si mezclás real + preferencia de prueba, MP frena con "una de las partes es de prueba"). Tarjeta de test: `5031 7557 3453 0604`, titular `APRO` para aprobar. Nota: el checkout de MP es quisquilloso con las back_urls en apps; el retorno post-pago puede necesitar ajuste (no confirmado end-to-end que vuelva y registre la donación).
 
 ### Versión de Expo (resuelto)
 Usar Expo SDK 54, confirmado por Gastón.
@@ -83,6 +89,9 @@ Usar Expo SDK 54, confirmado por Gastón.
 | Google Sign-In | Evaluado y descartado por ahora | Requiere build nativo (EAS dev client) con credenciales OAuth, incompatible con correr todo por Expo Go. Se retoma cuando el proyecto pase a build nativo (va a pasar antes de subir a las stores) |
 | Curador vs. donante | Identidades mutuamente excluyentes en la misma sesión. Si `is_curator`, la app entera es el panel de curaduría, nada de feed/crear/perfil de donante. `signOut` para volver a una sesión anónima y probar el otro lado | Son dos trabajos distintos, mezclarlos en una sola navegación confunde al testear. Se resigna que la misma persona no pueda ser curador y donante al mismo tiempo sin cerrar sesión, aceptable con un solo curador |
 | Subida de evidencia a Storage | `fetch(uri).arrayBuffer()` en vez de `expo-file-system` (API `File`, nueva en SDK 54) | La API nueva fallaba en silencio y dejaba "Enviar a revisión" sin reaccionar. `fetch` + `arrayBuffer` es el patrón más probado para RN + Supabase Storage |
+| **Confianza del dinero sin custodia** (27 jul, DECISIÓN CLAVE) | Modelo antifraude del pago por transferencia: (1) transparencia (comprobante público), (2) el BENEFICIADO confirma que le llegó (es el único que ve la plata; sus incentivos alinean con la verdad), (3) identidad verificada. Regla de oro: **solo lo confirmado suma** a la meta/puntos/kudos. Documentado en el paper, sección 11.b | donAR NO está en el camino de la plata (ese es el punto de "no custodiar"), así que nunca puede PROBAR que llegó. El modelo es transparencia + confirmación + identidad, no prueba criptográfica. El hueco (colusión para inflar) es vanidad, no robo; lo encarecen curaduría + identidad. El MVP hace el fraude caro y visible, no lo elimina |
+| **Dos métodos de pago** (27 jul) | El donante elige: (a) Mercado Pago, (b) Transferencia con comprobante. La transferencia es el flujo canónico del MVP (no-custodial, el del paper). MP como está es un demo custodial hasta tener split de pagos | Detalle y secuencia de construcción en `docs/BACKLOG.md` |
+| Monto mínimo para pedir | Va a haber un piso para crear una causa (que no se pida $1) | Evita ruido y pedidos no serios. Valor exacto por definir |
 
 ---
 
@@ -133,6 +142,19 @@ Fuera por ahora: custodia de fondos y regulación asociada, beneficios materiale
 ---
 
 ## 9. Registro de sesiones (log)
+
+### 27 jul 2026 (sesión 9, madrugada)
+- **Ranking mensual construido** (fórmula núcleo del paper, solo donantes con mail vinculado). Ver avance de rebanadas.
+- **Mercado Pago sandbox andando.** Edge Function + client + wiring. Gastón la deployó desde el dashboard (el primer intento falló al bundlear por el import de deno.land; se reescribió con `Deno.serve` nativo y borrando el template default del editor). Sacó el token de PRUEBA, creó un usuario de prueba comprador para pagar (loguearse con la cuenta real daba "una de las partes es de prueba"). CLAVE que entendió Gastón: el demo cobra a UNA cuenta (custodial), no al beneficiado; el alias declarado no está conectado al pago.
+- **Sesión de producto grande** (Gastón en "explosión de creatividad", pidió explícitamente que yo ancle y mantenga el orden/eje). Se definió:
+  - Dos ejes que estaba mezclando: (A) panel de "mi causa" del creador, (B) métodos de pago del donante.
+  - Dos métodos de pago: MP + transferencia con comprobante. La transferencia es el flujo canónico del MVP (no-custodial, el del paper); MP como está es demo custodial.
+  - Modelo de confianza del dinero sin custodia (la parte que Gastón llamó "oro" y quiso documentar): transparencia + confirmación del beneficiado + identidad; solo lo confirmado suma. Respondida su pregunta de "cómo me fío del beneficiado" con el análisis de incentivos. Documentado en el paper 11.b.
+  - Flujo nuevo que sumó: cierre de causa (por tiempo o meta) + mini-reporte + agradecimiento del beneficiado a los donantes.
+  - Regla nueva: monto mínimo para pedir.
+- **Creado `docs/BACKLOG.md`** (backlog vivo por épicas) y **actualizado el paper** (sección 11.b nueva + fila de fraude). Pedido explícito de Gastón: actualizar memory de forma RECURRENTE y mantener la doc de negocio al día (registrado en sección 2).
+- Bug reportado: la foto de portada no se ve (en el backlog).
+- PRÓXIMO: recién ahora se arranca la priorización del backlog (Gastón la pidió después de tener todo documentado).
 
 ### 26 jul 2026 (sesión 8, noche)
 - **Pulido a fondo del flujo de crear causa**, todo por feedback de Gastón probando en su iPhone:

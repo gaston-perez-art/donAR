@@ -1,0 +1,68 @@
+# DonAR — Backlog
+
+Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia. No es el estado del código (eso vive en `memory.md`); acá vive el "qué falta y en qué orden".
+
+Última actualización: 27 de julio de 2026.
+
+**Estados:** ✅ hecho · 🔨 en curso · ⬜ pendiente · 🐞 bug · 🅿️ parqueado (fuera del MVP por ahora) · ❓ decisión abierta
+
+---
+
+## Épica 1 — Panel de "mi causa" (vista del creador)
+*Base de casi todo lo demás: es donde el creador vive su causa y donde después confirma transferencias y ve el cierre.*
+
+- ⬜ **1.1** Ver mi causa activa: recaudado/meta, días restantes, lista de aportes.
+- ⬜ **1.2** Ver el estado del trámite (revisión / publicada / rechazada) desde el Perfil, no solo desde el feed.
+- ⬜ **1.3** Que "mi causa" sea accesible desde el Perfil (hoy solo desde la sección "Tus causas" del feed).
+
+## Épica 2 — Métodos de pago del donante
+- ✅ **2.1** Mercado Pago (checkout sandbox). *Nota: es demo custodial — cobra a una sola cuenta, no va al beneficiado. On-axis solo con split de pagos (ver Parqueado).*
+- ⬜ **2.2** Bifurcación en la pantalla de donar: elegir "Mercado Pago" o "Transferencia".
+- ⬜ **2.3** Flujo de transferencia (el del paper, sin custodia): mostrar alias del beneficiado → el donante transfiere por fuera → sube comprobante → el aporte queda "pendiente de confirmación".
+
+## Épica 3 — Confirmación del aporte por transferencia
+*El eslabón de confianza del modelo sin custodia. Ver el modelo completo en el paper, sección "Confianza del dinero sin custodia".*
+
+- ⬜ **3.1** El beneficiado ve, en su panel (Épica 1), las transferencias pendientes con su comprobante.
+- ⬜ **3.2** Confirma o rechaza cada una. Recién al confirmar: suma a la meta, se dan puntos y se dispara el kudos.
+- ❓ **3.3** Qué pasa si el beneficiado no confirma nunca (¿timeout? ¿el donante puede reclamar?).
+
+## Épica 4 — Cierre de causa + agradecimiento
+*Se dispara por tiempo (venció el plazo) o por monto (llegó a la meta).*
+
+- ⬜ **4.1** El creador ve el estado de cierre: "cumplida" (happy) o "cerrada sin llegar" (unhappy).
+- ⬜ **4.2** Mini-reporte de cierre: cuánto se juntó, cuántas personas, en cuánto tiempo.
+- ⬜ **4.3** Flujo de agradecimiento: el beneficiado deja un mensaje de cierre y puede agradecer a los donantes (o a alguien puntual).
+- ❓ **4.4** Destino del excedente si superó la meta (pendiente + legal).
+
+## Épica 5 — Puntos / ranking coherentes con la regla
+- ⬜ **5.1** Puntos y meta cuentan **solo aportes confirmados** (MP = instantáneo; transferencia = al confirmar). Hoy cuenta todo lo `approved`.
+- 🅿️ **5.2** Racha semanal (x1,2) en la fórmula de puntos.
+- 🅿️ **5.3** +200 por verificar identidad (no aplica a donantes en el flujo actual).
+
+## Épica 6 — Reglas de creación de causa
+- ⬜ **6.1** Monto mínimo para pedir (que no se pueda crear una causa pidiendo $1). Define un piso razonable para el MVP.
+- ⬜ **6.2** Revisar máximos / coherencia monto vs. evidencia (ya lo mira el curador, ver si sumar validación blanda).
+
+---
+
+## Bugs / known issues
+- 🐞 **La foto de portada no se ve.** Se suben pero no se muestran en el feed / detalle. Revisar: bucket público `cause-covers`, URLs guardadas en `image_urls`, y el render del carrusel. Reportado 27 jul.
+
+---
+
+## Decisiones abiertas (producto, no código)
+- ❓ **Modelo de confianza de la transferencia.** Recomendado: el beneficiado confirma, comprobante público, solo lo confirmado suma. Falta OK final. (Analizado en el paper.)
+- ❓ **Qué hacemos con Mercado Pago:** ¿queda como "demo / próximamente" hasta tener split de pagos, o se muestra igual sabiendo que es custodial?
+- ❓ **Timeout de confirmación** de transferencia (Épica 3.3).
+- ❓ **Destino del excedente** cuando una causa supera la meta (Épica 4.4).
+- ❓ **Lista de causas vetadas** (viene del flujo de verificación, falta OK final).
+
+---
+
+## Parqueado (fuera del MVP por ahora)
+- 🅿️ **Split de pagos / marketplace de Mercado Pago** (OAuth, cada beneficiado conecta su MP, la plata va directo, donAR cobra su fee). Es el "conectar sin custodiar + comisión" real. Grande + depende del OK legal.
+- 🅿️ **Pulir la historia con IA** al crear una causa. Necesita Edge Function + cuenta Anthropic con facturación. Costo por uso casi nulo.
+- 🅿️ **Verificar dominio propio en Resend** para mandar mails a donantes reales (hoy el sender de prueba solo entrega al mail de la cuenta de Resend).
+- 🅿️ **Actividad** (tab): TBD, valor post-MVP.
+- 🅿️ **Consulta legal** sobre "conectar sin custodiar" (el supuesto más caro; fuera del código pero bloquea la etapa 2).

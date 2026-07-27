@@ -161,10 +161,50 @@ El MVP existe para aprender, no para impresionar. Las funcionalidades mínimas p
 | Riesgo | Impacto | Mitigación |
 |---|---|---|
 | Regulatorio (el más caro) | Manejar dinero de terceros te vuelve un PSP regulado. Es donde tropezó Maratea | Modelo híbrido: el MVP no custodia. La migración a custodia se hace con asesoramiento legal antes de tocar un peso ajeno. Supuesto a confirmar con abogado: que "conectar sin custodiar" no configure igual intermediación financiera regulada |
-| Fraude y credibilidad | Historias falsas dañan la confianza | La curaduría manual es el antifraude del MVP. A baja escala, ser el cuello de botella es fortaleza: cada causa aprobada lleva tu verificación encima |
+| Fraude y credibilidad | Historias falsas o pagos falsos dañan la confianza | Dos frentes. (1) Causa falsa: la curaduría manual es el antifraude del MVP; a baja escala, ser el cuello de botella es fortaleza. (2) Pago falso: modelo de confianza del dinero sin custodia (transparencia del comprobante + confirmación del beneficiado + identidad; solo lo confirmado suma). Detalle completo en la sección 11.b |
 | Ético y reputacional | Gamificar la necesidad ajena puede leerse como espectáculo del sufrimiento | El reconocimiento premia al que da, no pone a competir a los que piden. Sin ranking público entre causas. Lenguaje de UI que no estigmatice |
 | Percepción del fee | Un fee percibido como alto destruye la confianza | Fee bajo, comunicado con transparencia total, con el 5% de Maratea como techo de lo tolerable |
 | Ingreso dependiente de escala | El fee rinde poco hasta que hay volumen | Costo operativo del MVP bajo (curaduría manual, sin custodia, sin desarrollo pesado) para no exigir un volumen que todavía no existe |
+
+---
+
+## 11.b. Confianza del dinero sin custodia (modelo antifraude del pago)
+
+Esta sección es central: es el corazón del modelo "conectar sin custodiar" y de cómo se sostiene la confianza sin que la plataforma toque la plata. Surgió de discutir el flujo de pago por transferencia.
+
+### El punto de partida incómodo
+
+DonAR **no está en el camino del dinero**. Ese es todo el punto de "no custodiar": la plata va del donante al beneficiado, directo. La consecuencia lógica es que **la plataforma nunca puede *probar* técnicamente que una transferencia llegó**, porque no la ve pasar. Aceptar esto no es una debilidad a esconder: es la premisa de diseño.
+
+Entonces el modelo de confianza no es prueba criptográfica ni verificación bancaria. Son tres capas apiladas:
+
+1. **Transparencia:** el comprobante de transferencia queda visible en el recorrido de la causa. Cualquiera lo ve.
+2. **Confirmación humana:** el beneficiado confirma que el dinero llegó a su cuenta. Es el único que lo ve.
+3. **Identidad verificada:** tanto el que pide como (idealmente) el que da están anclados a una persona real. Mentir expone.
+
+### Por qué la confirmación del beneficiado es el validador correcto
+
+Es tentador pensar "¿y cómo me fío de que el beneficiado diga la verdad de que le llegó?". La respuesta es que los incentivos casi se ordenan solos:
+
+- El beneficiado es **el único que ve la plata** entrar a su cuenta. Ningún curador ni la plataforma tienen esa visibilidad. Por eso el validador natural es él, no un tercero.
+- Sus incentivos alinean con la verdad: **quiere** confirmar la plata real (suma a su meta, acerca el cierre) y **no gana nada** confirmando plata que no recibió. Además su identidad está verificada, así que una mentira lo expone.
+- El riesgo real **no** es el beneficiado negando lo que recibió. Es el **donante subiendo un comprobante falso** (dice que transfirió y no lo hizo). La confirmación del beneficiado es justamente el filtro contra eso: no confirma lo que no le llegó.
+
+### El hueco que queda, y por qué no lo matamos en el MVP
+
+Queda un único vector: que **beneficiado y donante coludan** para inflar el total de una causa con comprobantes truchos que el beneficiado confirma, sin plata real detrás. Es importante dimensionarlo bien:
+
+- Es **vanidad, no robo.** En un modelo sin custodia no hay dinero de la plataforma en juego. Nadie le saca plata a donAR ni a un tercero: solo se infla un número de prueba social.
+- Lo encarecen las capas que ya existen: **curaduría** (un humano aprobó la causa) e **identidad verificada** (los dos coludidos ponen la cara y el DNI).
+- El MVP no necesita eliminar el fraude, necesita **hacerlo caro y visible.** Perseguir la prueba perfecta es sobre-ingeniería para esta etapa.
+
+### Regla de oro para la trazabilidad honesta
+
+**Solo la plata confirmada cuenta.** Un aporte por transferencia con comprobante subido pero sin confirmar queda en estado "pendiente": no suma a la meta, no da puntos, no dispara el kudos. Recién al confirmar el beneficiado, cuenta. Esto evita que un comprobante suelto infle la barra de progreso y mantiene la trazabilidad creíble, que es el producto que se vende.
+
+### Nota sobre Mercado Pago
+
+El pago por Mercado Pago tal como está hoy (checkout que cobra a una sola cuenta) es **custodial**: la plata pasaría por donAR, lo contrario a "conectar sin custodiar". Para que MP sea coherente con el eje del proyecto hace falta **split de pagos** (cada beneficiado conecta su propio MP por OAuth y el dinero se reparte directo, con el fee de donAR retenido automáticamente). Eso es etapa 2 y depende del encuadre legal. El flujo canónico del MVP es la **transferencia con comprobante** descrita arriba, que sí es no-custodial por diseño.
 
 ---
 
