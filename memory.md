@@ -2,7 +2,7 @@
 
 Archivo vivo. Se lee al inicio de cada sesión y se actualiza al cerrar. Registra estado, decisiones tomadas, supuestos abiertos y próximos pasos. Complementa (no reemplaza) el "Paper fundacional" y el "Contexto del proyecto y como trabajo".
 
-Última actualización: 27 de julio de 2026 (sesión: MP sandbox andando; sesión de producto grande = dos métodos de pago, cierre+agradecimiento, modelo de confianza del dinero; se creó docs/BACKLOG.md y se documentó fraude en el paper).
+Última actualización: 27 de julio de 2026 (madrugada). Épicas 1-3 hechas (panel de mi causa, dos métodos de pago, confirmación de transferencia): el eje "conectar sin custodiar" está completo. Backlog priorizado en docs/BACKLOG.md. MP sandbox andando. Modelo de confianza del dinero documentado en el paper (11.b).
 
 ---
 
@@ -132,12 +132,13 @@ Fuera por ahora: custodia de fondos y regulación asociada, beneficios materiale
 
 ## 8. Próximos pasos
 
-1. Confirmar con abogado el encuadre regulatorio de "conectar sin custodiar". (Sigue pendiente, es el supuesto que más puede cambiar el modelo.)
+**El backlog vivo y priorizado vive en `docs/BACKLOG.md`.** Estado al 27 jul: Épicas 1 (panel de mi causa), 2 (dos métodos de pago), 3 (confirmación de transferencia) HECHAS → el eje "conectar sin custodiar" está completo de punta a punta. Sigue: Épica 4 (cierre de causa + agradecimiento), Épica 5 (puntos coherentes = solo lo confirmado suma), Épica 6 (monto mínimo), y dos bugs (swipe nativo de iOS, carrusel no swipeable desde el feed).
+
+Fuera del código, lo que sigue bloqueando la etapa 2:
+1. Confirmar con abogado el encuadre regulatorio de "conectar sin custodiar". Es el supuesto que más puede cambiar el modelo.
 2. Definir el fee inicial y testear su percepción.
 3. OK final de Gastón sobre la lista de causas vetadas.
-4. Probar el flujo de curaduría real con una causa ajena de punta a punta (crear con otra sesión, revisar como curador, aprobar/rechazar/pedir info) y confirmar que la experiencia se siente sólida.
-5. Ranking mensual + lógica de puntos. ← EN CURSO.
-6. Causa finalizada (happy / unhappy).
+4. Validar H1/H2/H3 con gente real (todavía sin testear con usuarios).
 7. Pulir la historia con IA al crear una causa. DECISIÓN 26 jul: pospuesto. Costo por uso es casi nulo (Haiku 4.5, fracción de centavo por historia); lo caro es la infraestructura: NO se puede llamar a la API de Anthropic directo desde la app (expondría la clave), hay que interponer una Supabase Edge Function que guarde la API key como secreto, y Gastón necesita cuenta propia en Anthropic con facturación. Se retoma cuando él lo decida.
 8. Evaluar si conviene edición real en el reenvío tras "pedido de info", o si alcanza con el flujo actual (reenviar tal cual) para esta etapa de pruebas.
 9. Verificar un dominio propio en Resend si se necesita mandar mails a donantes reales (no solo a Gastón).
