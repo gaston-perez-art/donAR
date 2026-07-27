@@ -5,27 +5,31 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 
 export default function GraciasScreen() {
-  const { amount } = useLocalSearchParams<{ amount: string }>();
+  const { amount, pending } = useLocalSearchParams<{ amount: string; pending?: string }>();
   const router = useRouter();
   const n = Number(amount) || 0;
+  const isPending = pending === '1';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.center}>
-        <View style={styles.medal}>
-          <Text style={{ fontSize: 56 }}>🏅</Text>
+        <View style={[styles.medal, isPending && styles.medalPending]}>
+          <Text style={{ fontSize: 56 }}>{isPending ? '⏳' : '🏅'}</Text>
         </View>
-        <Text style={styles.h2}>¡Gracias por sumar!</Text>
+        <Text style={styles.h2}>{isPending ? '¡Comprobante enviado!' : '¡Gracias por sumar!'}</Text>
         <Text style={styles.sub}>
-          Tus {formatARS(n)} ya están registrados en la causa y son visibles en el recorrido. Fuiste
-          parte de algo real.
+          {isPending
+            ? `Tu transferencia de ${formatARS(n)} quedó registrada. El beneficiario va a confirmar que le llegó; ahí tu aporte suma a la meta y ganás tus puntos.`
+            : `Tus ${formatARS(n)} ya están registrados en la causa y son visibles en el recorrido. Fuiste parte de algo real.`}
         </Text>
       </View>
 
       <View style={styles.footer}>
-        <Pressable onPress={() => router.replace('/ranking')}>
-          <Text style={styles.secondary}>Ver ranking de solidarios</Text>
-        </Pressable>
+        {!isPending && (
+          <Pressable onPress={() => router.replace('/ranking')}>
+            <Text style={styles.secondary}>Ver ranking de solidarios</Text>
+          </Pressable>
+        )}
         <Pressable style={styles.btn} onPress={() => router.replace('/')}>
           <Text style={styles.btnText}>Seguir ayudando</Text>
         </Pressable>
@@ -46,6 +50,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.xl,
   },
+  medalPending: { backgroundColor: Colors.skySoft },
   h2: { fontSize: 23, fontWeight: '800', color: Colors.ink, letterSpacing: -0.4, marginBottom: Spacing.sm },
   sub: { fontSize: 14, color: Colors.muted, textAlign: 'center', lineHeight: 21, maxWidth: 290 },
   footer: { padding: Spacing.lg, gap: Spacing.md, alignItems: 'center' },

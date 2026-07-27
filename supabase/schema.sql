@@ -52,7 +52,9 @@ create table contributions (
   amount numeric not null check (amount > 0),
   message text,
   anonymous boolean not null default false,
-  status text not null default 'approved',
+  status text not null default 'approved', -- 'approved' (MP, instantáneo) | 'pending' (transferencia, esperando confirmación del beneficiado)
+  method text not null default 'mp',        -- 'mp' | 'transfer'
+  receipt_url text,                          -- comprobante de transferencia (path en el bucket transfer-receipts)
   created_at timestamptz not null default now()
 );
 
@@ -218,3 +220,39 @@ select
   (select count(*) from contributions ct
    where ct.cause_id = c.id and ct.status = 'approved') as contributors
 from causes c;
+
+-- 27 jul 2026 (Épica 2: dos métodos de pago). Transferencia con comprobante.
+-- El aporte por transferencia entra 'pending' (no cuenta para la meta hasta que
+-- el beneficiado lo confirme; causes_public solo suma 'approved'). MP entra 'approved'.
+alter table contributions add column if not exists method text not null default 'mp';
+alter table contributions add column if not exists receipt_url text;
+
+-- El donante necesita ver el alias/CBU del beneficiado para transferir. Se abre
+-- la lectura de cause_payouts para causas ya publicadas (coherente con
+-- "conectar sin custodiar": el destino del dinero es público). Las políticas de
+-- dueño y curador ya existentes se mantienen (se suman con OR).
+create policy "payouts public read for published" on cause_payouts for select
+  using (exists (
+    select 1 from causes c
+    where c.id = cause_id and c.status in ('active', 'completed', 'closed')
+  ));
+
+-- Bucket privado para los comprobantes de transferencia. Lo lee el donante que
+-- lo subió y el dueño de la causa (para confirmar en la Épica 3).
+insert into storage.buckets (id, name, public)
+values ('transfer-receipts', 'transfer-receipts', false)
+on conflict (id) do nothing;
+
+create policy "receipt insert own" on storage.objects for insert
+  with check (bucket_id = 'transfer-receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "receipt read own" on storage.objects for select
+  using (bucket_id = 'transfer-receipts' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "receipt read cause owner" on storage.objects for select
+  using (
+    bucket_id = 'transfer-receipts'
+    and exists (
+      select 1 from contributions ct
+      join causes c on c.id = ct.cause_id
+      where c.owner_id = auth.uid() and ct.receipt_url = name
+    )
+  );

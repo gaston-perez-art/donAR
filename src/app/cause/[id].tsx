@@ -202,10 +202,17 @@ export default function CauseDetailScreen() {
                   <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{c.name}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>{c.name}</Text>
+                    {c.status === 'pending' && (
+                      <View style={styles.pendingTag}>
+                        <Text style={styles.pendingTagText}>por confirmar</Text>
+                      </View>
+                    )}
+                  </View>
                   {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
                 </View>
-                <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
+                <Text style={[styles.amt, c.status === 'pending' && styles.amtPending]}>+{formatARS(c.amount)}</Text>
               </View>
             ))
           )}
@@ -345,9 +352,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dotText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 14, fontWeight: '600', color: Colors.ink },
+  pendingTag: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
+  pendingTagText: { fontSize: 10, fontWeight: '700', color: '#8A6D00' },
   msg: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   amt: { fontWeight: '800', fontSize: 14.5, color: Colors.brandDark },
+  amtPending: { color: Colors.muted },
   cta: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnShare: { backgroundColor: Colors.ink },

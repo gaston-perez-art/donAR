@@ -17,8 +17,8 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 
 ## Épica 2 — Métodos de pago del donante
 - ✅ **2.1** Mercado Pago (checkout sandbox). *Nota: es demo custodial — cobra a una sola cuenta, no va al beneficiado. On-axis solo con split de pagos (ver Parqueado).*
-- ⬜ **2.2** Bifurcación en la pantalla de donar: elegir "Mercado Pago" o "Transferencia".
-- ⬜ **2.3** Flujo de transferencia (el del paper, sin custodia): mostrar alias del beneficiado → el donante transfiere por fuera → sube comprobante → el aporte queda "pendiente de confirmación".
+- ✅ **2.2** Bifurcación en la pantalla de donar: "Pagar con Mercado Pago" o "Transferir yo mismo".
+- ✅ **2.3** Flujo de transferencia (`transfer/[id].tsx`): muestra el alias del beneficiado (copiable), el donante sube el comprobante, el aporte entra `pending` (no cuenta para la meta hasta confirmarse). Bucket privado `transfer-receipts`. En la lista de aportes se tagea "por confirmar".
 
 ## Épica 3 — Confirmación del aporte por transferencia
 *El eslabón de confianza del modelo sin custodia. Ver el modelo completo en el paper, sección "Confianza del dinero sin custodia".*

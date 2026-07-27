@@ -74,7 +74,7 @@ export default function DonateScreen() {
   const alreadyMet = !!cause && cause.raised >= cause.goal;
   const willExceed = !!cause && valid && cause.raised + amount > cause.goal;
 
-  const doDonate = async () => {
+  const payWithMP = async () => {
     if (submitting || !valid || !cause) return;
     setSubmitting(true);
 
@@ -118,8 +118,16 @@ export default function DonateScreen() {
     }
   };
 
-  const confirm = () => {
+  const goToTransfer = () => {
+    router.push({
+      pathname: '/transfer/[id]',
+      params: { id: String(id), amount: String(amount), message, anon: anonymous ? '1' : '' },
+    });
+  };
+
+  const confirm = (method: 'mp' | 'transfer') => {
     if (submitting || !valid) return;
+    const run = method === 'mp' ? payWithMP : goToTransfer;
     if (willExceed && cause) {
       Alert.alert(
         alreadyMet ? 'Esta causa ya alcanzó su meta' : 'Tu aporte supera la meta',
@@ -130,12 +138,12 @@ export default function DonateScreen() {
         } Tu donación suma igual y queda registrada en el recorrido de la causa. ¿Querés continuar?`,
         [
           { text: 'Cambiar monto', style: 'cancel' },
-          { text: 'Donar igual', onPress: doDonate },
+          { text: 'Continuar', onPress: run },
         ],
       );
       return;
     }
-    doDonate();
+    run();
   };
 
   return (
@@ -221,7 +229,7 @@ export default function DonateScreen() {
       <View style={styles.cta}>
         <Pressable
           style={[styles.btn, (submitting || !valid) && styles.btnDisabled]}
-          onPress={confirm}
+          onPress={() => confirm('mp')}
           disabled={submitting || !valid}>
           <Text style={styles.btnText}>
             {submitting
@@ -230,6 +238,12 @@ export default function DonateScreen() {
                 ? `Pagar ${formatARS(amount)} con Mercado Pago`
                 : 'Ingresá un monto'}
           </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.btnAlt, (submitting || !valid) && styles.btnAltDisabled]}
+          onPress={() => confirm('transfer')}
+          disabled={submitting || !valid}>
+          <Text style={styles.btnAltText}>Transferir yo mismo</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -343,4 +357,15 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#AFC8DD' },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+  btnAlt: {
+    borderRadius: Radius.md,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    backgroundColor: '#fff',
+  },
+  btnAltDisabled: { opacity: 0.5 },
+  btnAltText: { color: Colors.ink, fontSize: 14.5, fontWeight: '700' },
 });

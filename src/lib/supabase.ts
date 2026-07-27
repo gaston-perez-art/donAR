@@ -161,3 +161,40 @@ export async function uploadCoverPhoto(
     return { url: null, error: message };
   }
 }
+
+/**
+ * Sube el comprobante de una transferencia al bucket privado transfer-receipts.
+ * Lo lee el donante que lo subió y el dueño de la causa (para confirmar).
+ * Devuelve el path (no una URL pública): se ve con URL firmada.
+ */
+export async function uploadReceipt(
+  localUri: string,
+  causeId: string,
+  contentType: string,
+): Promise<{ path: string | null; error: string | null }> {
+  const uid = await ensureSession();
+  if (!uid) return { path: null, error: 'No hay sesión' };
+
+  try {
+    const path = `${uid}/${causeId}/${Date.now()}.jpg`;
+    const response = await fetch(localUri);
+    const arrayBuffer = await response.arrayBuffer();
+
+    const { error } = await supabase.storage
+      .from('transfer-receipts')
+      .upload(path, arrayBuffer, { contentType, upsert: true });
+
+    if (error) return { path: null, error: error.message };
+    return { path, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error subiendo el comprobante';
+    return { path: null, error: message };
+  }
+}
+
+/** URL temporal (10 min) para ver un comprobante de transferencia privado. */
+export async function getReceiptUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('transfer-receipts').createSignedUrl(path, 600);
+  if (error) return null;
+  return data.signedUrl;
+}

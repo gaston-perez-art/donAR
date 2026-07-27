@@ -15,6 +15,7 @@ import {
   supabase,
   uploadCoverPhoto,
   uploadEvidence,
+  uploadReceipt,
 } from '@/lib/supabase';
 
 /**
@@ -115,7 +116,13 @@ export type Contribution = {
   message: string | null;
   createdAt: string;
   mine: boolean;
+  status: string; // 'approved' (confirmado) | 'pending' (transferencia por confirmar)
+  method: string; // 'mp' | 'transfer'
+  receiptPath: string | null;
 };
+
+/** Dónde cobra una causa (para mostrarle el destino al donante que transfiere). */
+export type Payout = { method: 'mp' | 'cbu'; alias: string } | null;
 
 /** Un aporte que hice yo, con datos de la causa a la que fue. */
 export type MyContribution = {
@@ -193,6 +200,14 @@ type CausesContextValue = {
   getCause: (id: string) => Cause | undefined;
   getContributions: (causeId: string) => Promise<Contribution[]>;
   donate: (causeId: string, amount: number, message: string, anonymous: boolean) => Promise<boolean>;
+  getPayout: (causeId: string) => Promise<Payout>;
+  submitTransfer: (
+    causeId: string,
+    amount: number,
+    message: string,
+    anonymous: boolean,
+    receiptUri: string,
+  ) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
   getMonthlyRanking: () => Promise<RankingEntry[]>;
   isCurator: boolean;
@@ -377,6 +392,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         message: row.message,
         createdAt: row.created_at,
         mine: row.donor_id === userId,
+        status: row.status ?? 'approved',
+        method: row.method ?? 'mp',
+        receiptPath: row.receipt_url ?? null,
       }));
     },
     [userId],
@@ -393,9 +411,62 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         message: message.trim() || null,
         anonymous,
         status: 'approved',
+        method: 'mp',
       });
       if (error) {
         console.warn('donate error:', error.message);
+        return false;
+      }
+      await fetchCauses(uid);
+      return true;
+    },
+    [userId, fetchCauses],
+  );
+
+  const getPayout = useCallback(async (causeId: string): Promise<Payout> => {
+    const { data, error } = await supabase
+      .from('cause_payouts')
+      .select('method, alias')
+      .eq('cause_id', causeId)
+      .maybeSingle();
+    if (error || !data) {
+      if (error) console.warn('getPayout error:', error.message);
+      return null;
+    }
+    return { method: data.method, alias: data.alias };
+  }, []);
+
+  const submitTransfer = useCallback(
+    async (
+      causeId: string,
+      amount: number,
+      message: string,
+      anonymous: boolean,
+      receiptUri: string,
+    ): Promise<boolean> => {
+      const uid = userId ?? (await ensureSession());
+      if (!uid) return false;
+
+      const { path, error: upErr } = await uploadReceipt(receiptUri, causeId, 'image/jpeg');
+      if (upErr || !path) {
+        console.warn('submitTransfer upload error:', upErr);
+        return false;
+      }
+
+      // Entra 'pending': no cuenta para la meta ni da puntos hasta que el
+      // beneficiado confirme (Épica 3).
+      const { error } = await supabase.from('contributions').insert({
+        cause_id: causeId,
+        donor_id: uid,
+        amount,
+        message: message.trim() || null,
+        anonymous,
+        status: 'pending',
+        method: 'transfer',
+        receipt_url: path,
+      });
+      if (error) {
+        console.warn('submitTransfer insert error:', error.message);
         return false;
       }
       await fetchCauses(uid);
@@ -586,6 +657,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getCause,
       getContributions,
       donate,
+      getPayout,
+      submitTransfer,
       getMyActivity,
       getMonthlyRanking,
       isCurator,
@@ -607,6 +680,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getCause,
       getContributions,
       donate,
+      getPayout,
+      submitTransfer,
       getMyActivity,
       getMonthlyRanking,
       isCurator,
