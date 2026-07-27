@@ -203,3 +203,18 @@ create policy "cover file public read" on storage.objects for select
 -- 'Usuario' y quedan afuera. profiles ya es legible por cualquiera (RLS).
 alter table profiles add column if not exists display_name text;
 alter table profiles add column if not exists is_registered boolean not null default false;
+
+-- 27 jul 2026 (fix foto de portada): el view causes_public usa `select c.*`,
+-- que Postgres congela a la lista de columnas del momento en que se creó el
+-- view. Columnas agregadas después (image_urls, review_note, reviewed_at) no
+-- quedaron expuestas, así que la foto de portada nunca llegaba al feed/detalle.
+-- Recrear el view re-expande c.* con las columnas actuales.
+drop view if exists causes_public;
+create view causes_public with (security_invoker = true) as
+select
+  c.*,
+  coalesce((select sum(ct.amount) from contributions ct
+            where ct.cause_id = c.id and ct.status = 'approved'), 0) as raised_amount,
+  (select count(*) from contributions ct
+   where ct.cause_id = c.id and ct.status = 'approved') as contributors
+from causes c;
