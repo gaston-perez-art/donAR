@@ -7,8 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
-// Alias de cobro de donAR para el aporte voluntario. TODO: poner el alias real.
-const DONAR_ALIAS = 'donar.proyecto';
+// Alias de cobro de donAR para el aporte voluntario.
+const DONAR_ALIAS = 'gastonmartinp';
 
 export default function GraciasScreen() {
   const { amount, pending, cause } = useLocalSearchParams<{
