@@ -11,9 +11,9 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 ## Épica 1 — Panel de "mi causa" (vista del creador)
 *Base de casi todo lo demás: es donde el creador vive su causa y donde después confirma transferencias y ve el cierre.*
 
-- ⬜ **1.1** Ver mi causa activa: recaudado/meta, días restantes, lista de aportes.
-- ⬜ **1.2** Ver el estado del trámite (revisión / publicada / rechazada) desde el Perfil, no solo desde el feed.
-- ⬜ **1.3** Que "mi causa" sea accesible desde el Perfil (hoy solo desde la sección "Tus causas" del feed).
+- ✅ **1.1** Ver mi causa: el detalle de una causa propia ya publicada muestra recaudado/meta, días restantes y aportes recibidos, con botón "Compartir mi causa" en vez de "Donar" (ya no te ofrece donar a vos mismo). En `cause/[id].tsx`, branch `isOwner`.
+- ✅ **1.2** Estado del trámite visible desde el Perfil: sección "Mis causas" con pill de estado (En revisión / Publicada / Rechazada / Cumplida).
+- ✅ **1.3** "Mis causas" accesible desde el Perfil: cada fila lleva al detalle/panel de esa causa.
 
 ## Épica 2 — Métodos de pago del donante
 - ✅ **2.1** Mercado Pago (checkout sandbox). *Nota: es demo custodial — cobra a una sola cuenta, no va al beneficiado. On-axis solo con split de pagos (ver Parqueado).*

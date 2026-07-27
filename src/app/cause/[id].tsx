@@ -6,6 +6,7 @@ import {
   type NativeSyntheticEvent,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -63,12 +64,22 @@ export default function CauseDetailScreen() {
   const pct = Math.min(100, Math.round((cause.raised / cause.goal) * 100));
   const done = cause.status === 'completed';
   const pending = cause.mine && cause.status !== 'active' && cause.status !== 'completed';
+  // Acá abajo (pasado el early return de pending) `mine` = causa propia ya
+  // publicada: se muestra el panel del creador, no la vista de donante.
+  const isOwner = !!cause.mine;
 
   const resubmit = async () => {
     if (resubmitting) return;
     setResubmitting(true);
     await resubmitCause(cause.id);
     setResubmitting(false);
+  };
+
+  const shareCause = async () => {
+    if (!cause) return;
+    await Share.share({
+      message: `Ayudá a "${cause.title}" en DonAR. Cada aporte queda verificado y a la vista. 💙`,
+    });
   };
 
   if (pending) {
@@ -109,7 +120,7 @@ export default function CauseDetailScreen() {
         <Pressable style={styles.back} onPress={() => router.back()}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
-        <Text style={styles.title}>Detalle de la causa</Text>
+        <Text style={styles.title}>{isOwner ? 'Tu causa' : 'Detalle de la causa'}</Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -171,13 +182,19 @@ export default function CauseDetailScreen() {
               <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>
             </View>
             <Text style={styles.trustText}>
-              Verificamos identidad y documentación. Cada aporte queda registrado y a la vista, acá abajo.
+              {isOwner
+                ? 'Compartí tu causa para que llegue a más gente. Cada aporte que recibas aparece acá abajo.'
+                : 'Verificamos identidad y documentación. Cada aporte queda registrado y a la vista, acá abajo.'}
             </Text>
           </View>
 
-          <Text style={styles.secTitle}>Aportes recientes</Text>
+          <Text style={styles.secTitle}>{isOwner ? 'Aportes recibidos' : 'Aportes recientes'}</Text>
           {contribs.length === 0 ? (
-            <Text style={styles.muted}>Todavía no hay aportes. Sé la primera persona en ayudar.</Text>
+            <Text style={styles.muted}>
+              {isOwner
+                ? 'Todavía no recibiste aportes. Compartí tu causa para que empiecen a llegar.'
+                : 'Todavía no hay aportes. Sé la primera persona en ayudar.'}
+            </Text>
           ) : (
             contribs.map((c) => (
               <View key={c.id} style={styles.row}>
@@ -196,9 +213,15 @@ export default function CauseDetailScreen() {
       </ScrollView>
 
       <View style={styles.cta}>
-        <Pressable style={styles.btn} onPress={() => router.push(`/donate/${cause.id}`)}>
-          <Text style={styles.btnText}>Donar a esta causa</Text>
-        </Pressable>
+        {isOwner ? (
+          <Pressable style={[styles.btn, styles.btnShare]} onPress={shareCause}>
+            <Text style={styles.btnText}>Compartir mi causa</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.btn} onPress={() => router.push(`/donate/${cause.id}`)}>
+            <Text style={styles.btnText}>Donar a esta causa</Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -327,5 +350,6 @@ const styles = StyleSheet.create({
   amt: { fontWeight: '800', fontSize: 14.5, color: Colors.brandDark },
   cta: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
+  btnShare: { backgroundColor: Colors.ink },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
 });

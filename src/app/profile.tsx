@@ -220,9 +220,19 @@ function AccountLink({ onLinked }: { onLinked: () => void }) {
   );
 }
 
+/** Etiqueta de estado para la lista "Mis causas". */
+const MY_CAUSE_STATUS: Record<string, string> = {
+  review: 'En revisión',
+  needs_info: 'Te pedimos info',
+  rejected: 'Rechazada',
+  active: 'Publicada',
+  completed: 'Cumplida',
+  closed: 'Cerrada',
+};
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const { getMyActivity, refreshIsCurator, signOut } = useCauses();
+  const { getMyActivity, refreshIsCurator, signOut, myCauses } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMedal, setOpenMedal] = useState<Medal | null>(null);
@@ -339,6 +349,43 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Mis causas */}
+        {myCauses.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.secTitle}>Mis causas</Text>
+            {myCauses.map((c) => {
+              const label = MY_CAUSE_STATUS[c.status] ?? c.status;
+              const bad = c.status === 'rejected';
+              const active = c.status === 'active' || c.status === 'completed';
+              return (
+                <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.id}`)}>
+                  <View style={[styles.rowIcon, { backgroundColor: c.coverTint }]}>
+                    <Text style={{ fontSize: 18 }}>{c.emoji}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      {c.title}
+                    </Text>
+                    <Text style={styles.rowSub}>
+                      {active ? `${formatARS(c.raised)} de ${formatARS(c.goal)}` : label}
+                    </Text>
+                  </View>
+                  <View style={[styles.myCausePill, bad && styles.myCausePillBad, active && styles.myCausePillOk]}>
+                    <Text
+                      style={[
+                        styles.myCausePillText,
+                        bad && styles.myCausePillTextBad,
+                        active && styles.myCausePillTextOk,
+                      ]}>
+                      {label}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         {/* Medallas */}
         <View style={styles.section}>
@@ -565,6 +612,12 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   rowAmt: { fontSize: 14.5, fontWeight: '800', color: Colors.brandDark },
+  myCausePill: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  myCausePillBad: { backgroundColor: '#FBE9E9' },
+  myCausePillOk: { backgroundColor: '#E4F7EE' },
+  myCausePillText: { fontSize: 11, fontWeight: '700', color: '#8A6D00' },
+  myCausePillTextBad: { color: '#C0392B' },
+  myCausePillTextOk: { color: Colors.happy },
 
   // Modal de medalla
   backdrop: {
