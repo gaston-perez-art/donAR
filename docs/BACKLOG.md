@@ -48,6 +48,17 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ⬜ **6.1** Monto mínimo para pedir (que no se pueda crear una causa pidiendo $1). Define un piso razonable para el MVP.
 - ⬜ **6.2** Revisar máximos / coherencia monto vs. evidencia (ya lo mira el curador, ver si sumar validación blanda).
 
+## Épica 7 — Descubrimiento por cercanía (post-MVP)
+*Insight: la cercanía es un multiplicador de confianza y relevancia. A una causa del barrio se le dona más fácil. "Cada barrio tiene a su gente más interesada". Idea de Gastón, 27 jul.*
+> **Dependencias/tensiones:** necesita ubicación en la causa (barrio/zona, al crear) y del donante (permiso). **Privacidad: granularidad a nivel barrio/zona, nunca la dirección exacta del beneficiado.** Recién rinde con volumen de causas (con pocas, el filtro por km no muestra nada) → post-MVP.
+
+- ⬜ **7.1** Ubicación de la causa: capturar barrio/zona (y opcionalmente coords aproximadas) al crear.
+- ⬜ **7.2** Ubicación del donante (permiso de geolocalización).
+- ⬜ **7.3** Filtros en el feed (categoría, estado, monto, cercanía).
+- ⬜ **7.4** Búsqueda por texto / por zona.
+- ⬜ **7.5** "Donar cerca tuyo": causas dentro de X km.
+- ⬜ **7.6** Modo descubrimiento tipo swipe ("Tinder de donar"): deslizás causas cercanas una por una.
+
 ---
 
 ## Bugs / known issues
