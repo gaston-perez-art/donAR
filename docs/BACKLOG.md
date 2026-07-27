@@ -23,9 +23,10 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 ## Épica 3 — Confirmación del aporte por transferencia
 *El eslabón de confianza del modelo sin custodia. Ver el modelo completo en el paper, sección "Confianza del dinero sin custodia".*
 
-- ⬜ **3.1** El beneficiado ve, en su panel (Épica 1), las transferencias pendientes con su comprobante.
-- ⬜ **3.2** Confirma o rechaza cada una. Recién al confirmar: suma a la meta, se dan puntos y se dispara el kudos.
-- ❓ **3.3** Qué pasa si el beneficiado no confirma nunca (¿timeout? ¿el donante puede reclamar?).
+- ✅ **3.1** El beneficiado ve, en el panel de su causa, las transferencias pendientes con el comprobante (URL firmada; RLS de dueño).
+- ✅ **3.2** Confirma ("Me llegó") o rechaza ("No me llegó") cada una. Al confirmar, el aporte pasa a `approved` → suma a la meta y cuenta para los puntos automáticamente (todo se calcula de los `approved`). Rechazar → `rejected`, no cuenta.
+- ❓ **3.3** Qué pasa si el beneficiado no confirma nunca (¿timeout? ¿el donante puede reclamar?). SIGUE ABIERTA.
+- ⬜ **3.4** Kudos/aviso al donante cuando le confirman el aporte (hoy no hay notificaciones; va con la tab Actividad, TBD).
 
 ## Épica 4 — Cierre de causa + agradecimiento
 *Se dispara por tiempo (venció el plazo) o por monto (llegó a la meta).*
@@ -47,7 +48,9 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 ---
 
 ## Bugs / known issues
-- 🐞 **La foto de portada no se ve.** Se suben pero no se muestran en el feed / detalle. Revisar: bucket público `cause-covers`, URLs guardadas en `image_urls`, y el render del carrusel. Reportado 27 jul.
+- ✅ **La foto de portada no se ve.** Resuelto: el view `causes_public` con `select c.*` no exponía columnas agregadas después; se recreó el view.
+- 🐞 **El swipe nativo de iOS para volver atrás (y adelante) no funciona.** Las pantallas del flujo (create/cobro/review/donate/transfer/cause) son `Tabs.Screen` con `href:null`, no un stack, así que no hay gesto de navegación nativo. Evaluar mover el flujo a un Stack o habilitar el gesto. Reportado 27 jul.
+- 🐞 **El carrusel de fotos no se puede swipear desde el feed.** En la `cause-card` la tarjeta está envuelta en un `Pressable` (para abrir el detalle) que probablemente intercepta el gesto horizontal del carrusel. Reportado 27 jul.
 
 ---
 

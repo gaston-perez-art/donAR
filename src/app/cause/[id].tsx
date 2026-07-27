@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -14,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { getReceiptUrl } from '@/lib/supabase';
 import { useCauses, type Contribution } from '@/store/causes-store';
 
 const STATUS_COPY: Record<string, { title: string; sub: string }> = {
@@ -34,16 +36,41 @@ const STATUS_COPY: Record<string, { title: string; sub: string }> = {
 export default function CauseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { getCause, getContributions, resubmitCause } = useCauses();
+  const { getCause, getContributions, resubmitCause, reviewTransfer } = useCauses();
   const cause = getCause(String(id));
   const [contribs, setContribs] = useState<Contribution[]>([]);
   const [resubmitting, setResubmitting] = useState(false);
   const [heroWidth, setHeroWidth] = useState(0);
   const [activeImage, setActiveImage] = useState(0);
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string | null>>({});
+  const [reviewing, setReviewing] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) getContributions(String(id)).then(setContribs);
   }, [id, getContributions, cause?.raised]);
+
+  // El dueño ve el comprobante de cada transferencia pendiente (URL firmada).
+  useEffect(() => {
+    const pend = contribs.filter((c) => c.status === 'pending' && c.receiptPath);
+    if (!cause?.mine || pend.length === 0) return;
+    let alive = true;
+    Promise.all(pend.map(async (c) => [c.id, await getReceiptUrl(c.receiptPath!)] as const)).then(
+      (entries) => {
+        if (alive) setReceiptUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [contribs, cause?.mine]);
+
+  const reviewPending = async (contributionId: string, approve: boolean) => {
+    if (reviewing) return;
+    setReviewing(contributionId);
+    const ok = await reviewTransfer(contributionId, approve);
+    setReviewing(null);
+    if (ok && id) getContributions(String(id)).then(setContribs);
+  };
 
   if (!cause) {
     return (
@@ -188,34 +215,80 @@ export default function CauseDetailScreen() {
             </Text>
           </View>
 
+          {isOwner &&
+            (() => {
+              const pending = contribs.filter((c) => c.status === 'pending');
+              if (pending.length === 0) return null;
+              return (
+                <View style={styles.pendBlock}>
+                  <Text style={styles.secTitle}>Transferencias por confirmar</Text>
+                  <Text style={styles.pendHint}>
+                    Confirmá solo las que realmente te llegaron. Al confirmar, el aporte suma a tu meta.
+                  </Text>
+                  {pending.map((c) => (
+                    <View key={c.id} style={styles.pendCard}>
+                      <View style={styles.pendTop}>
+                        <Text style={styles.pendName} numberOfLines={1}>
+                          {c.name}
+                        </Text>
+                        <Text style={styles.pendAmt}>{formatARS(c.amount)}</Text>
+                      </View>
+                      {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
+                      {receiptUrls[c.id] ? (
+                        <Image source={{ uri: receiptUrls[c.id]! }} style={styles.pendReceipt} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.pendReceiptLoading}>
+                          <ActivityIndicator color={Colors.brand} />
+                        </View>
+                      )}
+                      <View style={styles.pendActions}>
+                        <Pressable
+                          style={[styles.pendBtn, styles.pendReject]}
+                          disabled={reviewing === c.id}
+                          onPress={() => reviewPending(c.id, false)}>
+                          <Text style={styles.pendRejectText}>No me llegó</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.pendBtn, styles.pendConfirm]}
+                          disabled={reviewing === c.id}
+                          onPress={() => reviewPending(c.id, true)}>
+                          <Text style={styles.pendConfirmText}>
+                            {reviewing === c.id ? '...' : 'Me llegó, confirmar'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              );
+            })()}
+
           <Text style={styles.secTitle}>{isOwner ? 'Aportes recibidos' : 'Aportes recientes'}</Text>
-          {contribs.length === 0 ? (
-            <Text style={styles.muted}>
-              {isOwner
-                ? 'Todavía no recibiste aportes. Compartí tu causa para que empiecen a llegar.'
-                : 'Todavía no hay aportes. Sé la primera persona en ayudar.'}
-            </Text>
-          ) : (
-            contribs.map((c) => (
+          {(() => {
+            // Solo aportes confirmados (los pending viven en el bloque de arriba).
+            const shown = contribs.filter((c) => c.status === 'approved');
+            if (shown.length === 0) {
+              return (
+                <Text style={styles.muted}>
+                  {isOwner
+                    ? 'Todavía no recibiste aportes confirmados. Compartí tu causa para que empiecen a llegar.'
+                    : 'Todavía no hay aportes. Sé la primera persona en ayudar.'}
+                </Text>
+              );
+            }
+            return shown.map((c) => (
               <View key={c.id} style={styles.row}>
                 <View style={styles.dot}>
                   <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name}>{c.name}</Text>
-                    {c.status === 'pending' && (
-                      <View style={styles.pendingTag}>
-                        <Text style={styles.pendingTagText}>por confirmar</Text>
-                      </View>
-                    )}
-                  </View>
+                  <Text style={styles.name}>{c.name}</Text>
                   {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
                 </View>
-                <Text style={[styles.amt, c.status === 'pending' && styles.amtPending]}>+{formatARS(c.amount)}</Text>
+                <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
               </View>
-            ))
-          )}
+            ));
+          })()}
         </View>
       </ScrollView>
 
@@ -352,13 +425,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dotText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   name: { fontSize: 14, fontWeight: '600', color: Colors.ink },
-  pendingTag: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 8, paddingVertical: 2 },
-  pendingTagText: { fontSize: 10, fontWeight: '700', color: '#8A6D00' },
   msg: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   amt: { fontWeight: '800', fontSize: 14.5, color: Colors.brandDark },
-  amtPending: { color: Colors.muted },
+  pendBlock: { marginBottom: Spacing.lg },
+  pendHint: { fontSize: 12, color: Colors.muted, marginBottom: Spacing.md, lineHeight: 17 },
+  pendCard: {
+    borderWidth: 1,
+    borderColor: '#F0D9A6',
+    backgroundColor: '#FEF9EE',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  pendTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
+  pendName: { fontSize: 14, fontWeight: '700', color: Colors.ink, flex: 1 },
+  pendAmt: { fontSize: 15, fontWeight: '800', color: Colors.ink },
+  pendReceipt: { width: '100%', height: 200, borderRadius: Radius.sm, marginTop: Spacing.sm },
+  pendReceiptLoading: {
+    width: '100%',
+    height: 200,
+    borderRadius: Radius.sm,
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.skyTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pendActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.md },
+  pendBtn: { flex: 1, borderRadius: Radius.sm, paddingVertical: 13, alignItems: 'center' },
+  pendReject: { backgroundColor: '#FBE9E9' },
+  pendRejectText: { color: '#C0392B', fontWeight: '700', fontSize: 13 },
+  pendConfirm: { backgroundColor: Colors.happy },
+  pendConfirmText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   cta: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnShare: { backgroundColor: Colors.ink },

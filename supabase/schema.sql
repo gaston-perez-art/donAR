@@ -256,3 +256,9 @@ create policy "receipt read cause owner" on storage.objects for select
       where c.owner_id = auth.uid() and ct.receipt_url = name
     )
   );
+
+-- 27 jul 2026 (Épica 3: confirmación de transferencia). El dueño de la causa
+-- necesita poder confirmar/rechazar una transferencia pendiente (cambiar su
+-- status). Hoy no hay policy de UPDATE en contributions, así que RLS lo bloquea.
+create policy "contributions cause owner update" on contributions for update
+  using (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));

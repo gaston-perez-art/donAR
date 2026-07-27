@@ -208,6 +208,7 @@ type CausesContextValue = {
     anonymous: boolean,
     receiptUri: string,
   ) => Promise<boolean>;
+  reviewTransfer: (contributionId: string, approve: boolean) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
   getMonthlyRanking: () => Promise<RankingEntry[]>;
   isCurator: boolean;
@@ -475,6 +476,24 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     [userId, fetchCauses],
   );
 
+  const reviewTransfer = useCallback(
+    async (contributionId: string, approve: boolean): Promise<boolean> => {
+      // Solo el dueño de la causa (RLS lo valida). Aprobar -> 'approved': suma a
+      // la meta y cuenta para los puntos. Rechazar -> 'rejected': no cuenta.
+      const { error } = await supabase
+        .from('contributions')
+        .update({ status: approve ? 'approved' : 'rejected' })
+        .eq('id', contributionId);
+      if (error) {
+        console.warn('reviewTransfer error:', error.message);
+        return false;
+      }
+      await fetchCauses(userId);
+      return true;
+    },
+    [userId, fetchCauses],
+  );
+
   const getMyActivity = useCallback(async (): Promise<MyActivity> => {
     const uid = userId ?? (await ensureSession());
     if (!uid) return emptyActivity;
@@ -659,6 +678,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       donate,
       getPayout,
       submitTransfer,
+      reviewTransfer,
       getMyActivity,
       getMonthlyRanking,
       isCurator,
@@ -682,6 +702,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       donate,
       getPayout,
       submitTransfer,
+      reviewTransfer,
       getMyActivity,
       getMonthlyRanking,
       isCurator,
