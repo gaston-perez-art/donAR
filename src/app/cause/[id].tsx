@@ -160,6 +160,7 @@ export default function CauseDetailScreen() {
               horizontal
               pagingEnabled
               scrollEnabled={cause.imageUrls.length > 1}
+              nestedScrollEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
                 if (!heroWidth) return;

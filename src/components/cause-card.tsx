@@ -46,6 +46,7 @@ export function CauseCard({ cause, onPress, mine }: Props) {
             horizontal
             pagingEnabled
             scrollEnabled={images.length > 1}
+            nestedScrollEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={onScrollEnd}
             style={StyleSheet.absoluteFill}>
