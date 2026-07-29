@@ -46,9 +46,15 @@ POC funcionando de punta a punta, con datos reales de Supabase (no mock).
 - [x] **Aporte voluntario a donAR** (modelo GoFundMe) en la pantalla post-transferencia
 - [x] Perfil único (donado + recibido, tapeables con historial completo), medallas y nivel
 - [x] Ranking mensual + lógica de puntos (fórmula del paper)
-- [x] **Actividad**: feed real (transferencias por confirmar, aportes recibidos, aportes que hice). Notificaciones push quedan para cuando el proyecto tenga build nativo (no funcionan en Expo Go desde el SDK 53)
-- [ ] Cierre de causa (cumplida / cerrada sin llegar) + mini-reporte + agradecimiento
-- [ ] Monto mínimo para pedir
+- [x] **Actividad**: feed real (transferencias por confirmar, aportes recibidos, aportes que hice, agradecimientos). Notificaciones push quedan para cuando el proyecto tenga build nativo (no funcionan en Expo Go desde el SDK 53)
+- [x] **Cierre de causa**: llega a la meta → `completed` (corta donaciones nuevas), vence el plazo sin llegar → `closed`. Se evalúa client-side (Expo Go no tiene cron), sin servidor
+- [x] **Mini-reporte + agradecimiento al cerrar**: cuánto se juntó / cuántas personas / en cuánto tiempo; mensaje de cierre del beneficiado (texto + foto) y agradecimiento puntual por aporte, visibles en el detalle de la causa y en Actividad
+- [x] **Auto-confirmación de transferencias a las 48hs**: si el beneficiado no confirma ni rechaza, se confirma sola (mismo patrón sin servidor), con countdown visible en ambos lados
+- [x] **Monto mínimo para pedir** ($5.000 ARS) al crear una causa
+- [x] **Foto de perfil + nombre real**: Nombre y Apellido como campos separados en el registro → iniciales reales (ej. "GP") en vez de "GP"/"VOS" hardcodeado; foto de perfil propia (bucket `avatars`)
+- [x] **Ranking con foto de perfil + mini-perfil al tocar** a un donante (estilo Airbnb): nivel, medallas, causas apoyadas, monto donado
+- [x] **Lista de transferencias/aportes escalable**: filas compactas en vez de tarjetas con imagen precargada; el comprobante se ve recién al tocar
+- [ ] **Recuperar contraseña**: código completo (mail con link de reset → pantalla de contraseña nueva), pero bloqueado para probar de punta a punta hasta configurar el dominio propio en Resend y la redirect URL en Supabase Auth
 
 Detalle vivo del avance en `memory.md`; lo que falta y en qué orden en `docs/BACKLOG.md`.
 
@@ -62,12 +68,15 @@ src/
     (tabs)/            grupo de rutas de los tabs (transparente en la URL)
       _layout.tsx      Tabs con tab bar propio
       index.tsx        feed
-      ranking.tsx      ranking mensual + puntos
+      ranking.tsx      ranking mensual + puntos + mini-perfil de un donante
       profile.tsx      perfil, medallas, "mis causas", cuenta / cerrar sesión
+                       (al final de la pantalla)
       activity.tsx     feed de actividad (transferencias por confirmar,
-                       recibidos, donados)
-    cause/[id].tsx     detalle de causa (con branch "mi causa" para el dueño)
-    donate/[id].tsx    elegir método de pago (MP con flag / transferir)
+                       recibidos, donados, agradecimientos)
+    cause/[id].tsx     detalle de causa (con branch "mi causa" para el dueño;
+                       cierre + mini-reporte + agradecimiento si ya cerró)
+    donate/[id].tsx    elegir método de pago (MP con flag / transferir);
+                       bloqueada si la causa ya cerró
     transfer/[id].tsx  flujo de transferencia + subir comprobante
     gracias.tsx        post-transferencia + aporte voluntario a donAR
     donated.tsx        historial de lo donado (desde el perfil)
@@ -76,15 +85,21 @@ src/
                        del Stack, no tabs: se empujan encima con navegación
                        nativa)
   screens/
-    auth-screen.tsx    login / registro (mail + contraseña). La app entera
-                       exige cuenta: sin sesión, esto es lo único que se ve
+    auth-screen.tsx    login / registro (mail + contraseña + nombre/apellido).
+                       La app entera exige cuenta: sin sesión, esto es lo
+                       único que se ve. También "olvidé mi contraseña"
+    reset-password-screen.tsx   elegir contraseña nueva (llega por deep link
+                       del mail de recuperación)
     curar-screen.tsx   panel del curador (no es una ruta: es el modo completo
                        de la app cuando la identidad es curador)
   components/          cause-card, donar-tab-bar (pill de vidrio),
                        tab-bar-scroll (canal scroll↔barra), placeholder, ui/
-  constants/           donar-theme (paleta, spacing, formato de pesos)
-  lib/                 supabase (auth + storage), mercadopago
-  store/               causes-store (data layer: causas, donaciones, curaduría)
+  constants/           donar-theme (paleta, spacing, formato de pesos,
+                       iniciales para avatar)
+  lib/                 supabase (auth + storage), mercadopago, gamification
+                       (niveles/medallas, compartido entre Perfil y ranking)
+  store/               causes-store (data layer: causas, donaciones, curaduría,
+                       cierre de causa, auto-confirmación, mini-perfiles)
 supabase/
   schema.sql           esquema completo + migraciones al final, fecha por fecha
 scripts/
