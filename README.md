@@ -55,16 +55,21 @@ Detalle vivo del avance en `memory.md`; lo que falta y en qué orden en `docs/BA
 ```
 src/
   app/                 rutas (Expo Router)
-    _layout.tsx        decide curador vs. donante; tabs con tab bar propio
-    index.tsx          feed
+    _layout.tsx        decide curador vs. donante; Stack raíz (swipe-back
+                       nativo en iOS, botón/gesto de retroceso en Android)
+    (tabs)/            grupo de rutas de los tabs (transparente en la URL)
+      _layout.tsx      Tabs con tab bar propio
+      index.tsx        feed
+      ranking.tsx      ranking mensual + puntos
+      profile.tsx      perfil, medallas, "mis causas", vincular mail
+      activity.tsx     placeholder (TBD, post-MVP)
     cause/[id].tsx     detalle de causa (con branch "mi causa" para el dueño)
     donate/[id].tsx    elegir método de pago (MP con flag / transferir)
     transfer/[id].tsx  flujo de transferencia + subir comprobante
     gracias.tsx        post-transferencia + aporte voluntario a donAR
-    create / cobro / review    flujo de crear causa + evidencia
-    ranking.tsx        ranking mensual + puntos
-    profile.tsx        perfil, medallas, "mis causas", vincular mail
-    activity.tsx       placeholder (TBD, post-MVP)
+    create / cobro / review    flujo de crear causa + evidencia (pantallas
+                       del Stack, no tabs: se empujan encima con navegación
+                       nativa)
   screens/
     curar-screen.tsx   panel del curador (no es una ruta: es el modo completo
                        de la app cuando la identidad es curador)

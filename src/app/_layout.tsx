@@ -1,10 +1,9 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { DonarTabBar } from '@/components/donar-tab-bar';
 import { Colors } from '@/constants/donar-theme';
 import CurarScreen from '@/screens/curar-screen';
 import { CausesProvider, useCauses } from '@/store/causes-store';
@@ -16,6 +15,12 @@ SplashScreen.hideAsync();
  * curaduría y no ve nada más: son dos trabajos distintos, no se mezclan en
  * la misma navegación. "Cerrar sesión" ahí adentro vuelve acá con una
  * sesión anónima nueva y muestra la app normal.
+ *
+ * Los tabs viven en (tabs)/_layout.tsx. Acá arriba hay un Stack real (no
+ * Tabs con href:null) para que create/cobro/review/cause/donate/transfer/
+ * gracias se empujen como pantallas nativas: gesto de swipe para volver en
+ * iOS y botón/gesto de retroceso del sistema en Android, las dos plataformas
+ * por igual (antes ninguna de las dos tenía navegación nativa acá).
  */
 function AppShell() {
   const { isCurator, loading } = useCauses();
@@ -33,20 +38,16 @@ function AppShell() {
   }
 
   return (
-    <Tabs tabBar={() => <DonarTabBar />} screenOptions={{ headerShown: false }}>
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="ranking" />
-      <Tabs.Screen name="activity" />
-      <Tabs.Screen name="profile" />
-      <Tabs.Screen name="create" options={{ href: null }} />
-      <Tabs.Screen name="cobro" options={{ href: null }} />
-      <Tabs.Screen name="review" options={{ href: null }} />
-      <Tabs.Screen name="cause/[id]" options={{ href: null }} />
-      <Tabs.Screen name="donate/[id]" options={{ href: null }} />
-      <Tabs.Screen name="transfer/[id]" options={{ href: null }} />
-      <Tabs.Screen name="gracias" options={{ href: null }} />
-      <Tabs.Screen name="explore" options={{ href: null }} />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="create" />
+      <Stack.Screen name="cobro" />
+      <Stack.Screen name="review" />
+      <Stack.Screen name="cause/[id]" />
+      <Stack.Screen name="donate/[id]" />
+      <Stack.Screen name="transfer/[id]" />
+      <Stack.Screen name="gracias" />
+    </Stack>
   );
 }
 
