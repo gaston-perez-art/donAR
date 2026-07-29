@@ -52,10 +52,11 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 *Idea de Gastón, 29 jul: menú/tab bar estilo Liquid Glass como Instagram/iOS 26.*
 > **Dos niveles (ver decisión en el paper/memory):** (a) frosted glass con `expo-blur` = paritario iOS/Android, corre en Expo Go, ~80% del efecto; (b) Liquid Glass nativo real (`expo-glass-effect`, iOS 26, refracción + brillos) = iOS-only + necesita build nativo. Estrategia: (a) ahora, (b) cuando haya build nativo, con (a) de fallback en Android.
 
-- 🔨 **8.1** Tab bar de vidrio con `expo-blur` (barra flotante translúcida + `+` central sobre el vidrio). IMPLEMENTADO, **pendiente de OK visual de Gastón en su iPhone** antes de pushear.
-- ⬜ **8.2** Llevar el mismo lenguaje de vidrio al header de las pantallas.
-- ⬜ **8.3** Evaluar variante "pill flotante" (barra más corta, redondeada, despegada del borde) al estilo iOS 26.
-- 🅿️ **8.4** Liquid Glass nativo real (`expo-glass-effect`) para iOS 26, cuando el proyecto pase a build nativo. Blur (8.1) queda de fallback para Android e iOS viejo.
+- 🔨 **8.1** Tab bar tipo **pill flotante de vidrio** (`expo-blur`) redondeada y despegada del borde, íconos vectoriales finos (Ionicons outline/filled según activo, activo con fondo sutil), el `+` de crear sobresaliendo por encima (decisión de Gastón, 29 jul). Emojis viejos descartados ("parecían de mala calidad"). IMPLEMENTADO, **pendiente de OK visual de Gastón en su iPhone** antes de pushear. Knobs a ajustar en persona: intensidad del blur (hoy 30), opacidad del tinte (0.58), radio (30), altura (62), cuánto sobresale el `+`.
+- ⬜ **8.2** **Shrink on scroll**: la pill se achica/colapsa al deslizar hacia abajo y vuelve al scrollear arriba (como Instagram/iOS 26). Factible con `react-native-reanimated` (ya instalado), pero requiere conectar el scroll de cada pantalla con la barra vía shared value. Segundo paso, después de clavar el look de 8.1. Pedido de Gastón, 29 jul.
+- ⬜ **8.3** Llevar el mismo lenguaje de vidrio al header de las pantallas.
+- ⬜ **8.5** **Theme claro/oscuro según el sistema.** Hoy la app es siempre clara; el vidrio de la pill "sigue el fondo" pero el fondo es fijo. Que la app respete el modo claro/oscuro del sistema (y la pill con él). Pedido de Gastón, 29 jul.
+- 🅿️ **8.4** Liquid Glass nativo real (`expo-glass-effect`) para iOS 26, cuando el proyecto pase a build nativo. El blur (8.1) queda de fallback para Android e iOS viejo.
 
 ## Épica 7 — Descubrimiento por cercanía (post-MVP)
 *Insight: la cercanía es un multiplicador de confianza y relevancia. A una causa del barrio se le dona más fácil. "Cada barrio tiene a su gente más interesada". Idea de Gastón, 27 jul.*
