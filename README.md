@@ -2,7 +2,7 @@
 
 App P2P de colectas solidarias con curaduría de causas, gamificación por reconocimiento y trazabilidad del dinero como eje de confianza. Este repo es el POC móvil (iPhone y Android) para salir a validar.
 
-Documento fundacional y prototipo de diseño: ver la carpeta de trabajo del proyecto (paper y prototipo HTML).
+Documento fundacional, contexto y prototipo de diseño en `docs/` (`paper-fundacional-donar.md`, `CONTEXTO.md`, `prototipo-donar.html`). Backlog vivo en `docs/BACKLOG.md`.
 
 ## Stack
 
@@ -22,31 +22,60 @@ npm install
 npx expo start
 ```
 
-Escaneá el QR con la cámara (iOS) o desde Expo Go (Android). El teléfono y la compu tienen que estar en la misma red WiFi.
+Si el teléfono y la compu están en la **misma red WiFi**, escaneá el QR con la cámara (iOS) o desde adentro de Expo Go ("Scan QR code", en Android). Si están en **redes distintas** (por ejemplo, para probar con otra persona), levantá el server con túnel:
+
+```bash
+npx expo start --tunnel
+```
+
+Backend (Supabase, Storage, Mercado Pago) se configura fuera del repo, en sus dashboards. Los secretos van en variables de entorno, nunca en el código.
 
 ## Estado actual (rebanadas verticales)
 
-- [x] Base que corre + navegación de 5 tabs con botón + centrado
-- [x] **Feed**: causas verificadas con tarjetas (datos mock)
-- [ ] Detalle de causa + donación (Mercado Pago)
-- [ ] Crear causa + verificación + cobro (alias/CBU)
-- [ ] Perfil único (donado + recibido) y Actividad
-- [ ] Ranking mensual + lógica de puntos
-- [ ] Causa finalizada (happy / unhappy)
+POC funcionando de punta a punta, con datos reales de Supabase (no mock).
 
-Las tabs Ranking, Actividad, Perfil y Crear son placeholders hasta su rebanada.
+- [x] Feed de causas verificadas (datos reales de Supabase)
+- [x] Detalle de causa + trazabilidad visible (lista de aportes)
+- [x] Crear causa e2e + fotos de portada opcionales (carrusel)
+- [x] **Curaduría real**: la causa nace en `review`, un curador humano aprueba / rechaza / pide info tras revisar la evidencia (DNI + selfie + documento) subida a Storage privado
+- [x] Identidad cross-device: vincular la sesión anónima a un mail (código de 6 dígitos) para recuperar el historial desde otro dispositivo
+- [x] **Panel de "mi causa"** (vista del creador): recaudado / meta, aportes recibidos, compartir
+- [x] **Dos métodos de pago**: transferencia con comprobante (canónico del MVP) + Mercado Pago (apagado con flag, ver Encuadre legal)
+- [x] **Confirmación de la transferencia por el beneficiado**: sube comprobante → entra `pending` → el beneficiado confirma "me llegó" → recién ahí suma a la meta y a los puntos
+- [x] **Aporte voluntario a donAR** (modelo GoFundMe) en la pantalla post-transferencia
+- [x] Perfil único (donado + recibido), medallas y nivel
+- [x] Ranking mensual + lógica de puntos (fórmula del paper)
+- [ ] Cierre de causa (cumplida / cerrada sin llegar) + mini-reporte + agradecimiento
+- [ ] Monto mínimo para pedir
+
+Detalle vivo del avance en `memory.md`; lo que falta y en qué orden en `docs/BACKLOG.md`.
 
 ## Estructura
 
 ```
 src/
   app/                 rutas (Expo Router)
-    _layout.tsx        Tabs con tab bar propio
-    index.tsx          Feed
-    ranking / activity / profile / create   placeholders
-  components/          CauseCard, DonarTabBar, Placeholder
+    _layout.tsx        decide curador vs. donante; tabs con tab bar propio
+    index.tsx          feed
+    cause/[id].tsx     detalle de causa (con branch "mi causa" para el dueño)
+    donate/[id].tsx    elegir método de pago (MP con flag / transferir)
+    transfer/[id].tsx  flujo de transferencia + subir comprobante
+    gracias.tsx        post-transferencia + aporte voluntario a donAR
+    create / cobro / review    flujo de crear causa + evidencia
+    ranking.tsx        ranking mensual + puntos
+    profile.tsx        perfil, medallas, "mis causas", vincular mail
+    activity.tsx       placeholder (TBD, post-MVP)
+  screens/
+    curar-screen.tsx   panel del curador (no es una ruta: es el modo completo
+                       de la app cuando la identidad es curador)
+  components/          cause-card, donar-tab-bar, placeholder, ui/
   constants/           donar-theme (paleta, spacing, formato de pesos)
-  data/                causes (datos mock)
+  lib/                 supabase (auth + storage), mercadopago
+  store/               causes-store (data layer: causas, donaciones, curaduría)
+supabase/
+  schema.sql           esquema completo + migraciones al final, fecha por fecha
+scripts/
+  seed-demo-cause.mjs  siembra una causa ajena para probar donar
 ```
 
 ## Encuadre legal (clave)
@@ -60,4 +89,4 @@ El modelo es "conectar sin custodiar": la plata va **directa** del donante al be
 
 ## Flujo de trabajo
 
-Rama por cambio, commits chicos, PR con descripción. Nunca commitear directo a `main`. Secretos siempre en variables de entorno, nunca en el código.
+Commits chicos con mensaje claro. En esta etapa de POC se commitea directo a `main` a propósito (una sola persona, iteración rápida); cuando el proyecto pase a build nativo / tenga más manos, se pasa a rama + PR. Secretos siempre en variables de entorno, nunca en el código.
