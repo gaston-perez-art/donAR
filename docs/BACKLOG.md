@@ -72,11 +72,11 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 ## Épica 10 — Identidad: login obligatorio
 *Decisión de Gastón, 29 jul: "tiene que loguearse sí o sí para donar, ni hablar para recibir ni para crear causa; todo tiene que persistir en una cuenta". Mata el modelo anónimo, que era la raíz de la identidad huérfana y las sesiones cruzadas.*
 
-- ✅ **10.1** Login obligatorio con **mail + contraseña**. `AuthScreen` nueva (login/registro con toggle), gate en `_layout.tsx` (`!isAuthenticated` → AuthScreen antes que todo). `ensureSession` ya no crea anónimas. `signUp`/`signIn` en el store. Sacado todo el flujo viejo de OTP/vincular (`AccountLink`, `linkEmail`, etc.). Se eligió password sobre código-por-mail porque no depende de Resend (se prueba ya con cualquier mail).
-  - ⬜ **PASOS MANUALES de Gastón** (en `supabase/schema.sql` al final): (1) apagar "Confirm email" en Supabase Auth; (2) darle contraseña a su cuenta vieja (ascendida desde anónima, sin pass) via dashboard, o crear cuenta nueva y reasignar `owner_id` de sus causas.
-- ⬜ **10.2** **Reset de contraseña ("olvidé mi contraseña").** No implementado: necesita mail funcionando (dominio propio verificado en Resend). Hasta entonces, si alguien olvida la contraseña, se resetea a mano desde el dashboard. Prioridad media (aparece apenas haya usuarios reales).
-- ⬜ **10.3** Nombre real / display name en el registro. Hoy el `display_name` se deriva del mail (parte antes del @). Evaluar pedir nombre en el signup para el ranking y los agradecimientos.
-- 🅿️ **10.4** Google Sign-In. Ya evaluado y descartado hasta el build nativo (necesita credenciales OAuth, incompatible con Expo Go). Se retoma ahí.
+- ✅ **10.1** Login obligatorio con **mail + contraseña**, andando end-to-end (Gastón entró con su cuenta real y confirmó "quedó hermoso, a eso me refería siempre"). `AuthScreen` nueva (login/registro con toggle), gate en `_layout.tsx` (`!isAuthenticated` → AuthScreen antes que todo). `ensureSession` ya no crea anónimas. `signUp`/`signIn` en el store. Sacado todo el flujo viejo de OTP/vincular (`AccountLink`, `linkEmail`, etc.).
+  - ✅ **PASOS MANUALES ya hechos por Gastón:** (1) apagó "Confirm email" en Supabase Auth; (2) le puso contraseña a su cuenta vieja (ascendida desde anónima, sin pass) via SQL directo (`update auth.users set encrypted_password = crypt('...', gen_salt('bf')), email_confirmed_at = coalesce(..., now())`), porque el panel solo ofrecía "send recovery" y ese mail no llega (Resend sin dominio). Método a reusar para cualquier cuenta vieja sin pass.
+- ⬜ **10.2** **Recuperar contraseña ("olvidé mi contraseña") — pedido explícito de Gastón, 29 jul.** Hoy no existe: si un usuario olvida la pass, hay que resetearla a mano (SQL o dashboard). El flujo real (mail con link de reset) necesita un **dominio propio verificado en Resend** para que el mail llegue a cualquier casilla (hoy el sender de prueba solo entrega al mail de Gastón). Es la dependencia dura. Sube de prioridad: es de lo poco que le falta al MVP para ser usable por gente real que no sea Gastón.
+- ⬜ **10.3** **Foto de perfil + iniciales — pedido de Gastón, 29 jul ("lo veo clave").** Dos partes: (a) que el avatar muestre iniciales reales en vez del "VOS"/"GP" hardcodeado (para eso conviene pedir **nombre y apellido** en el registro, o al menos un nombre); (b) poder subir una **foto de perfil** propia (bucket público tipo `avatars`, mismo patrón que `cause-covers`). Junta lo que antes era 10.3 (nombre real en el registro): el nombre sirve para las iniciales, el ranking y los agradecimientos. El `display_name` hoy se deriva del mail (parte antes del @), es un parche.
+- 🅿️ **10.5** Google Sign-In. Ya evaluado y descartado hasta el build nativo (necesita credenciales OAuth, incompatible con Expo Go). Se retoma ahí.
 
 ## Épica 7 — Descubrimiento por cercanía (post-MVP)
 *Insight: la cercanía es un multiplicador de confianza y relevancia. A una causa del barrio se le dona más fácil. "Cada barrio tiene a su gente más interesada". Idea de Gastón, 27 jul.*
@@ -88,6 +88,15 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ⬜ **7.4** Búsqueda por texto / por zona.
 - ⬜ **7.5** "Donar cerca tuyo": causas dentro de X km.
 - ⬜ **7.6** Modo descubrimiento tipo swipe ("Tinder de donar"): deslizás causas cercanas una por una.
+
+## Épica 11 — Buscador, filtros y ordenamiento del feed (post-MVP)
+*Pedido de Gastón, 29 jul, con benchmark visual (captura de una app de delivery estilo PedidosYa/Rappi): barra "Buscar…" arriba + fila de chips "Filtrar / Ordenar ▾ / Descuentos / Destacados". Es el patrón mental que ya tienen los usuarios argentinos para explorar un feed.*
+> **Se solapa con la Épica 7** (7.3 filtros, 7.4 búsqueda): la 11 es el mismo tema visto desde la UX de exploración, la 7 desde la cercanía. Cuando se construya, unificar. Rinde con volumen de causas (con pocas no hace falta). Mantener el eje de donAR: no convertir el feed en un marketplace frío; la búsqueda sirve para encontrar una causa que te toca, no para "comparar productos".
+
+- ⬜ **11.1** Buscador por keyword (título / historia de la causa). Barra de búsqueda arriba del feed.
+- ⬜ **11.2** Filtros (chips): categoría, estado (activa / por cerrar / cumplida), rango de monto, cercanía (se cruza con 7.3).
+- ⬜ **11.3** Ordenamiento: más nuevas, más cerca de la meta, cierran pronto, más cercanas (se cruza con 7.5).
+- ⬜ **11.4** Vacío / cero resultados con copy que empuje a crear o ampliar el filtro, no un callejón.
 
 ---
 

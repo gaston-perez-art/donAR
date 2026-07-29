@@ -2,7 +2,7 @@
 
 Archivo vivo. Se lee al inicio de cada sesión y se actualiza al cerrar. Registra estado, decisiones tomadas, supuestos abiertos y próximos pasos. Complementa (no reemplaza) el "Paper fundacional" y el "Contexto del proyecto y como trabajo".
 
-Última actualización: 28 de julio de 2026. Épicas 1-3 hechas (eje "conectar sin custodiar" completo). MVP de pago = transferencia + aporte voluntario (MP apagado con flag). Legal documentado (paper 11.c, README). Probado el flujo P2P en Android/otra red vía túnel; aparecieron dos fricciones (curador no refresca causas; rate limit del OTP) anotadas en el backlog. Backlog priorizado en docs/BACKLOG.md.
+Última actualización: 29 de julio de 2026. **Cerca del MVP** (palabras de Gastón: "con una última pulida mañana ya estamos listos con el MVP"). Épicas 1-3 hechas (eje "conectar sin custodiar" completo). MVP de pago = transferencia + aporte voluntario (MP apagado con flag). Legal documentado. **Sesiones densas del 29 jul:** UI premium (tab bar pill de vidrio + shrink-on-scroll), tab Actividad real, historial donado/recibido tapeable, navegación nativa (Stack), y el cambio grande = **LOGIN OBLIGATORIO con mail+contraseña** (murió el modelo anónimo, raíz de la identidad huérfana). Gastón entró con su cuenta real (le puso pass via SQL directo) y confirmó "quedó hermoso, a eso me refería siempre". Pendiente de pulir mañana + tres ideas nuevas al backlog (buscador/filtros, recuperar contraseña, foto de perfil+iniciales). Backlog priorizado en docs/BACKLOG.md.
 
 ---
 
@@ -150,6 +150,12 @@ Fuera del código, lo que sigue bloqueando la etapa 2:
 ---
 
 ## 9. Registro de sesiones (log)
+
+### 29 jul 2026 (sesión 17, cierre: password resuelta + "casi MVP" + ideas)
+- **Contraseña de la cuenta vieja: RESUELTA.** El panel de Supabase solo ofrecía "send recovery" (mail que no llega, Resend sin dominio). Solución que funcionó: setear la pass directo en la base con SQL (`update auth.users set encrypted_password = crypt('elegida', gen_salt('bf')), email_confirmed_at = coalesce(email_confirmed_at, now()) where email = '...'`, requiere `pgcrypto`, viene por default en Supabase). Gastón entró con su cuenta real. **Método a reusar para cualquier cuenta vieja "ascendida desde anónima" sin contraseña.**
+- **Gastón: "quedó hermoso el login, a eso me refería siempre".** El refactor a login obligatorio era exactamente lo que venía pidiendo. Confirmado que estamos **cerca del MVP**: "con una última pulida mañana ya estamos listos".
+- **Tres ideas nuevas para backlog (NO se codearon, solo se ordenaron):** (1) **buscador + filtros + ordenamiento** del feed, con benchmark visual que mandó (app de delivery: barra "Buscar" + chips Filtrar/Ordenar/Descuentos/Destacados) → Épica 11, se solapa con la 7; (2) **recuperar contraseña** → sube prioridad en 10.2, depende de dominio propio en Resend; (3) **foto de perfil + iniciales reales** (pedir nombre/apellido en registro, subir avatar) → 10.3, "lo veo clave". 
+- **Aplicada la regla de anclar en explosión de creatividad:** Gastón tiró tres ideas + un "estamos casi"; en vez de codear, se ordenaron en el backlog por épica y prioridad, se consolidó memory y se pusheó. Cierre de sesión limpio.
 
 ### 29 jul 2026 (sesión 16, LOGIN OBLIGATORIO: fin del modelo anónimo)
 - **Contexto:** Gastón intentó probar con otro mail y "se rompió todo, imposible entrar". Diagnóstico: el código-por-mail nunca llegó a ese otro mail (Resend en modo prueba solo entrega al mail de su cuenta). Y su sesión activa se ensució en el intento, por eso tampoco veía la donación de su hermano.
