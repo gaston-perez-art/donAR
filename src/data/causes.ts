@@ -16,4 +16,11 @@ export type Cause = {
   verified: boolean;
   /** True when the cause was created by the current user (local session). */
   mine?: boolean;
+  /** Cuándo se cerró (llegó a la meta o venció el plazo). null si sigue activa. */
+  closedAt: string | null;
+  /** Cantidad de aportes confirmados. Viene calculado de causes_public. */
+  contributors: number;
+  /** Mensaje de cierre público del beneficiado (agradecimiento general). */
+  closingMessage: string | null;
+  closingPhotoUrl: string | null;
 };

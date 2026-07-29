@@ -75,6 +75,7 @@ export default function DonateScreen() {
   };
 
   const valid = amount > 0;
+  const closed = !!cause && cause.status !== 'active';
 
   // Meta como objetivo, no techo: se puede superar, pero avisamos al donante.
   const alreadyMet = !!cause && cause.raised >= cause.goal;
@@ -151,6 +152,31 @@ export default function DonateScreen() {
     }
     run();
   };
+
+  if (closed && cause) {
+    const done = cause.status === 'completed';
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.header}>
+          <Pressable style={styles.back} onPress={() => router.back()}>
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
+          <Text style={styles.title}>Tu aporte</Text>
+        </View>
+        <View style={styles.closedCenter}>
+          <Text style={{ fontSize: 40 }}>{done ? '🎉' : '⏳'}</Text>
+          <Text style={styles.closedTitle}>
+            {done ? 'Esta causa ya llegó a su meta' : 'Esta causa ya se cerró'}
+          </Text>
+          <Text style={styles.closedSub}>
+            {done
+              ? 'Ya no acepta nuevas donaciones. ¡Gracias por querer sumarte!'
+              : 'El plazo venció sin llegar a la meta y no acepta nuevas donaciones.'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -284,6 +310,22 @@ const styles = StyleSheet.create({
   },
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
+  closedCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl },
+  closedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.ink,
+    marginTop: Spacing.lg,
+    textAlign: 'center',
+  },
+  closedSub: {
+    fontSize: 13.5,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: 19,
+    maxWidth: 280,
+  },
   form: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   h3: { fontSize: 17, fontWeight: '700', color: Colors.ink, marginTop: Spacing.sm, marginBottom: Spacing.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

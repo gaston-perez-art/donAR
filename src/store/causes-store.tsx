@@ -16,6 +16,7 @@ import {
   signInWithPassword,
   signUpWithPassword,
   supabase,
+  uploadClosingPhoto,
   uploadCoverPhoto,
   uploadEvidence,
   uploadReceipt,
@@ -98,7 +99,47 @@ function mapRow(row: any, userId: string | null): Cause {
     verified: row.verified,
     reviewNote: row.review_note ?? null,
     mine,
+    closedAt: row.closed_at ?? null,
+    contributors: Number(row.contributors) || 0,
+    closingMessage: row.closing_message ?? null,
+    closingPhotoUrl: row.closing_photo_url ?? null,
   };
+}
+
+/**
+ * Cierre de causa sin servidor (Expo Go no corre cron/Edge Functions): se
+ * evalúa "en el momento" cada vez que se releen las causas del dueño, en los
+ * mismos puntos donde ya se refetchea (donar, confirmar transferencia,
+ * publicar, etc). Dos gatillos, evaluados sobre el total ya confirmado
+ * (`raised_amount`, agregado en el server): llegó a la meta -> 'completed'
+ * (cierra de verdad, no se siguen aceptando donaciones); venció el plazo sin
+ * llegar -> 'closed'. Solo se persiste para causas propias (RLS de owner).
+ */
+async function autoCloseIfNeeded(rows: any[], uid: string | null): Promise<void> {
+  if (!uid) return;
+  const now = Date.now();
+  const updates: PromiseLike<unknown>[] = [];
+  for (const row of rows) {
+    if (row.owner_id !== uid || row.status !== 'active') continue;
+    const raised = Number(row.raised_amount) || 0;
+    const goal = Number(row.goal_amount) || 0;
+    const deadlinePassed = row.deadline
+      ? new Date(`${row.deadline}T23:59:59`).getTime() < now
+      : false;
+
+    let nextStatus: 'completed' | 'closed' | null = null;
+    if (raised >= goal) nextStatus = 'completed';
+    else if (deadlinePassed) nextStatus = 'closed';
+    if (!nextStatus) continue;
+
+    const closedAt = new Date().toISOString();
+    row.status = nextStatus;
+    row.closed_at = closedAt;
+    updates.push(
+      supabase.from('causes').update({ status: nextStatus, closed_at: closedAt }).eq('id', row.id),
+    );
+  }
+  if (updates.length) await Promise.all(updates);
 }
 
 export type ReviewInfo = {
@@ -138,7 +179,14 @@ export type MyContribution = {
   causeEmoji: string;
   causeTint: string;
   causeStatus: Cause['status'];
+  /** Mensaje de cierre general que dejó el beneficiado (si ya cerró la causa). */
+  causeClosingMessage: string | null;
+  /** Agradecimiento puntual del beneficiado a ESTE aporte, si lo hubo. */
+  thankYouMessage: string | null;
 };
+
+/** Un agradecimiento puntual del beneficiado a un aporte de su causa. */
+export type CauseThank = { contributionId: string; message: string };
 
 /** Un aporte que ME hicieron a alguna de mis causas. Solo confirmados
  * (approved): es la misma regla que ya usa el total "Recibiste" del perfil. */
@@ -238,6 +286,9 @@ type CausesContextValue = {
     receiptUri: string,
   ) => Promise<boolean>;
   reviewTransfer: (contributionId: string, approve: boolean) => Promise<boolean>;
+  publishClosingMessage: (causeId: string, message: string, photoUri?: string | null) => Promise<boolean>;
+  getThanks: (causeId: string) => Promise<CauseThank[]>;
+  thankDonor: (causeId: string, contributionId: string, message: string) => Promise<boolean>;
   recordPlatformSupport: (causeId?: string) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
   getReceivedContributions: () => Promise<ReceivedContribution[]>;
@@ -280,7 +331,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       console.warn('fetch causes error:', error.message);
       return;
     }
-    setCauses((data ?? []).map((row) => mapRow(row, uid)));
+    const rows = data ?? [];
+    await autoCloseIfNeeded(rows, uid);
+    setCauses(rows.map((row) => mapRow(row, uid)));
   }, []);
 
   const refreshIsCurator = useCallback(async () => {
@@ -602,14 +655,73 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     [userId, fetchCauses],
   );
 
+  /** Mensaje de cierre público (agradecimiento general) + foto opcional. Solo
+   * tiene sentido una vez cerrada la causa (completed/closed); no se valida
+   * acá porque la UI ya solo lo ofrece en ese estado. */
+  const publishClosingMessage = useCallback(
+    async (causeId: string, message: string, photoUri?: string | null): Promise<boolean> => {
+      const uid = userId ?? (await ensureSession());
+      if (!uid) return false;
+
+      let photoUrl: string | null = null;
+      if (photoUri) {
+        const { url, error: upErr } = await uploadClosingPhoto(photoUri, causeId, 'image/jpeg');
+        if (upErr) console.warn('publishClosingMessage upload error:', upErr);
+        photoUrl = url;
+      }
+
+      const { error } = await supabase
+        .from('causes')
+        .update({ closing_message: message.trim(), closing_photo_url: photoUrl })
+        .eq('id', causeId);
+      if (error) {
+        console.warn('publishClosingMessage error:', error.message);
+        return false;
+      }
+      await fetchCauses(uid);
+      return true;
+    },
+    [userId, fetchCauses],
+  );
+
+  const getThanks = useCallback(async (causeId: string): Promise<CauseThank[]> => {
+    const { data, error } = await supabase
+      .from('cause_thanks')
+      .select('contribution_id, message')
+      .eq('cause_id', causeId);
+    if (error) {
+      console.warn('getThanks error:', error.message);
+      return [];
+    }
+    return (data ?? []).map((row: any) => ({ contributionId: row.contribution_id, message: row.message }));
+  }, []);
+
+  /** Agradecimiento puntual del beneficiado a un aporte específico. RLS solo
+   * deja insertar al dueño de la causa. */
+  const thankDonor = useCallback(
+    async (causeId: string, contributionId: string, message: string): Promise<boolean> => {
+      const { error } = await supabase
+        .from('cause_thanks')
+        .insert({ cause_id: causeId, contribution_id: contributionId, message: message.trim() });
+      if (error) {
+        console.warn('thankDonor error:', error.message);
+        return false;
+      }
+      return true;
+    },
+    [],
+  );
+
   const getMyActivity = useCallback(async (): Promise<MyActivity> => {
     const uid = userId ?? (await ensureSession());
     if (!uid) return emptyActivity;
 
-    // Aportes que hice yo, con la causa embebida (título, emoji, estado).
+    // Aportes que hice yo, con la causa embebida (título, emoji, estado, mensaje de cierre).
     const { data, error } = await supabase
       .from('contributions')
-      .select('id, amount, message, created_at, cause_id, causes(title, emoji, status, cover_tint)')
+      .select(
+        'id, amount, message, created_at, cause_id, causes(title, emoji, status, cover_tint, closing_message)',
+      )
       .eq('donor_id', uid)
       .order('created_at', { ascending: false });
 
@@ -618,7 +730,22 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       return emptyActivity;
     }
 
-    const contributions: MyContribution[] = (data ?? []).map((row: any) => {
+    const rows = data ?? [];
+
+    // Agradecimientos puntuales que me dejaron en mis aportes (consulta aparte:
+    // cause_thanks referencia dos tablas y así se evita la ambigüedad del embed).
+    const contributionIds = rows.map((row: any) => row.id);
+    const thanksByContribution = new Map<string, string>();
+    if (contributionIds.length > 0) {
+      const { data: thanksRows, error: thanksError } = await supabase
+        .from('cause_thanks')
+        .select('contribution_id, message')
+        .in('contribution_id', contributionIds);
+      if (thanksError) console.warn('getMyActivity thanks error:', thanksError.message);
+      for (const t of thanksRows ?? []) thanksByContribution.set(t.contribution_id, t.message);
+    }
+
+    const contributions: MyContribution[] = rows.map((row: any) => {
       const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
       return {
         id: row.id,
@@ -630,6 +757,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         causeEmoji: cause?.emoji ?? '💙',
         causeTint: cause?.cover_tint ?? '#CFE6FB',
         causeStatus: (cause?.status ?? 'active') as Cause['status'],
+        causeClosingMessage: cause?.closing_message ?? null,
+        thankYouMessage: thanksByContribution.get(row.id) ?? null,
       };
     });
 
@@ -845,6 +974,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getPayout,
       submitTransfer,
       reviewTransfer,
+      publishClosingMessage,
+      getThanks,
+      thankDonor,
       recordPlatformSupport,
       getMyActivity,
       getReceivedContributions,
@@ -878,6 +1010,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getPayout,
       submitTransfer,
       reviewTransfer,
+      publishClosingMessage,
+      getThanks,
+      thankDonor,
       recordPlatformSupport,
       getMyActivity,
       getReceivedContributions,

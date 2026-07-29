@@ -219,6 +219,7 @@ export default function ProfileScreen() {
               const label = MY_CAUSE_STATUS[c.status] ?? c.status;
               const bad = c.status === 'rejected';
               const active = c.status === 'active' || c.status === 'completed';
+              const isClosed = c.status === 'closed';
               return (
                 <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.id}`)}>
                   <View style={[styles.rowIcon, { backgroundColor: c.coverTint }]}>
@@ -232,12 +233,19 @@ export default function ProfileScreen() {
                       {active ? `${formatARS(c.raised)} de ${formatARS(c.goal)}` : label}
                     </Text>
                   </View>
-                  <View style={[styles.myCausePill, bad && styles.myCausePillBad, active && styles.myCausePillOk]}>
+                  <View
+                    style={[
+                      styles.myCausePill,
+                      bad && styles.myCausePillBad,
+                      active && styles.myCausePillOk,
+                      isClosed && styles.myCausePillClosed,
+                    ]}>
                     <Text
                       style={[
                         styles.myCausePillText,
                         bad && styles.myCausePillTextBad,
                         active && styles.myCausePillTextOk,
+                        isClosed && styles.myCausePillTextClosed,
                       ]}>
                       {label}
                     </Text>
@@ -401,9 +409,11 @@ const styles = StyleSheet.create({
   myCausePill: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   myCausePillBad: { backgroundColor: '#FBE9E9' },
   myCausePillOk: { backgroundColor: '#E4F7EE' },
+  myCausePillClosed: { backgroundColor: '#EDF0F3' },
   myCausePillText: { fontSize: 11, fontWeight: '700', color: '#8A6D00' },
   myCausePillTextBad: { color: '#C0392B' },
   myCausePillTextOk: { color: Colors.happy },
+  myCausePillTextClosed: { color: Colors.sad },
 
   // Modal de medalla
   backdrop: {

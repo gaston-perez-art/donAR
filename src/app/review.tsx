@@ -143,7 +143,7 @@ export default function ReviewScreen() {
             <View style={styles.sentInfo}>
               <Text style={styles.sentInfoText}>
                 Un curador la revisa en menos de 24 hs hábiles. Vas a ver el estado (en revisión,
-                publicada, o si te pedimos algo más) en el feed, en "Tus causas".
+                publicada, o si te pedimos algo más) en el feed, en &quot;Tus causas&quot;.
               </Text>
             </View>
             <Pressable style={styles.sentBtn} onPress={goToCreatedCause}>

@@ -1,8 +1,11 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
+  Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -10,13 +13,14 @@ import {
   Share,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { getReceiptUrl } from '@/lib/supabase';
-import { useCauses, type Contribution } from '@/store/causes-store';
+import { useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
 
 const STATUS_COPY: Record<string, { title: string; sub: string }> = {
   review: {
@@ -33,11 +37,19 @@ const STATUS_COPY: Record<string, { title: string; sub: string }> = {
   },
 };
 
+/** Días entre dos fechas ISO, mínimo 1 (para no mostrar "0 días" en un cierre same-day). */
+function daysBetween(startIso: string, endIso: string | null): number {
+  if (!endIso) return 0;
+  const diff = new Date(endIso).getTime() - new Date(startIso).getTime();
+  return Math.max(1, Math.round(diff / 86400000));
+}
+
 export default function CauseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getCause, getContributions, resubmitCause, reviewTransfer } = useCauses();
+  const { getCause, getContributions, resubmitCause, reviewTransfer, publishClosingMessage, getThanks, thankDonor } =
+    useCauses();
   const cause = getCause(String(id));
   const [contribs, setContribs] = useState<Contribution[]>([]);
   const [resubmitting, setResubmitting] = useState(false);
@@ -46,9 +58,71 @@ export default function CauseDetailScreen() {
   const [receiptUrls, setReceiptUrls] = useState<Record<string, string | null>>({});
   const [reviewing, setReviewing] = useState<string | null>(null);
 
+  // Mensaje de cierre (Épica 4.3).
+  const [closingText, setClosingText] = useState('');
+  const [closingPhoto, setClosingPhoto] = useState<string | null>(null);
+  const [publishingClosing, setPublishingClosing] = useState(false);
+
+  // Agradecimiento puntual por aporte (Épica 4.3).
+  const [thanks, setThanks] = useState<CauseThank[]>([]);
+  const [thankTarget, setThankTarget] = useState<Contribution | null>(null);
+  const [thankText, setThankText] = useState('');
+  const [sendingThank, setSendingThank] = useState(false);
+
   useEffect(() => {
     if (id) getContributions(String(id)).then(setContribs);
   }, [id, getContributions, cause?.raised]);
+
+  const closed = cause?.status === 'completed' || cause?.status === 'closed';
+
+  useEffect(() => {
+    if (id && closed && cause?.mine) getThanks(String(id)).then(setThanks);
+  }, [id, closed, cause?.mine, getThanks]);
+
+  const pickClosingPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Necesitamos acceso a tus fotos',
+        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > DonAR > Fotos.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6 });
+    if (result.canceled || !result.assets[0]) return;
+    setClosingPhoto(result.assets[0].uri);
+  };
+
+  const submitClosingMessage = async () => {
+    if (!cause || !closingText.trim() || publishingClosing) return;
+    setPublishingClosing(true);
+    const ok = await publishClosingMessage(cause.id, closingText, closingPhoto);
+    setPublishingClosing(false);
+    if (!ok) {
+      Alert.alert('No se pudo publicar', 'Probá de nuevo en un momento.');
+      return;
+    }
+    setClosingText('');
+    setClosingPhoto(null);
+  };
+
+  const openThank = (c: Contribution) => {
+    setThankText('');
+    setThankTarget(c);
+  };
+
+  const submitThank = async () => {
+    if (!cause || !thankTarget || !thankText.trim() || sendingThank) return;
+    setSendingThank(true);
+    const ok = await thankDonor(cause.id, thankTarget.id, thankText);
+    setSendingThank(false);
+    if (!ok) {
+      Alert.alert('No se pudo enviar', 'Probá de nuevo en un momento.');
+      return;
+    }
+    setThanks((prev) => [...prev, { contributionId: thankTarget.id, message: thankText.trim() }]);
+    setThankTarget(null);
+  };
 
   // El dueño ve el comprobante de cada transferencia pendiente (URL firmada).
   useEffect(() => {
@@ -91,7 +165,11 @@ export default function CauseDetailScreen() {
 
   const pct = Math.min(100, Math.round((cause.raised / cause.goal) * 100));
   const done = cause.status === 'completed';
-  const pending = cause.mine && cause.status !== 'active' && cause.status !== 'completed';
+  const expired = closed && !done;
+  // Solo el trámite en curso usa la pantalla simple de "tu causa"; cumplida o
+  // cerrada por tiempo tienen su propio cierre más abajo (mini-reporte + agradecimiento).
+  const pending =
+    cause.mine && (cause.status === 'review' || cause.status === 'needs_info' || cause.status === 'rejected');
   // Acá abajo (pasado el early return de pending) `mine` = causa propia ya
   // publicada: se muestra el panel del creador, no la vista de donante.
   const isOwner = !!cause.mine;
@@ -105,9 +183,10 @@ export default function CauseDetailScreen() {
 
   const shareCause = async () => {
     if (!cause) return;
-    await Share.share({
-      message: `Ayudá a "${cause.title}" en DonAR. Cada aporte queda verificado y a la vista. 💙`,
-    });
+    const message = done
+      ? `¡"${cause.title}" cumplió su meta en DonAR gracias a todos los que aportaron! 🎉`
+      : `Ayudá a "${cause.title}" en DonAR. Cada aporte queda verificado y a la vista. 💙`;
+    await Share.share({ message });
   };
 
   if (pending) {
@@ -173,10 +252,17 @@ export default function CauseDetailScreen() {
             </ScrollView>
           )}
           <View style={styles.badge}>
-            <View style={[styles.tick, done && { backgroundColor: Colors.happy }]}>
-              <Text style={styles.tickText}>✓</Text>
+            <View
+              style={[
+                styles.tick,
+                done && { backgroundColor: Colors.happy },
+                expired && { backgroundColor: Colors.sad },
+              ]}>
+              <Text style={styles.tickText}>{expired ? '✕' : '✓'}</Text>
             </View>
-            <Text style={styles.badgeText}>{done ? 'Meta alcanzada' : 'Causa verificada por DonAR'}</Text>
+            <Text style={styles.badgeText}>
+              {done ? 'Meta alcanzada' : expired ? 'Causa cerrada' : 'Causa verificada por DonAR'}
+            </Text>
           </View>
           {cause.imageUrls.length === 0 && <Text style={styles.heroEmoji}>{cause.emoji}</Text>}
           {cause.imageUrls.length > 1 && (
@@ -200,11 +286,74 @@ export default function CauseDetailScreen() {
             <Text style={styles.goal}>
               meta {formatARS(cause.goal)}
               {'\n'}
-              {done ? 'cumplida' : `${cause.daysLeft} días restantes`}
+              {done ? 'cumplida' : expired ? 'cerrada sin llegar' : `${cause.daysLeft} días restantes`}
             </Text>
           </View>
 
           {cause.story ? <Text style={styles.story}>{cause.story}</Text> : null}
+
+          {closed && (
+            <View style={styles.miniReport}>
+              <View style={styles.miniReportItem}>
+                <Text style={styles.miniReportValue}>{formatARS(cause.raised)}</Text>
+                <Text style={styles.miniReportLabel}>se juntaron</Text>
+              </View>
+              <View style={styles.miniReportDivider} />
+              <View style={styles.miniReportItem}>
+                <Text style={styles.miniReportValue}>{cause.contributors}</Text>
+                <Text style={styles.miniReportLabel}>
+                  {cause.contributors === 1 ? 'persona' : 'personas'}
+                </Text>
+              </View>
+              <View style={styles.miniReportDivider} />
+              <View style={styles.miniReportItem}>
+                <Text style={styles.miniReportValue}>{daysBetween(cause.createdAt, cause.closedAt)}</Text>
+                <Text style={styles.miniReportLabel}>días</Text>
+              </View>
+            </View>
+          )}
+
+          {closed && cause.closingMessage ? (
+            <View style={styles.closingCard}>
+              <Text style={styles.closingLabel}>
+                {done ? 'Mensaje de cierre' : 'Mensaje del beneficiado'}
+              </Text>
+              {cause.closingPhotoUrl ? (
+                <Image source={{ uri: cause.closingPhotoUrl }} style={styles.closingPhoto} resizeMode="cover" />
+              ) : null}
+              <Text style={styles.closingText}>“{cause.closingMessage}”</Text>
+            </View>
+          ) : null}
+
+          {closed && isOwner && !cause.closingMessage ? (
+            <View style={styles.closingForm}>
+              <Text style={styles.closingLabel}>Dejá un mensaje de cierre</Text>
+              <Text style={styles.pendHint}>
+                Contá qué lograste con lo recaudado. Le llega a todos los que aportaron.
+              </Text>
+              <Pressable style={styles.closingPhotoPicker} onPress={pickClosingPhoto}>
+                {closingPhoto ? (
+                  <Image source={{ uri: closingPhoto }} style={styles.closingPhoto} resizeMode="cover" />
+                ) : (
+                  <Text style={styles.closingPhotoHint}>🖼️ Agregar una foto (opcional)</Text>
+                )}
+              </Pressable>
+              <TextInput
+                style={[styles.input, styles.multiline]}
+                placeholder="Gracias a todos, con lo que juntamos pudimos..."
+                placeholderTextColor={Colors.muted}
+                value={closingText}
+                onChangeText={setClosingText}
+                multiline
+              />
+              <Pressable
+                style={[styles.btn, (!closingText.trim() || publishingClosing) && styles.btnDisabled]}
+                disabled={!closingText.trim() || publishingClosing}
+                onPress={submitClosingMessage}>
+                <Text style={styles.btnText}>{publishingClosing ? 'Publicando...' : 'Publicar mensaje'}</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <View style={styles.trust}>
             <View style={styles.trustB}>
@@ -278,18 +427,32 @@ export default function CauseDetailScreen() {
                 </Text>
               );
             }
-            return shown.map((c) => (
-              <View key={c.id} style={styles.row}>
-                <View style={styles.dot}>
-                  <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
+            const thankedIds = new Set(thanks.map((t) => t.contributionId));
+            return shown.map((c) => {
+              const alreadyThanked = thankedIds.has(c.id);
+              return (
+                <View key={c.id} style={styles.row}>
+                  <View style={styles.dot}>
+                    <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{c.name}</Text>
+                    {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
+                  </View>
+                  <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
+                  {closed && isOwner && (
+                    <Pressable
+                      style={[styles.thankPill, alreadyThanked && styles.thankPillDone]}
+                      disabled={alreadyThanked}
+                      onPress={() => openThank(c)}>
+                      <Text style={[styles.thankPillText, alreadyThanked && styles.thankPillTextDone]}>
+                        {alreadyThanked ? 'Agradecido ✓' : 'Agradecer'}
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{c.name}</Text>
-                  {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
-                </View>
-                <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
-              </View>
-            ));
+              );
+            });
           })()}
         </View>
       </ScrollView>
@@ -297,14 +460,50 @@ export default function CauseDetailScreen() {
       <View style={[styles.cta, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         {isOwner ? (
           <Pressable style={[styles.btn, styles.btnShare]} onPress={shareCause}>
-            <Text style={styles.btnText}>Compartir mi causa</Text>
+            <Text style={styles.btnText}>{closed ? 'Compartir el logro' : 'Compartir mi causa'}</Text>
           </Pressable>
+        ) : closed ? (
+          <View style={styles.closedNotice}>
+            <Text style={styles.closedNoticeText}>
+              {done
+                ? 'Esta causa ya llegó a su meta. ¡Gracias por ser parte!'
+                : 'Esta causa se cerró sin llegar a la meta.'}
+            </Text>
+          </View>
         ) : (
           <Pressable style={styles.btn} onPress={() => router.push(`/donate/${cause.id}`)}>
             <Text style={styles.btnText}>Donar a esta causa</Text>
           </Pressable>
         )}
       </View>
+
+      <Modal visible={!!thankTarget} transparent animationType="fade" onRequestClose={() => setThankTarget(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setThankTarget(null)}>
+          <Pressable style={styles.thankModal} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.h2}>Agradecer a {thankTarget?.name}</Text>
+            <TextInput
+              style={[styles.input, styles.multiline, { marginTop: Spacing.lg }]}
+              placeholder="Gracias por tu aporte, significó mucho..."
+              placeholderTextColor={Colors.muted}
+              value={thankText}
+              onChangeText={setThankText}
+              multiline
+              autoFocus
+            />
+            <View style={styles.pendActions}>
+              <Pressable style={[styles.pendBtn, styles.pendReject]} onPress={() => setThankTarget(null)}>
+                <Text style={styles.pendRejectText}>Cancelar</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.pendBtn, styles.pendConfirm, (!thankText.trim() || sendingThank) && styles.btnDisabled]}
+                disabled={!thankText.trim() || sendingThank}
+                onPress={submitThank}>
+                <Text style={styles.pendConfirmText}>{sendingThank ? 'Enviando...' : 'Enviar'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -461,6 +660,91 @@ const styles = StyleSheet.create({
   pendConfirmText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   cta: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
+  btnDisabled: { backgroundColor: '#AFC8DD' },
   btnShare: { backgroundColor: Colors.ink },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
+  closedNotice: {
+    backgroundColor: Colors.skyTint,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  closedNoticeText: { fontSize: 13.5, color: Colors.muted, fontWeight: '600', textAlign: 'center' },
+
+  // Mini-reporte de cierre (4.2)
+  miniReport: {
+    flexDirection: 'row',
+    backgroundColor: Colors.skyTint,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.lg,
+    marginTop: Spacing.lg,
+  },
+  miniReportItem: { flex: 1, alignItems: 'center' },
+  miniReportValue: { fontSize: 17, fontWeight: '800', color: Colors.ink },
+  miniReportLabel: { fontSize: 11.5, color: Colors.muted, marginTop: 2 },
+  miniReportDivider: { width: 1, backgroundColor: Colors.line },
+
+  // Mensaje de cierre / agradecimiento (4.3)
+  closingCard: {
+    backgroundColor: '#FEF9EE',
+    borderWidth: 1,
+    borderColor: '#F0D9A6',
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    marginTop: Spacing.lg,
+  },
+  closingForm: { marginTop: Spacing.lg },
+  closingLabel: { fontSize: 13, fontWeight: '700', color: Colors.brandDark, marginBottom: 6 },
+  closingText: { fontSize: 14, color: '#5C4A1E', lineHeight: 20, fontStyle: 'italic' },
+  closingPhoto: { width: '100%', height: 160, borderRadius: Radius.sm, marginBottom: Spacing.sm },
+  closingPhotoPicker: {
+    height: 100,
+    borderRadius: Radius.sm,
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderStyle: 'dashed',
+    backgroundColor: Colors.skyTint,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+  },
+  closingPhotoHint: { fontSize: 12.5, color: Colors.muted },
+  input: {
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    padding: 15,
+    fontSize: 15,
+    color: Colors.ink,
+    backgroundColor: '#fff',
+    marginBottom: Spacing.md,
+  },
+  multiline: { minHeight: 90, textAlignVertical: 'top' },
+
+  // Agradecer un aporte puntual
+  thankPill: {
+    backgroundColor: Colors.skySoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginLeft: Spacing.sm,
+  },
+  thankPillDone: { backgroundColor: '#E4F7EE' },
+  thankPillText: { fontSize: 11, fontWeight: '700', color: Colors.brandDark },
+  thankPillTextDone: { color: Colors.happy },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20,40,60,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  thankModal: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
+  },
 });

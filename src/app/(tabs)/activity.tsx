@@ -60,6 +60,10 @@ export default function ActivityScreen() {
     );
   }
 
+  // Causas que apoyé y que ya cerraron con un agradecimiento (puntual o general).
+  // Es el aviso in-app del cierre (Épica 4.3): push real queda para el dev build.
+  const thanked = data.donated.filter((d) => d.thankYouMessage || d.causeClosingMessage);
+
   const nothing = data.pending.length === 0 && data.received.length === 0 && data.donated.length === 0;
 
   return (
@@ -93,7 +97,7 @@ export default function ActivityScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
-                      {p.donorName} te transfirió a "{p.causeTitle}"
+                      {p.donorName} te transfirió a &quot;{p.causeTitle}&quot;
                     </Text>
                     <Text style={styles.rowSub}>Tocá para revisar el comprobante · {timeAgo(p.createdAt)}</Text>
                   </View>
@@ -113,11 +117,35 @@ export default function ActivityScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
-                      {r.donorName} donó a "{r.causeTitle}"
+                      {r.donorName} donó a &quot;{r.causeTitle}&quot;
                     </Text>
                     <Text style={styles.rowSub}>{timeAgo(r.createdAt)}</Text>
                   </View>
                   <Text style={[styles.rowAmt, { color: Colors.happy }]}>+{formatARS(r.amount)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {thanked.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.secTitle}>Te agradecieron</Text>
+              {thanked.map((d) => (
+                <Pressable
+                  key={`thanks-${d.id}`}
+                  style={[styles.row, styles.rowHappy]}
+                  onPress={() => router.push(`/cause/${d.causeId}`)}>
+                  <View style={[styles.rowIcon, { backgroundColor: d.causeTint }]}>
+                    <Text style={{ fontSize: 18 }}>{d.causeEmoji}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>
+                      Cerraron &quot;{d.causeTitle}&quot; y te dejaron un mensaje
+                    </Text>
+                    <Text style={styles.rowSub} numberOfLines={2}>
+                      “{d.thankYouMessage ?? d.causeClosingMessage}”
+                    </Text>
+                  </View>
                 </Pressable>
               ))}
             </View>
@@ -133,7 +161,7 @@ export default function ActivityScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
-                      Donaste a "{d.causeTitle}"
+                      Donaste a &quot;{d.causeTitle}&quot;
                     </Text>
                     <Text style={styles.rowSub}>{timeAgo(d.createdAt)}</Text>
                   </View>
@@ -170,6 +198,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   rowAlert: { borderColor: '#F0D9A6', backgroundColor: '#FEF9EE' },
+  rowHappy: { borderColor: '#BEE8D3', backgroundColor: '#F0FBF5' },
   rowIcon: { width: 40, height: 40, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 13.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 11.5, color: Colors.muted, marginTop: 2 },

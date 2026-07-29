@@ -301,3 +301,41 @@ create policy "platform_support read own" on platform_support for select
 -- Admin API. Alternativa simple para testing: crear una cuenta nueva con el
 -- flujo de registro y, si hace falta, reasignar owner_id de sus causas a la
 -- cuenta nueva (mismo patrón que la reasignación de "Me muero de hambre").
+
+-- 29 jul 2026 (Épica 4: cierre de causa). El enum cause_status ya traía
+-- 'completed' (cumplida, llegó a la meta) y 'closed' (cerrada sin llegar,
+-- venció el plazo) desde el día 1; lo que faltaba era disparar el cierre y
+-- darle al beneficiado un mensaje de cierre + agradecimiento.
+alter table causes add column if not exists closed_at timestamptz;
+alter table causes add column if not exists closing_message text;
+alter table causes add column if not exists closing_photo_url text;
+
+-- Agradecimiento puntual del beneficiado a un donante/aporte específico.
+-- Igual que las contributions, se lee públicamente (transparencia del
+-- recorrido): el donante necesita poder ver que le agradecieron. Solo el
+-- dueño de la causa lo escribe.
+create table if not exists cause_thanks (
+  id uuid primary key default gen_random_uuid(),
+  cause_id uuid not null references causes(id) on delete cascade,
+  contribution_id uuid not null references contributions(id) on delete cascade,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+alter table cause_thanks enable row level security;
+
+create policy "thanks public read" on cause_thanks for select using (true);
+create policy "thanks owner insert" on cause_thanks for insert
+  with check (exists (select 1 from causes c where c.id = cause_id and c.owner_id = auth.uid()));
+
+-- Recrear el view (mismo motivo que el fix del 27 jul: `select c.*` congela la
+-- lista de columnas al momento del create, las agregadas después no quedan
+-- expuestas sin recrearlo).
+drop view if exists causes_public;
+create view causes_public with (security_invoker = true) as
+select
+  c.*,
+  coalesce((select sum(ct.amount) from contributions ct
+            where ct.cause_id = c.id and ct.status = 'approved'), 0) as raised_amount,
+  (select count(*) from contributions ct
+   where ct.cause_id = c.id and ct.status = 'approved') as contributors
+from causes c;

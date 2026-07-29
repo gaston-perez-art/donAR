@@ -169,6 +169,38 @@ export async function uploadCoverPhoto(
 }
 
 /**
+ * Sube la foto del mensaje de cierre (bucket cause-covers, público: mismo
+ * patrón que la portada). Path propio (closing.jpg) para no pisar las fotos
+ * de portada de la misma causa.
+ */
+export async function uploadClosingPhoto(
+  localUri: string,
+  causeId: string,
+  contentType: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const uid = await ensureSession();
+  if (!uid) return { url: null, error: 'No hay sesión' };
+
+  try {
+    const path = `${uid}/${causeId}/closing.jpg`;
+
+    const response = await fetch(localUri);
+    const arrayBuffer = await response.arrayBuffer();
+
+    const { error } = await supabase.storage
+      .from('cause-covers')
+      .upload(path, arrayBuffer, { contentType, upsert: true });
+
+    if (error) return { url: null, error: error.message };
+    const { data } = supabase.storage.from('cause-covers').getPublicUrl(path);
+    return { url: data.publicUrl, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error subiendo la foto';
+    return { url: null, error: message };
+  }
+}
+
+/**
  * Sube el comprobante de una transferencia al bucket privado transfer-receipts.
  * Lo lee el donante que lo subió y el dueño de la causa (para confirmar).
  * Devuelve el path (no una URL pública): se ve con URL firmada.

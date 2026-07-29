@@ -47,20 +47,30 @@ export default function DonatedScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {contributions.map((c) => (
-            <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.causeId}`)}>
-              <View style={[styles.rowIcon, { backgroundColor: c.causeTint }]}>
-                <Text style={{ fontSize: 18 }}>{c.causeEmoji}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {c.causeTitle}
-                </Text>
-                <Text style={styles.rowSub}>{c.causeStatus === 'completed' ? 'Meta cumplida' : 'En curso'}</Text>
-              </View>
-              <Text style={styles.rowAmt}>+{formatARS(c.amount)}</Text>
-            </Pressable>
-          ))}
+          {contributions.map((c) => {
+            const statusLabel =
+              c.causeStatus === 'completed' ? 'Meta cumplida 🎉' : c.causeStatus === 'closed' ? 'Se cerró sin llegar' : 'En curso';
+            const thanks = c.thankYouMessage ?? c.causeClosingMessage;
+            return (
+              <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.causeId}`)}>
+                <View style={[styles.rowIcon, { backgroundColor: c.causeTint }]}>
+                  <Text style={{ fontSize: 18 }}>{c.causeEmoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {c.causeTitle}
+                  </Text>
+                  <Text style={styles.rowSub}>{statusLabel}</Text>
+                  {thanks ? (
+                    <Text style={styles.rowThanks} numberOfLines={2}>
+                      “{thanks}”
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={styles.rowAmt}>+{formatARS(c.amount)}</Text>
+              </Pressable>
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -105,5 +115,6 @@ const styles = StyleSheet.create({
   rowIcon: { width: 42, height: 42, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
+  rowThanks: { fontSize: 12, color: Colors.brandDark, fontStyle: 'italic', marginTop: 3, lineHeight: 16 },
   rowAmt: { fontSize: 14.5, fontWeight: '800', color: Colors.brandDark },
 });
