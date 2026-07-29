@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/donar-theme';
+import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
 import { CausesProvider, useCauses } from '@/store/causes-store';
 
@@ -28,7 +29,7 @@ SplashScreen.hideAsync();
  * por igual (antes ninguna de las dos tenía navegación nativa acá).
  */
 function AppShell() {
-  const { isCurator, loading, viewAsDonor } = useCauses();
+  const { isCurator, loading, viewAsDonor, isAuthenticated } = useCauses();
 
   if (loading) {
     return (
@@ -36,6 +37,12 @@ function AppShell() {
         <ActivityIndicator color={Colors.brand} />
       </View>
     );
+  }
+
+  // Sin cuenta, nada de app: la identidad es obligatoria (todo se ata a un
+  // usuario que persiste). Ver auth-screen.tsx.
+  if (!isAuthenticated) {
+    return <AuthScreen />;
   }
 
   if (isCurator && !viewAsDonor) {

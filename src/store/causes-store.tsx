@@ -10,8 +10,11 @@ import {
 
 import type { Cause } from '@/data/causes';
 import {
+  ensureRegisteredProfile,
   ensureSession,
   isCurator as fetchIsCurator,
+  signInWithPassword,
+  signUpWithPassword,
   supabase,
   uploadCoverPhoto,
   uploadEvidence,
@@ -248,6 +251,10 @@ type CausesContextValue = {
   getReviewInfo: (causeId: string) => Promise<ReviewInfo>;
   reviewCause: (causeId: string, action: ReviewAction, note?: string) => Promise<boolean>;
   resubmitCause: (causeId: string) => Promise<boolean>;
+  isAuthenticated: boolean;
+  accountEmail: string | null;
+  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -257,6 +264,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   const [causes, setCauses] = useState<Cause[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [accountEmail, setAccountEmail] = useState<string | null>(null);
   const [draft, setDraftState] = useState<CauseDraft>(emptyDraft);
   const [isCurator, setIsCurator] = useState(false);
   // La misma cuenta puede ser curador Y beneficiado de una causa propia (caso
@@ -279,15 +287,28 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     setIsCurator(await fetchIsCurator());
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      const uid = await ensureSession();
-      setUserId(uid);
+  // Lee la sesión actual y carga (o limpia) los datos según haya cuenta o no.
+  const loadSession = useCallback(async () => {
+    const uid = await ensureSession();
+    setUserId(uid);
+    if (uid) {
+      const { data } = await supabase.auth.getUser();
+      setAccountEmail(data.user?.email ?? null);
       await fetchCauses(uid);
       await refreshIsCurator();
+    } else {
+      setAccountEmail(null);
+      setCauses([]);
+      setIsCurator(false);
+    }
+  }, [fetchCauses, refreshIsCurator]);
+
+  useEffect(() => {
+    (async () => {
+      await loadSession();
       setLoading(false);
     })();
-  }, [fetchCauses, refreshIsCurator]);
+  }, [loadSession]);
 
   // Si la cuenta pasa a ser curador dentro de la misma sesión (SQL corrido con
   // la app ya abierta), las causas de otros en revisión recién se leen con el
@@ -302,18 +323,47 @@ export function CausesProvider({ children }: { children: ReactNode }) {
 
   const resetDraft = useCallback(() => setDraftState(emptyDraft), []);
 
-  /** Cierra la sesión actual y arranca una anónima nueva, como recién instalada. */
+  /** Cierra la sesión. No crea una anónima: la app vuelve a la pantalla de
+   * login (todo requiere cuenta). */
   const signOut = useCallback(async () => {
     setLoading(true);
     await supabase.auth.signOut();
     setDraftState(emptyDraft);
     setViewAsDonor(false);
-    const uid = await ensureSession();
-    setUserId(uid);
-    await fetchCauses(uid);
-    await refreshIsCurator();
+    setUserId(null);
+    setAccountEmail(null);
+    setCauses([]);
+    setIsCurator(false);
     setLoading(false);
-  }, [fetchCauses, refreshIsCurator]);
+  }, []);
+
+  /** Registra o loguea con mail + contraseña y carga los datos de la cuenta.
+   * Devuelve el error legible si falla (para mostrarlo en la pantalla). */
+  const authenticate = useCallback(
+    async (
+      fn: (email: string, password: string) => Promise<{ error: string | null }>,
+      email: string,
+      password: string,
+    ): Promise<{ error: string | null }> => {
+      const { error } = await fn(email, password);
+      if (error) return { error };
+      await ensureRegisteredProfile(email);
+      setLoading(true);
+      await loadSession();
+      setLoading(false);
+      return { error: null };
+    },
+    [loadSession],
+  );
+
+  const signUp = useCallback(
+    (email: string, password: string) => authenticate(signUpWithPassword, email, password),
+    [authenticate],
+  );
+  const signIn = useCallback(
+    (email: string, password: string) => authenticate(signInWithPassword, email, password),
+    [authenticate],
+  );
 
   const refresh = useCallback(() => fetchCauses(userId), [fetchCauses, userId]);
 
@@ -808,6 +858,10 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReviewInfo,
       reviewCause,
       resubmitCause,
+      isAuthenticated: !!userId,
+      accountEmail,
+      signUp,
+      signIn,
       signOut,
     }),
     [
@@ -835,6 +889,10 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReviewInfo,
       reviewCause,
       resubmitCause,
+      userId,
+      accountEmail,
+      signUp,
+      signIn,
       signOut,
     ],
   );

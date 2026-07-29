@@ -280,3 +280,24 @@ create policy "platform_support insert" on platform_support for insert
   with check (auth.uid() = supporter_id or supporter_id is null);
 create policy "platform_support read own" on platform_support for select
   using (auth.uid() = supporter_id);
+
+-- 29 jul 2026 (LOGIN OBLIGATORIO, cambio de modelo de identidad). Se abandonó
+-- el modelo "sesión anónima por default + vincular mail opcional": generaba
+-- sesiones huérfanas (causas sin dueño recuperable, donaciones invisibles al
+-- cambiar de sesión). Ahora la app EXIGE cuenta (mail + contraseña) para todo:
+-- donar, crear causa, recibir. Nada de sesiones anónimas.
+--
+-- PASOS MANUALES EN EL DASHBOARD DE SUPABASE (no son SQL, van en la UI):
+--   1. Authentication > Sign In / Providers > Email: APAGAR "Confirm email".
+--      Sin esto, signUp no loguea hasta confirmar el mail, y el mail de
+--      confirmación hoy no se entrega (Resend sin dominio propio verificado).
+--   2. (Opcional) Authentication > Providers: se puede desactivar "Anonymous
+--      sign-ins", ya no se usan.
+--
+-- MIGRACIÓN DE LA CUENTA EXISTENTE DE GASTÓN (que se creó como anónima y se
+-- "ascendió" con mail, sin contraseña): para poder entrar con el login nuevo
+-- necesita una contraseña. Desde el dashboard: Authentication > Users >
+-- (su usuario) > "Reset password" / "Send magic link", o setear una via el
+-- Admin API. Alternativa simple para testing: crear una cuenta nueva con el
+-- flujo de registro y, si hace falta, reasignar owner_id de sus causas a la
+-- cuenta nueva (mismo patrón que la reasignación de "Me muero de hambre").

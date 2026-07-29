@@ -38,8 +38,8 @@ POC funcionando de punta a punta, con datos reales de Supabase (no mock).
 - [x] Feed de causas verificadas (datos reales de Supabase)
 - [x] Detalle de causa + trazabilidad visible (lista de aportes)
 - [x] Crear causa e2e + fotos de portada opcionales (carrusel)
+- [x] **Login obligatorio** (mail + contraseña): todo (donar, crear, recibir) queda atado a una cuenta que persiste. No hay sesiones anónimas
 - [x] **Curaduría real**: la causa nace en `review`, un curador humano aprueba / rechaza / pide info tras revisar la evidencia (DNI + selfie + documento) subida a Storage privado
-- [x] Identidad cross-device: vincular la sesión anónima a un mail (código de 6 dígitos) para recuperar el historial desde otro dispositivo
 - [x] **Panel de "mi causa"** (vista del creador): recaudado / meta, aportes recibidos, compartir
 - [x] **Dos métodos de pago**: transferencia con comprobante (canónico del MVP) + Mercado Pago (apagado con flag, ver Encuadre legal)
 - [x] **Confirmación de la transferencia por el beneficiado**: sube comprobante → entra `pending` → el beneficiado confirma "me llegó" → recién ahí suma a la meta y a los puntos
@@ -63,7 +63,7 @@ src/
       _layout.tsx      Tabs con tab bar propio
       index.tsx        feed
       ranking.tsx      ranking mensual + puntos
-      profile.tsx      perfil, medallas, "mis causas", vincular mail
+      profile.tsx      perfil, medallas, "mis causas", cuenta / cerrar sesión
       activity.tsx     feed de actividad (transferencias por confirmar,
                        recibidos, donados)
     cause/[id].tsx     detalle de causa (con branch "mi causa" para el dueño)
@@ -76,6 +76,8 @@ src/
                        del Stack, no tabs: se empujan encima con navegación
                        nativa)
   screens/
+    auth-screen.tsx    login / registro (mail + contraseña). La app entera
+                       exige cuenta: sin sesión, esto es lo único que se ve
     curar-screen.tsx   panel del curador (no es una ruta: es el modo completo
                        de la app cuando la identidad es curador)
   components/          cause-card, donar-tab-bar (pill de vidrio),

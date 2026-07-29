@@ -18,48 +18,54 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 /**
- * Garantiza que haya una sesión. Por ahora anónima; más adelante se "asciende"
- * a una cuenta con Google o email sin perder el usuario.
+ * Devuelve el uid de la sesión actual SOLO si es una cuenta real (logueada con
+ * mail + contraseña). Ya no crea sesiones anónimas: la app exige login (todo
+ * queda atado a una cuenta que persiste). Si no hay sesión real, devuelve null
+ * y el gate de _layout muestra la pantalla de login.
  */
 export async function ensureSession(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
-  if (data.session?.user) return data.session.user.id;
+  const user = data.session?.user;
+  if (user && !user.is_anonymous) return user.id;
+  return null;
+}
 
-  const { data: anon, error } = await supabase.auth.signInAnonymously();
-  if (error) {
-    console.warn('Supabase anon sign-in failed:', error.message);
-    return null;
+/** Traduce los errores de Supabase Auth a algo legible en español. */
+function authError(message?: string): string | null {
+  if (!message) return null;
+  const m = message.toLowerCase();
+  if (m.includes('already registered') || m.includes('already been registered')) {
+    return 'Ese mail ya tiene una cuenta. Iniciá sesión.';
   }
-  return anon.user?.id ?? null;
+  if (m.includes('invalid login credentials')) return 'Mail o contraseña incorrectos.';
+  if (m.includes('password should be at least')) return 'La contraseña necesita al menos 6 caracteres.';
+  if (m.includes('unable to validate email') || m.includes('invalid format')) return 'Ese mail no parece válido.';
+  if (m.includes('email not confirmed')) {
+    return 'La cuenta necesita confirmar el mail. Avisá al equipo (falta apagar la confirmación).';
+  }
+  return message;
 }
 
 /**
- * Vincula un mail a la sesión anónima actual (la "asciende" a cuenta permanente
- * sin perder el historial ya generado con ese user id). Dispara un mail con un
- * código de 6 dígitos, se confirma con confirmLinkEmail.
+ * Crea una cuenta con mail + contraseña y deja la sesión iniciada. Requiere que
+ * "Confirm email" esté APAGADO en Supabase (si no, no loguea hasta confirmar,
+ * y el mail de confirmación hoy no se entrega sin dominio propio en Resend).
  */
-export async function linkEmail(email: string): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.updateUser({ email });
-  return { error: error?.message ?? null };
+export async function signUpWithPassword(
+  email: string,
+  password: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+  return { error: authError(error?.message) };
 }
 
-export async function confirmLinkEmail(email: string, token: string): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email_change' });
-  return { error: error?.message ?? null };
-}
-
-/**
- * Recupera una cuenta ya vinculada desde otro dispositivo (mail ya registrado).
- * No crea cuenta nueva si el mail no existe.
- */
-export async function loginWithEmail(email: string): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  return { error: error?.message ?? null };
-}
-
-export async function confirmLogin(email: string, token: string): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
-  return { error: error?.message ?? null };
+/** Inicia sesión con mail + contraseña. */
+export async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  return { error: authError(error?.message) };
 }
 
 /**
