@@ -2,7 +2,7 @@
 
 Archivo vivo. Se lee al inicio de cada sesión y se actualiza al cerrar. Registra estado, decisiones tomadas, supuestos abiertos y próximos pasos. Complementa (no reemplaza) el "Paper fundacional" y el "Contexto del proyecto y como trabajo".
 
-Última actualización: 27 de julio de 2026 (madrugada). Épicas 1-3 hechas (panel de mi causa, dos métodos de pago, confirmación de transferencia): el eje "conectar sin custodiar" está completo. Backlog priorizado en docs/BACKLOG.md. MP sandbox andando. Modelo de confianza del dinero documentado en el paper (11.b).
+Última actualización: 28 de julio de 2026. Épicas 1-3 hechas (eje "conectar sin custodiar" completo). MVP de pago = transferencia + aporte voluntario (MP apagado con flag). Legal documentado (paper 11.c, README). Probado el flujo P2P en Android/otra red vía túnel; aparecieron dos fricciones (curador no refresca causas; rate limit del OTP) anotadas en el backlog. Backlog priorizado en docs/BACKLOG.md.
 
 ---
 
@@ -149,6 +149,14 @@ Fuera del código, lo que sigue bloqueando la etapa 2:
 ---
 
 ## 9. Registro de sesiones (log)
+
+### 28 jul 2026 (sesión 11, testing P2P + cierre)
+- **MVP de pago probado en flujo real:** otra persona corrió la app en Expo Go (Android, otra red, vía `npx expo start --tunnel`) y cargó una causa → quedó en revisión. Gastón probó desde su iPhone.
+- **Bug/fricción encontrada 1 — el curador no ve la causa en revisión.** Dos causas: (a) vincular mail NO te hace curador (es un flag `is_curator` aparte, se prende con SQL puntual); (b) aunque seas curador, la app carga las causas al montar y NO las re-lee cuando pasás a curador, así que las causas en revisión de otros no aparecen hasta **reabrir la app**. MEJORA PENDIENTE (en backlog): refrescar causas automáticamente al confirmarse `isCurator`.
+- **Bug/fricción encontrada 2 — re-login "No pudimos enviar el código".** Es rate limiting del OTP: Resend/Supabase tienen mínimo ~60s entre mails + tope por hora. Vincular → cerrar sesión → reintentar rápido lo dispara. Solución: esperar 2-3 min y pedir el código una sola vez. Es fricción esperada del setup OTP+SMTP, no un bug de la cuenta.
+- **Cómo probar en Android:** mismo `npx expo start` (o `--tunnel` si está en otra red); en Android se escanea el QR **desde adentro de Expo Go** ("Scan QR code"), no con la cámara del sistema (eso es iOS). Los dos teléfonos pueden correr a la vez contra el mismo server.
+- **Pendiente de Gastón:** correr la migración de `platform_support` (para el auto-reporte "ya aporté"); confirmar `is_curator` en su perfil vía SQL si quiere curar.
+- **Nota de eficiencia:** la conversación se hizo muy larga. Regla acordada: un hilo por tanda; al retomar, sesión nueva + "leé memory.md y BACKLOG.md". La doc al día es lo que lo hace barato.
 
 ### 27 jul 2026 (sesión 10, madrugada tardía)
 - **Informe del fundador** (artifact visual): a pedido de Gastón, con data real de git (cadencia, night-owl 61% después de medianoche), scorecard vs promedio (cadencia 9, profesionalismo 9, seniority producto 8, expertise 7.5, originalidad 7), análisis de originalidad y de monetización. URL: https://claude.ai/code/artifact/c29f0199-c6df-40cc-98bd-f382be5d75bf

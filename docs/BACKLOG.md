@@ -65,6 +65,8 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ✅ **La foto de portada no se ve.** Resuelto: el view `causes_public` con `select c.*` no exponía columnas agregadas después; se recreó el view.
 - 🐞 **El swipe nativo de iOS para volver atrás (y adelante) no funciona.** Las pantallas del flujo (create/cobro/review/donate/transfer/cause) son `Tabs.Screen` con `href:null`, no un stack, así que no hay gesto de navegación nativo. Evaluar mover el flujo a un Stack o habilitar el gesto. Reportado 27 jul.
 - 🐞 **El carrusel de fotos no se puede swipear desde el feed.** En la `cause-card` la tarjeta está envuelta en un `Pressable` (para abrir el detalle) que probablemente intercepta el gesto horizontal del carrusel. Reportado 27 jul.
+- 🐞 **El curador no ve las causas en revisión hasta reabrir la app.** El store carga las causas al montar y NO las re-lee cuando `isCurator` pasa a true, así que las causas de otros en `review` no aparecen hasta un reload. Fix: refrescar causas al confirmarse `isCurator` (en `refreshIsCurator` o en el gate de `_layout`). Reportado 28 jul. **Aparte, recordatorio de producto:** vincular mail ≠ ser curador (el flag `is_curator` se prende con SQL puntual).
+- ⚠️ **Fricción (no bug): rate limit del código de login.** Resend/Supabase limitan el envío de OTP (~60s entre mails + tope por hora). Reintentar rápido da "No pudimos enviar el código". Es esperado del setup OTP+SMTP. A futuro, mejorar el mensaje de error para que diga "esperá un minuto" en vez de genérico.
 
 ---
 
