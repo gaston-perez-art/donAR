@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { Colors, formatARS, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { levelFor, medalsFor } from '@/lib/gamification';
 import { supabase } from '@/lib/supabase';
 import { useCauses, type DonorProfile, type RankingEntry } from '@/store/causes-store';
@@ -190,6 +190,11 @@ export default function RankingScreen() {
                     </View>
                     <Text style={styles.donorSince}>Se sumó en {memberSinceLabel(donorProfile.memberSince)}</Text>
 
+                    <View style={styles.donorDonatedWrap}>
+                      <Text style={styles.donorDonatedValue}>{formatARS(donorProfile.donatedTotal)}</Text>
+                      <Text style={styles.donorDonatedLabel}>donados en total</Text>
+                    </View>
+
                     <View style={styles.donorStatsRow}>
                       <View style={styles.donorStatItem}>
                         <Text style={styles.donorStatValue}>{selectedEntry?.points}</Text>
@@ -341,6 +346,9 @@ const styles = StyleSheet.create({
   },
   donorLevelPillText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12.5 },
   donorSince: { fontSize: 12, color: Colors.muted, marginTop: 8 },
+  donorDonatedWrap: { alignItems: 'center', marginTop: Spacing.lg },
+  donorDonatedValue: { fontSize: 26, fontWeight: '800', color: Colors.brandDark, letterSpacing: -0.5 },
+  donorDonatedLabel: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   donorStatsRow: {
     flexDirection: 'row',
     alignSelf: 'stretch',

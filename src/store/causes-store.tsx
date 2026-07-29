@@ -306,6 +306,7 @@ export type DonorProfile = {
   displayName: string;
   avatarUrl: string | null;
   memberSince: string;
+  donatedTotal: number;
   donationsCount: number;
   causesSupported: number;
   completedSupported: number;
@@ -1077,10 +1078,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   /** Mini-perfil público de un donante (29 jul), para el "tocá y mirá" del
    * ranking. Todo se arma de datos ya públicos: profiles ("profiles
    * readable") y contributions ("contributions public read"), la misma base
-   * que sostiene la trazabilidad de aportes en el detalle de causa. No
-   * expone montos: causas apoyadas/cumplidas y cantidad de aportes, no
-   * pesos — la plata exacta que donó alguien se mantiene fuera del
-   * mini-perfil, a diferencia del "recorrido" público de una causa puntual. */
+   * que sostiene la trazabilidad de aportes en el detalle de causa: los
+   * montos por aporte ya son públicos ahí, así que el total donado tampoco
+   * es un dato nuevo, solo agregado (decidido con Gastón, 29 jul). */
   const getDonorProfile = useCallback(async (donorId: string): Promise<DonorProfile | null> => {
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -1094,7 +1094,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
 
     const { data: contribs, error: contribsError } = await supabase
       .from('contributions')
-      .select('cause_id, causes(status)')
+      .select('cause_id, amount, causes(status)')
       .eq('donor_id', donorId)
       .eq('status', 'approved');
     if (contribsError) console.warn('getDonorProfile contributions error:', contribsError.message);
@@ -1102,8 +1102,10 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     const rows = contribs ?? [];
     const causeIds = new Set<string>();
     const completedIds = new Set<string>();
+    let donatedTotal = 0;
     for (const row of rows as any[]) {
       causeIds.add(row.cause_id);
+      donatedTotal += Number(row.amount) || 0;
       const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
       if (cause?.status === 'completed') completedIds.add(row.cause_id);
     }
@@ -1112,6 +1114,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       id: donorId,
       displayName: profile.display_name || 'Donante',
       avatarUrl: profile.avatar_url ?? null,
+      donatedTotal,
       memberSince: profile.created_at,
       donationsCount: rows.length,
       causesSupported: causeIds.size,
