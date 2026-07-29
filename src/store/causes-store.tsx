@@ -256,6 +256,13 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     })();
   }, [fetchCauses, refreshIsCurator]);
 
+  // Si la cuenta pasa a ser curador dentro de la misma sesión (SQL corrido con
+  // la app ya abierta), las causas de otros en revisión recién se leen con el
+  // siguiente fetch: no alcanza con saber que ahora somos curador.
+  useEffect(() => {
+    if (isCurator && userId) fetchCauses(userId);
+  }, [isCurator, userId, fetchCauses]);
+
   const setDraft = useCallback((patch: Partial<CauseDraft>) => {
     setDraftState((prev) => ({ ...prev, ...patch }));
   }, []);

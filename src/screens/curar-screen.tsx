@@ -4,6 +4,7 @@ import {
   Image,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -36,7 +37,7 @@ const EVIDENCE_LABELS: { key: keyof ReviewInfo; label: string }[] = [
  */
 export default function CurarScreen() {
   const insets = useSafeAreaInsets();
-  const { pendingCauses, getReviewInfo, reviewCause, signOut } = useCauses();
+  const { pendingCauses, refresh, getReviewInfo, reviewCause, signOut } = useCauses();
   const [selected, setSelected] = useState<Cause | null>(null);
   const [info, setInfo] = useState<ReviewInfo | null>(null);
   const [urls, setUrls] = useState<Record<string, string | null>>({});
@@ -44,6 +45,13 @@ export default function CurarScreen() {
   const [noteMode, setNoteMode] = useState<'reject' | 'needs_info' | null>(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refresh();
+    setRefreshing(false);
+  };
 
   const open = async (cause: Cause) => {
     setSelected(cause);
@@ -95,7 +103,11 @@ export default function CurarScreen() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.brand} />
+        }>
         {pendingCauses.length === 0 ? (
           <View style={styles.center}>
             <Text style={styles.muted}>No hay causas esperando revisión.</Text>
