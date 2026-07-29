@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { levelFor, medalsFor, type Medal } from '@/lib/gamification';
 import { useCauses, type MyActivity } from '@/store/causes-store';
 
 /** Frases de altruismo. Se elige una al azar al abrir una medalla. */
@@ -25,62 +26,6 @@ const ALTRUISM_PHRASES = [
 
 function randomPhrase(): string {
   return ALTRUISM_PHRASES[Math.floor(Math.random() * ALTRUISM_PHRASES.length)];
-}
-
-/** Niveles del donante. El umbral es la cantidad de causas distintas apoyadas. */
-const LEVELS = [
-  { min: 0, name: 'Solidario' },
-  { min: 3, name: 'Comprometido' },
-  { min: 10, name: 'Referente' },
-] as const;
-
-function levelFor(causesSupported: number) {
-  let index = 0;
-  for (let i = 0; i < LEVELS.length; i++) {
-    if (causesSupported >= LEVELS[i].min) index = i;
-  }
-  const current = LEVELS[index];
-  const next = LEVELS[index + 1];
-  const floor = current.min;
-  const ceil = next ? next.min : current.min;
-  const pct = next ? Math.min(100, Math.round(((causesSupported - floor) / (ceil - floor)) * 100)) : 100;
-  const toNext = next ? next.min - causesSupported : 0;
-  return { number: index + 1, name: current.name, next: next?.name ?? null, pct, toNext };
-}
-
-type Medal = { key: string; emoji: string; label: string; earned: boolean; hint: string };
-
-function medalsFor(a: MyActivity): Medal[] {
-  return [
-    {
-      key: 'primer',
-      emoji: '💧',
-      label: 'Primer aporte',
-      earned: a.donationsCount >= 1,
-      hint: 'Hacé tu primera donación',
-    },
-    {
-      key: 'tres',
-      emoji: '🤝',
-      label: 'Tres causas',
-      earned: a.causesSupported >= 3,
-      hint: `Apoyá 3 causas (llevás ${a.causesSupported})`,
-    },
-    {
-      key: 'diez',
-      emoji: '🌟',
-      label: 'Diez causas',
-      earned: a.causesSupported >= 10,
-      hint: `Apoyá 10 causas (llevás ${a.causesSupported})`,
-    },
-    {
-      key: 'meta',
-      emoji: '🏁',
-      label: 'Meta cumplida',
-      earned: a.completedSupported >= 1,
-      hint: 'Apoyá una causa que llegue a su meta',
-    },
-  ];
 }
 
 /** Etiqueta de estado para la lista "Mis causas". */

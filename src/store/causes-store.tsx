@@ -292,8 +292,23 @@ const emptyActivity: MyActivity = {
 export type RankingEntry = {
   donorId: string;
   name: string;
+  avatarUrl: string | null;
   points: number;
   isMe: boolean;
+};
+
+/** Mini-perfil público de un donante (29 jul, "estilo Airbnb" desde el
+ * ranking). `contributions` es públicamente legible (RLS "public read"): es
+ * el mismo dato que ya sostiene la trazabilidad de aportes, así que no hace
+ * falta una policy nueva para calcular esto de cualquier donante. */
+export type DonorProfile = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  memberSince: string;
+  donationsCount: number;
+  causesSupported: number;
+  completedSupported: number;
 };
 
 /**
@@ -347,6 +362,7 @@ type CausesContextValue = {
   getReceivedContributions: () => Promise<ReceivedContribution[]>;
   getPendingTransfersForMyCauses: () => Promise<PendingTransfer[]>;
   getMonthlyRanking: () => Promise<RankingEntry[]>;
+  getDonorProfile: (donorId: string) => Promise<DonorProfile | null>;
   isCurator: boolean;
   refreshIsCurator: () => Promise<void>;
   viewAsDonor: boolean;
@@ -1016,10 +1032,13 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     // Solo entran al ranking los donantes con identidad (mail vinculado).
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, display_name')
+      .select('id, display_name, avatar_url')
       .eq('is_registered', true);
     const nameById = new Map<string, string>(
       (profiles ?? []).map((p: any) => [p.id, p.display_name || 'Donante']),
+    );
+    const avatarById = new Map<string, string | null>(
+      (profiles ?? []).map((p: any) => [p.id, p.avatar_url ?? null]),
     );
 
     // Agrupar aportes por donante (solo los registrados).
@@ -1045,6 +1064,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       ranking.push({
         donorId,
         name: nameById.get(donorId) ?? 'Donante',
+        avatarUrl: avatarById.get(donorId) ?? null,
         points,
         isMe: donorId === uid,
       });
@@ -1053,6 +1073,51 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     ranking.sort((a, b) => b.points - a.points);
     return ranking;
   }, [userId]);
+
+  /** Mini-perfil público de un donante (29 jul), para el "tocá y mirá" del
+   * ranking. Todo se arma de datos ya públicos: profiles ("profiles
+   * readable") y contributions ("contributions public read"), la misma base
+   * que sostiene la trazabilidad de aportes en el detalle de causa. No
+   * expone montos: causas apoyadas/cumplidas y cantidad de aportes, no
+   * pesos — la plata exacta que donó alguien se mantiene fuera del
+   * mini-perfil, a diferencia del "recorrido" público de una causa puntual. */
+  const getDonorProfile = useCallback(async (donorId: string): Promise<DonorProfile | null> => {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('display_name, avatar_url, created_at')
+      .eq('id', donorId)
+      .maybeSingle();
+    if (profileError || !profile) {
+      if (profileError) console.warn('getDonorProfile error:', profileError.message);
+      return null;
+    }
+
+    const { data: contribs, error: contribsError } = await supabase
+      .from('contributions')
+      .select('cause_id, causes(status)')
+      .eq('donor_id', donorId)
+      .eq('status', 'approved');
+    if (contribsError) console.warn('getDonorProfile contributions error:', contribsError.message);
+
+    const rows = contribs ?? [];
+    const causeIds = new Set<string>();
+    const completedIds = new Set<string>();
+    for (const row of rows as any[]) {
+      causeIds.add(row.cause_id);
+      const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+      if (cause?.status === 'completed') completedIds.add(row.cause_id);
+    }
+
+    return {
+      id: donorId,
+      displayName: profile.display_name || 'Donante',
+      avatarUrl: profile.avatar_url ?? null,
+      memberSince: profile.created_at,
+      donationsCount: rows.length,
+      causesSupported: causeIds.size,
+      completedSupported: completedIds.size,
+    };
+  }, []);
 
   const getReviewInfo = useCallback(async (causeId: string): Promise<ReviewInfo> => {
     const empty: ReviewInfo = {
@@ -1137,6 +1202,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReceivedContributions,
       getPendingTransfersForMyCauses,
       getMonthlyRanking,
+      getDonorProfile,
       isCurator,
       refreshIsCurator,
       viewAsDonor,
@@ -1180,6 +1246,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReceivedContributions,
       getPendingTransfersForMyCauses,
       getMonthlyRanking,
+      getDonorProfile,
       isCurator,
       refreshIsCurator,
       viewAsDonor,

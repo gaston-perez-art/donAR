@@ -1,13 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { levelFor, medalsFor } from '@/lib/gamification';
 import { supabase } from '@/lib/supabase';
-import { useCauses, type RankingEntry } from '@/store/causes-store';
+import { useCauses, type DonorProfile, type RankingEntry } from '@/store/causes-store';
 
 const MONTHS = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -19,15 +20,36 @@ function currentMonthLabel(): string {
   return `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+/** "Se sumó en marzo 2026", para el mini-perfil. */
+function memberSinceLabel(iso: string): string {
+  const d = new Date(iso);
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function RankingScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
-  const { getMonthlyRanking } = useCauses();
+  const { getMonthlyRanking, getDonorProfile } = useCauses();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [registered, setRegistered] = useState<boolean | null>(null);
+
+  // Mini-perfil (29 jul, "estilo Airbnb" al tocar a alguien del ranking).
+  const [selectedEntry, setSelectedEntry] = useState<RankingEntry | null>(null);
+  const [donorProfile, setDonorProfile] = useState<DonorProfile | null>(null);
+  const [loadingDonor, setLoadingDonor] = useState(false);
+
+  const openDonor = (entry: RankingEntry) => {
+    setSelectedEntry(entry);
+    setDonorProfile(null);
+    setLoadingDonor(true);
+    getDonorProfile(entry.donorId).then((p) => {
+      setDonorProfile(p);
+      setLoadingDonor(false);
+    });
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +115,10 @@ export default function RankingScreen() {
             ranking.map((entry, i) => {
               const position = i + 1;
               return (
-                <View key={entry.donorId} style={[styles.row, entry.isMe && styles.rowMe]}>
+                <Pressable
+                  key={entry.donorId}
+                  style={[styles.row, entry.isMe && styles.rowMe]}
+                  onPress={() => openDonor(entry)}>
                   <View style={styles.posWrap}>
                     {position <= 3 ? (
                       <Text style={styles.medal}>{MEDALS[position - 1]}</Text>
@@ -102,14 +127,18 @@ export default function RankingScreen() {
                     )}
                   </View>
                   <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{entry.name.slice(0, 2).toUpperCase()}</Text>
+                    {entry.avatarUrl ? (
+                      <Image source={{ uri: entry.avatarUrl }} style={styles.avatarImg} />
+                    ) : (
+                      <Text style={styles.avatarText}>{entry.name.slice(0, 2).toUpperCase()}</Text>
+                    )}
                   </View>
                   <Text style={[styles.name, entry.isMe && styles.nameMe]} numberOfLines={1}>
                     {entry.name}
                     {entry.isMe ? ' (vos)' : ''}
                   </Text>
                   <Text style={styles.points}>{entry.points} pts</Text>
-                </View>
+                </Pressable>
               );
             })
           )}
@@ -121,6 +150,87 @@ export default function RankingScreen() {
           )}
         </ScrollView>
       )}
+
+      <Modal
+        visible={!!selectedEntry}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedEntry(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setSelectedEntry(null)}>
+          <Pressable style={styles.donorCard} onPress={(e) => e.stopPropagation()}>
+            {loadingDonor ? (
+              <View style={styles.donorLoading}>
+                <ActivityIndicator color={Colors.brand} />
+              </View>
+            ) : (
+              <>
+                <View style={styles.donorAvatarWrap}>
+                  {(donorProfile?.avatarUrl ?? selectedEntry?.avatarUrl) ? (
+                    <Image
+                      source={{ uri: (donorProfile?.avatarUrl ?? selectedEntry?.avatarUrl)! }}
+                      style={styles.donorAvatarImg}
+                    />
+                  ) : (
+                    <Text style={styles.donorAvatarText}>
+                      {(selectedEntry?.name ?? '?').slice(0, 2).toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.donorName}>
+                  {selectedEntry?.name}
+                  {selectedEntry?.isMe ? ' (vos)' : ''}
+                </Text>
+                {donorProfile && (
+                  <>
+                    <View style={styles.donorLevelPill}>
+                      <Text style={styles.donorLevelPillText}>
+                        Nivel {levelFor(donorProfile.causesSupported).number} ·{' '}
+                        {levelFor(donorProfile.causesSupported).name}
+                      </Text>
+                    </View>
+                    <Text style={styles.donorSince}>Se sumó en {memberSinceLabel(donorProfile.memberSince)}</Text>
+
+                    <View style={styles.donorStatsRow}>
+                      <View style={styles.donorStatItem}>
+                        <Text style={styles.donorStatValue}>{selectedEntry?.points}</Text>
+                        <Text style={styles.donorStatLabel}>puntos este mes</Text>
+                      </View>
+                      <View style={styles.donorStatDivider} />
+                      <View style={styles.donorStatItem}>
+                        <Text style={styles.donorStatValue}>{donorProfile.causesSupported}</Text>
+                        <Text style={styles.donorStatLabel}>
+                          {donorProfile.causesSupported === 1 ? 'causa apoyada' : 'causas apoyadas'}
+                        </Text>
+                      </View>
+                      <View style={styles.donorStatDivider} />
+                      <View style={styles.donorStatItem}>
+                        <Text style={styles.donorStatValue}>{donorProfile.completedSupported}</Text>
+                        <Text style={styles.donorStatLabel}>
+                          {donorProfile.completedSupported === 1 ? 'meta cumplida' : 'metas cumplidas'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.donorMedalRow}>
+                      {medalsFor(donorProfile).map((m) => (
+                        <View key={m.key} style={[styles.donorMedal, !m.earned && styles.donorMedalLocked]}>
+                          <Text style={[styles.donorMedalEmoji, !m.earned && styles.donorMedalEmojiLocked]}>
+                            {m.emoji}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                <Pressable style={styles.donorClose} onPress={() => setSelectedEntry(null)}>
+                  <Text style={styles.donorCloseText}>Cerrar</Text>
+                </Pressable>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -165,7 +275,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.skySoft,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: 40, height: 40 },
   avatarText: { color: Colors.brandDark, fontWeight: '800', fontSize: 13 },
   name: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.ink },
   nameMe: { color: Colors.brandDark, fontWeight: '800' },
@@ -189,4 +301,77 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     maxWidth: 280,
   },
+
+  // Mini-perfil (modal "estilo Airbnb" al tocar a alguien del ranking)
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20,40,60,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.xl,
+  },
+  donorCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
+    alignItems: 'center',
+  },
+  donorLoading: { height: 220, alignItems: 'center', justifyContent: 'center' },
+  donorAvatarWrap: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: Colors.skySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: Spacing.md,
+  },
+  donorAvatarImg: { width: 84, height: 84 },
+  donorAvatarText: { color: Colors.brandDark, fontWeight: '800', fontSize: 26 },
+  donorName: { fontSize: 19, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3, textAlign: 'center' },
+  donorLevelPill: {
+    marginTop: 10,
+    backgroundColor: Colors.skySoft,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+  },
+  donorLevelPillText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12.5 },
+  donorSince: { fontSize: 12, color: Colors.muted, marginTop: 8 },
+  donorStatsRow: {
+    flexDirection: 'row',
+    alignSelf: 'stretch',
+    backgroundColor: Colors.skyTint,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.lg,
+    marginTop: Spacing.xl,
+  },
+  donorStatItem: { flex: 1, alignItems: 'center' },
+  donorStatValue: { fontSize: 17, fontWeight: '800', color: Colors.ink },
+  donorStatLabel: { fontSize: 10.5, color: Colors.muted, marginTop: 2, textAlign: 'center' },
+  donorStatDivider: { width: 1, backgroundColor: Colors.line },
+  donorMedalRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xl },
+  donorMedal: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FDEFC7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donorMedalLocked: { backgroundColor: '#F1F4F7' },
+  donorMedalEmoji: { fontSize: 20 },
+  donorMedalEmojiLocked: { opacity: 0.3 },
+  donorClose: {
+    alignSelf: 'stretch',
+    backgroundColor: Colors.brand,
+    borderRadius: Radius.md,
+    padding: 15,
+    alignItems: 'center',
+    marginTop: Spacing.xxl,
+  },
+  donorCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
