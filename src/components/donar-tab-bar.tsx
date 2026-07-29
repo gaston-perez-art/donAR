@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +16,18 @@ const RIGHT: TabItem[] = [
   { label: 'Perfil', icon: '👤', path: '/profile' },
 ];
 
-/** Custom 5-slot tab bar with a centered + button, matching the prototype. */
+/**
+ * Tab bar de "vidrio" (frosted glass) al estilo iOS 26 / Instagram, con un +
+ * central. Flota sobre el contenido (position:absolute) para que el feed
+ * scrollee por detrás y el blur tenga algo que difuminar; sin eso el efecto
+ * no se ve. Las pantallas reservan TabBarHeight abajo para no quedar tapadas.
+ *
+ * Paridad iOS/Android: en iOS el blur es nativo; en Android hace falta
+ * experimentalBlurMethod="dimezisBlurView" o el blur no renderiza (queda solo
+ * el tinte). Esta es la aproximación con blur; el Liquid Glass nativo real
+ * (expo-glass-effect, iOS 26, refracción + brillos) se suma cuando el
+ * proyecto pase a build nativo, con este blur como fallback para Android.
+ */
 export function DonarTabBar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,28 +49,49 @@ export function DonarTabBar() {
   };
 
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {LEFT.map(renderTab)}
+    <View style={styles.wrap} pointerEvents="box-none">
+      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <BlurView
+          intensity={40}
+          tint="light"
+          experimentalBlurMethod="dimezisBlurView"
+          style={StyleSheet.absoluteFill}
+        />
+        {/* Tinte translúcido sobre el blur: da el color "vidrio esmerilado" y
+            asegura contraste de los labels sin tapar del todo lo de atrás. */}
+        <View style={styles.tint} pointerEvents="none" />
 
-      <Pressable style={styles.plusWrap} onPress={() => goTo('/create')}>
-        <View style={styles.plus}>
-          <Text style={styles.plusText}>+</Text>
-        </View>
-      </Pressable>
+        {LEFT.map(renderTab)}
 
-      {RIGHT.map(renderTab)}
+        <Pressable style={styles.plusWrap} onPress={() => goTo('/create')}>
+          <View style={styles.plus}>
+            <Text style={styles.plusText}>+</Text>
+          </View>
+        </Pressable>
+
+        {RIGHT.map(renderTab)}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.98)',
-    borderTopWidth: 1,
-    borderTopColor: Colors.line,
-    paddingTop: 8,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.7)',
+  },
+  tint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   tab: { flex: 1, alignItems: 'center', gap: 3 },
   icon: { fontSize: 21 },

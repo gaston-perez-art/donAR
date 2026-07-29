@@ -48,6 +48,15 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ⬜ **6.1** Monto mínimo para pedir (que no se pueda crear una causa pidiendo $1). Define un piso razonable para el MVP.
 - ⬜ **6.2** Revisar máximos / coherencia monto vs. evidencia (ya lo mira el curador, ver si sumar validación blanda).
 
+## Épica 8 — Estética "liquid glass" (UI premium)
+*Idea de Gastón, 29 jul: menú/tab bar estilo Liquid Glass como Instagram/iOS 26.*
+> **Dos niveles (ver decisión en el paper/memory):** (a) frosted glass con `expo-blur` = paritario iOS/Android, corre en Expo Go, ~80% del efecto; (b) Liquid Glass nativo real (`expo-glass-effect`, iOS 26, refracción + brillos) = iOS-only + necesita build nativo. Estrategia: (a) ahora, (b) cuando haya build nativo, con (a) de fallback en Android.
+
+- 🔨 **8.1** Tab bar de vidrio con `expo-blur` (barra flotante translúcida + `+` central sobre el vidrio). IMPLEMENTADO, **pendiente de OK visual de Gastón en su iPhone** antes de pushear.
+- ⬜ **8.2** Llevar el mismo lenguaje de vidrio al header de las pantallas.
+- ⬜ **8.3** Evaluar variante "pill flotante" (barra más corta, redondeada, despegada del borde) al estilo iOS 26.
+- 🅿️ **8.4** Liquid Glass nativo real (`expo-glass-effect`) para iOS 26, cuando el proyecto pase a build nativo. Blur (8.1) queda de fallback para Android e iOS viejo.
+
 ## Épica 7 — Descubrimiento por cercanía (post-MVP)
 *Insight: la cercanía es un multiplicador de confianza y relevancia. A una causa del barrio se le dona más fácil. "Cada barrio tiene a su gente más interesada". Idea de Gastón, 27 jul.*
 > **Dependencias/tensiones:** necesita ubicación en la causa (barrio/zona, al crear) y del donante (permiso). **Privacidad: granularidad a nivel barrio/zona, nunca la dirección exacta del beneficiado.** Recién rinde con volumen de causas (con pocas, el filtro por km no muestra nada) → post-MVP.
