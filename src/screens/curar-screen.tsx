@@ -181,7 +181,7 @@ export default function CurarScreen() {
             </ScrollView>
           )}
 
-          <View style={styles.actions}>
+          <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
             <Pressable
               style={[styles.actBtn, styles.actReject]}
               disabled={submitting}

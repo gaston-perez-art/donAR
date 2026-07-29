@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type EvidenceFile } from '@/store/causes-store';
@@ -65,6 +65,7 @@ function isValidFutureDate(dmy: string): boolean {
 
 export default function CreateScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { draft, setDraft } = useCauses();
   const [showPicker, setShowPicker] = useState(false);
   const [tempDate, setTempDate] = useState<Date>(new Date());
@@ -242,7 +243,7 @@ export default function CreateScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         <Pressable
           style={[styles.btn, !canContinue && styles.btnDisabled]}
           disabled={!canContinue}

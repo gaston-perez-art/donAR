@@ -150,6 +150,11 @@ Fuera del código, lo que sigue bloqueando la etapa 2:
 
 ## 9. Registro de sesiones (log)
 
+### 28 jul 2026 (sesión 12, README + fix CTA Android)
+- **README actualizado** al estado real: estado de rebanadas, estructura del repo y flujo de trabajo (git directo a `main` es intencional, corregido texto que decía lo contrario).
+- **Backlog listado con esfuerzo/impacto** a pedido de Gastón, para priorizar próximos pasos.
+- **Bug reportado por Gastón** (captura): en Android, el botón "Donar a esta causa" queda tapado por la barra de navegación del sistema (3 botones); en iPhone 14 Pro se ve bien. **Diagnosticado y resuelto en la misma sesión:** todas las pantallas usan `SafeAreaView edges={['top']}`, así que el CTA fijo al pie nunca descontaba el inset inferior (en iOS la gesture bar es más angosta y no se notaba). Fix aplicado en los 8 lugares con footer/CTA fijo: `cause/[id].tsx`, `donate/[id].tsx`, `transfer/[id].tsx`, `create.tsx`, `cobro.tsx`, `review.tsx`, `gracias.tsx`, `curar-screen.tsx` — mismo patrón que ya usaba `donar-tab-bar.tsx` (`paddingBottom: Math.max(insets.bottom, Spacing.lg)`). `npx tsc --noEmit` limpio. **Pendiente de Gastón: probar en su Android real** que ahora se vea bien (no se pudo verificar visualmente en esta sesión, solo el fix de código + type-check).
+
 ### 28 jul 2026 (sesión 11, testing P2P + cierre)
 - **MVP de pago probado en flujo real:** otra persona corrió la app en Expo Go (Android, otra red, vía `npx expo start --tunnel`) y cargó una causa → quedó en revisión. Gastón probó desde su iPhone.
 - **Bug/fricción encontrada 1 — el curador no ve la causa en revisión.** Dos causas: (a) vincular mail NO te hace curador (es un flag `is_curator` aparte, se prende con SQL puntual); (b) aunque seas curador, la app carga las causas al montar y NO las re-lee cuando pasás a curador, así que las causas en revisión de otros no aparecen hasta **reabrir la app**. MEJORA PENDIENTE (en backlog): refrescar causas automáticamente al confirmarse `isCurator`.

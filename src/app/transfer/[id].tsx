@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type Payout } from '@/store/causes-store';
@@ -16,6 +16,7 @@ export default function TransferScreen() {
     anon?: string;
   }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { getCause, getPayout, submitTransfer } = useCauses();
 
   const cause = getCause(String(id));
@@ -133,7 +134,7 @@ export default function TransferScreen() {
         </ScrollView>
       )}
 
-      <View style={styles.cta}>
+      <View style={[styles.cta, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         <Pressable
           style={[styles.btn, (!receiptUri || submitting || !payout) && styles.btnDisabled]}
           disabled={!receiptUri || submitting || !payout}

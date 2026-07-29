@@ -11,7 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
@@ -30,6 +30,7 @@ function randomPhrase(): string {
 
 export default function ReviewScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { draft, publishDraft } = useCauses();
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<{ causeId: string; phrase: string } | null>(null);
@@ -102,7 +103,7 @@ export default function ReviewScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         <Pressable
           style={[styles.btn, submitting && styles.btnDisabled]}
           onPress={publish}

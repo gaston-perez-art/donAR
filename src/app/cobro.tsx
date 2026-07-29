@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
@@ -12,6 +12,7 @@ function isCBU(text: string): boolean {
 
 export default function CobroScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { draft, setDraft } = useCauses();
 
   const onChangeAlias = (alias: string) => {
@@ -56,7 +57,7 @@ export default function CobroScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         <Pressable
           style={[styles.btn, draft.alias.trim().length === 0 && styles.btnDisabled]}
           disabled={draft.alias.trim().length === 0}

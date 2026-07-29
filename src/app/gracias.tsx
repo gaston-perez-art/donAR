@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
@@ -17,6 +17,7 @@ export default function GraciasScreen() {
     cause?: string;
   }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { recordPlatformSupport } = useCauses();
   const n = Number(amount) || 0;
   const isPending = pending === '1';
@@ -71,7 +72,7 @@ export default function GraciasScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         {!isPending && (
           <Pressable onPress={() => router.replace('/ranking')}>
             <Text style={styles.secondary}>Ver ranking de solidarios</Text>

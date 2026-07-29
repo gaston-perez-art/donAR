@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { createMpCheckout } from '@/lib/mercadopago';
@@ -37,6 +37,7 @@ const MP_ENABLED = false;
 export default function DonateScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { getCause, donate } = useCauses();
   const cause = getCause(String(id));
 
@@ -231,7 +232,7 @@ export default function DonateScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={styles.cta}>
+      <View style={[styles.cta, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         {MP_ENABLED && (
           <Pressable
             style={[styles.btn, (submitting || !valid) && styles.btnDisabled]}

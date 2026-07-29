@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { getReceiptUrl } from '@/lib/supabase';
@@ -36,6 +36,7 @@ const STATUS_COPY: Record<string, { title: string; sub: string }> = {
 export default function CauseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { getCause, getContributions, resubmitCause, reviewTransfer } = useCauses();
   const cause = getCause(String(id));
   const [contribs, setContribs] = useState<Contribution[]>([]);
@@ -131,7 +132,7 @@ export default function CauseDetailScreen() {
           ) : null}
         </ScrollView>
         {cause.status === 'needs_info' && (
-          <View style={styles.cta}>
+          <View style={[styles.cta, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
             <Pressable style={styles.btn} onPress={resubmit} disabled={resubmitting}>
               <Text style={styles.btnText}>{resubmitting ? 'Enviando...' : 'Reenviar a revisión'}</Text>
             </Pressable>
@@ -292,7 +293,7 @@ export default function CauseDetailScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.cta}>
+      <View style={[styles.cta, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         {isOwner ? (
           <Pressable style={[styles.btn, styles.btnShare]} onPress={shareCause}>
             <Text style={styles.btnText}>Compartir mi causa</Text>
