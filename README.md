@@ -54,7 +54,10 @@ POC funcionando de punta a punta, con datos reales de Supabase (no mock).
 - [x] **Foto de perfil + nombre real**: Nombre y Apellido como campos separados en el registro → iniciales reales (ej. "GP") en vez de "GP"/"VOS" hardcodeado; foto de perfil propia (bucket `avatars`)
 - [x] **Ranking con foto de perfil + mini-perfil al tocar** a un donante (estilo Airbnb): nivel, medallas, causas apoyadas, monto donado
 - [x] **Lista de transferencias/aportes escalable**: filas compactas en vez de tarjetas con imagen precargada; el comprobante se ve recién al tocar
+- [x] **Tu propia causa ya no aparece en el feed general** ("regla Instagram": el feed es para descubrir causas de otros; la tuya vive en "Mis causas" del Perfil)
 - [ ] **Recuperar contraseña**: código completo (mail con link de reset → pantalla de contraseña nueva), pero bloqueado para probar de punta a punta hasta configurar el dominio propio en Resend y la redirect URL en Supabase Auth
+- [ ] **El curador puede dar de baja una causa ya publicada** (hoy solo puede actuar sobre causas pendientes de revisión)
+- [ ] **Subir video** en la portada/historia de una causa
 
 Detalle vivo del avance en `memory.md`; lo que falta y en qué orden en `docs/BACKLOG.md`.
 
