@@ -149,7 +149,7 @@ export default function ProfileScreen() {
         {/* Encabezado */}
         <View style={styles.head}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>VOS</Text>
+            <Text style={styles.avatarText}>{accountEmail?.trim().charAt(0).toUpperCase() || '?'}</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>Tu impacto</Text>

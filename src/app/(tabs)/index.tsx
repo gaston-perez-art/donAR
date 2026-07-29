@@ -17,11 +17,12 @@ const STATUS_LABEL: Record<string, string> = {
 export default function FeedScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
-  const { causes, myCauses, loading } = useCauses();
+  const { causes, myCauses, loading, accountEmail } = useCauses();
 
   const active = causes.filter((c) => c.status === 'active');
   const completed = causes.filter((c) => c.status === 'completed');
   const myPending = myCauses.filter((c) => c.status !== 'active' && c.status !== 'completed');
+  const initial = accountEmail?.trim().charAt(0).toUpperCase() || '?';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -30,9 +31,9 @@ export default function FeedScreen() {
           <Text style={styles.brandDon}>Don</Text>
           <Text style={styles.brandAr}>AR</Text>
         </Text>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>GP</Text>
-        </View>
+        <Pressable style={styles.avatar} onPress={() => router.navigate('/profile')}>
+          <Text style={styles.avatarText}>{initial}</Text>
+        </Pressable>
       </View>
 
       <ScrollView

@@ -37,6 +37,10 @@ const COVER_FIELDS: { key: 'coverPhoto1' | 'coverPhoto2'; label: string }[] = [
 
 const GOAL_PRESETS = [100000, 500000, 1000000, 3000000];
 
+// Piso para pedir: evita causas armadas a la ligera (ej. $50). Decidido con
+// Gastón el 29 jul.
+const MIN_GOAL = 5000;
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const formatDMY = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
@@ -75,7 +79,9 @@ export default function CreateScreen() {
 
   const missing: string[] = [];
   if (!draft.title.trim()) missing.push('el título');
+  const goalAmount = Number(draft.goal.replace(/\D/g, '')) || 0;
   if (!draft.goal.trim()) missing.push('el monto');
+  else if (goalAmount < MIN_GOAL) missing.push(`un monto de al menos ${formatARS(MIN_GOAL)}`);
   if (!draft.deadline.trim() || !isValidFutureDate(draft.deadline)) missing.push('una fecha de cierre válida');
   for (const { key, label } of EVIDENCE_FIELDS) {
     if (!draft[key]) missing.push(label);
