@@ -19,9 +19,15 @@ export default function FeedScreen() {
   const scroll = useTabBarScroll();
   const { causes, myCauses, loading, accountEmail, displayName, avatarUrl } = useCauses();
 
-  const active = causes.filter((c) => c.status === 'active');
-  const completed = causes.filter((c) => c.status === 'completed');
+  // Regla Instagram (29 jul, pedido de Gastón): el feed principal es para
+  // DESCUBRIR causas de otros, no para volver a ver la tuya propia (ya la
+  // conocés, la gestionás desde "Mis causas" en Perfil). Se excluye `mine`
+  // de las listas de descubrimiento; "Tus causas" arriba sigue mostrando el
+  // trámite en curso (review/needs_info/rechazada), que sí importa ver acá.
+  const active = causes.filter((c) => c.status === 'active' && !c.mine);
+  const completed = causes.filter((c) => c.status === 'completed' && !c.mine);
   const myPending = myCauses.filter((c) => c.status !== 'active' && c.status !== 'completed');
+  const myActiveCount = myCauses.filter((c) => c.status === 'active').length;
   const initials = initialsFor(displayName || accountEmail);
 
   return (
@@ -76,19 +82,25 @@ export default function FeedScreen() {
         </View>
 
         {active.map((cause) => (
-          <CauseCard
-            key={cause.id}
-            cause={cause}
-            mine={cause.mine}
-            onPress={() => router.push(`/cause/${cause.id}`)}
-          />
+          <CauseCard key={cause.id} cause={cause} onPress={() => router.push(`/cause/${cause.id}`)} />
         ))}
 
         {!loading && active.length === 0 && (
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>💙</Text>
-            <Text style={styles.emptyTitle}>Todavía no hay causas</Text>
-            <Text style={styles.emptySub}>Tocá el + para crear la primera y probála de punta a punta.</Text>
+            {myActiveCount > 0 ? (
+              <>
+                <Text style={styles.emptyTitle}>Tu causa ya está publicada</Text>
+                <Text style={styles.emptySub}>
+                  Compartila para que llegue a más gente. Acá vas a ver las causas de otros a medida que se publiquen.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>Todavía no hay causas</Text>
+                <Text style={styles.emptySub}>Tocá el + para crear la primera y probála de punta a punta.</Text>
+              </>
+            )}
           </View>
         )}
 

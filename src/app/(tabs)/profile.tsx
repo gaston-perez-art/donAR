@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -87,14 +87,24 @@ export default function ProfileScreen() {
     if (!ok) Alert.alert('No se pudo subir la foto', 'Probá de nuevo en un momento.');
   };
 
+  // Solo se muestra el spinner de pantalla completa la PRIMERA vez. Antes
+  // `setLoading(true)` se disparaba en cada re-foco (volver de donar, de
+  // Actividad, etc.), así que la pantalla entera se vaciaba a un spinner por
+  // un instante cada vez que se entraba a Perfil, aunque los datos ya
+  // estuvieran cargados (reportado por Gastón como "se recarga sola, es
+  // raro"). Con `hasLoadedOnce` como ref (no dispara re-render ni entra en
+  // el array de deps de useCallback), los re-focos refrescan en silencio.
+  const hasLoadedOnce = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      setLoading(true);
+      if (!hasLoadedOnce.current) setLoading(true);
       getMyActivity().then((a) => {
         if (alive) {
           setActivity(a);
           setLoading(false);
+          hasLoadedOnce.current = true;
         }
       });
       refreshIsCurator();

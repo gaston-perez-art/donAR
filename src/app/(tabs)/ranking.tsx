@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -51,10 +51,14 @@ export default function RankingScreen() {
     });
   };
 
+  // Mismo fix que profile.tsx: spinner de pantalla completa solo la primera
+  // vez, no en cada re-foco de la tab.
+  const hasLoadedOnce = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
       let alive = true;
-      setLoading(true);
+      if (!hasLoadedOnce.current) setLoading(true);
       supabase.auth.getUser().then(({ data }) => {
         if (alive) setRegistered(!data.user?.is_anonymous);
       });
@@ -62,6 +66,7 @@ export default function RankingScreen() {
         if (alive) {
           setRanking(r);
           setLoading(false);
+          hasLoadedOnce.current = true;
         }
       });
       return () => {
