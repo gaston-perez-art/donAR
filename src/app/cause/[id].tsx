@@ -37,6 +37,9 @@ const STATUS_COPY: Record<string, { title: string; sub: string }> = {
   },
 };
 
+/** 3.5: cuántos aportes confirmados se muestran de entrada antes del "ver más". */
+const CONTRIBS_PAGE_SIZE = 15;
+
 /** Días entre dos fechas ISO, mínimo 1 (para no mostrar "0 días" en un cierre same-day). */
 function daysBetween(startIso: string, endIso: string | null): number {
   if (!endIso) return 0;
@@ -55,8 +58,14 @@ export default function CauseDetailScreen() {
   const [resubmitting, setResubmitting] = useState(false);
   const [heroWidth, setHeroWidth] = useState(0);
   const [activeImage, setActiveImage] = useState(0);
-  const [receiptUrls, setReceiptUrls] = useState<Record<string, string | null>>({});
   const [reviewing, setReviewing] = useState<string | null>(null);
+  // 3.5: el comprobante se carga recién al tocar la fila (antes se
+  // precargaban TODOS los comprobantes pendientes en tarjetas completas,
+  // inmanejable con volumen). receiptTarget = la transferencia que se está
+  // mirando en el modal; receiptUrl se resuelve cuando se abre.
+  const [receiptTarget, setReceiptTarget] = useState<Contribution | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [expandedContribs, setExpandedContribs] = useState(false);
 
   // Mensaje de cierre (Épica 4.3).
   const [closingText, setClosingText] = useState('');
@@ -124,27 +133,31 @@ export default function CauseDetailScreen() {
     setThankTarget(null);
   };
 
-  // El dueño ve el comprobante de cada transferencia pendiente (URL firmada).
+  // El comprobante se resuelve (URL firmada) solo cuando se abre el modal de
+  // una transferencia puntual, no para todas las pendientes de una.
   useEffect(() => {
-    const pend = contribs.filter((c) => c.status === 'pending' && c.receiptPath);
-    if (!cause?.mine || pend.length === 0) return;
+    if (!receiptTarget?.receiptPath) {
+      setReceiptUrl(null);
+      return;
+    }
     let alive = true;
-    Promise.all(pend.map(async (c) => [c.id, await getReceiptUrl(c.receiptPath!)] as const)).then(
-      (entries) => {
-        if (alive) setReceiptUrls((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
-      },
-    );
+    getReceiptUrl(receiptTarget.receiptPath).then((url) => {
+      if (alive) setReceiptUrl(url);
+    });
     return () => {
       alive = false;
     };
-  }, [contribs, cause?.mine]);
+  }, [receiptTarget]);
 
   const reviewPending = async (contributionId: string, approve: boolean) => {
     if (reviewing) return;
     setReviewing(contributionId);
     const ok = await reviewTransfer(contributionId, approve);
     setReviewing(null);
-    if (ok && id) getContributions(String(id)).then(setContribs);
+    if (ok) {
+      setReceiptTarget(null);
+      if (id) getContributions(String(id)).then(setContribs);
+    }
   };
 
   if (!cause) {
@@ -374,44 +387,43 @@ export default function CauseDetailScreen() {
                 <View style={styles.pendBlock}>
                   <Text style={styles.secTitle}>Transferencias por confirmar</Text>
                   <Text style={styles.pendHint}>
-                    Confirmá solo las que realmente te llegaron. Al confirmar, el aporte suma a tu meta.
+                    Tocá una para ver el comprobante y confirmar, o resolvela directo con ✓ / ✕.
                   </Text>
                   {pending.map((c) => (
-                    <View key={c.id} style={styles.pendCard}>
-                      <View style={styles.pendTop}>
-                        <Text style={styles.pendName} numberOfLines={1}>
+                    <Pressable key={c.id} style={styles.pendRow} onPress={() => setReceiptTarget(c)}>
+                      <View style={styles.dot}>
+                        <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.pendRowName} numberOfLines={1}>
                           {c.name}
                         </Text>
-                        <Text style={styles.pendAmt}>{formatARS(c.amount)}</Text>
+                        <Text style={styles.pendRowSub} numberOfLines={1}>
+                          Ver comprobante · se confirma sola en {hoursUntilAutoConfirm(c.createdAt)} hs
+                        </Text>
                       </View>
-                      {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
-                      <Text style={styles.pendCountdown}>
-                        Si no la revisás, se confirma sola en {hoursUntilAutoConfirm(c.createdAt)} hs
-                      </Text>
-                      {receiptUrls[c.id] ? (
-                        <Image source={{ uri: receiptUrls[c.id]! }} style={styles.pendReceipt} resizeMode="cover" />
-                      ) : (
-                        <View style={styles.pendReceiptLoading}>
-                          <ActivityIndicator color={Colors.brand} />
-                        </View>
-                      )}
-                      <View style={styles.pendActions}>
+                      <Text style={styles.pendRowAmt}>{formatARS(c.amount)}</Text>
+                      <View style={styles.pendRowActions}>
                         <Pressable
-                          style={[styles.pendBtn, styles.pendReject]}
+                          style={[styles.pendIconBtn, styles.pendIconReject]}
                           disabled={reviewing === c.id}
-                          onPress={() => reviewPending(c.id, false)}>
-                          <Text style={styles.pendRejectText}>No me llegó</Text>
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            reviewPending(c.id, false);
+                          }}>
+                          <Text style={styles.pendIconRejectText}>✕</Text>
                         </Pressable>
                         <Pressable
-                          style={[styles.pendBtn, styles.pendConfirm]}
+                          style={[styles.pendIconBtn, styles.pendIconConfirm]}
                           disabled={reviewing === c.id}
-                          onPress={() => reviewPending(c.id, true)}>
-                          <Text style={styles.pendConfirmText}>
-                            {reviewing === c.id ? '...' : 'Me llegó, confirmar'}
-                          </Text>
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            reviewPending(c.id, true);
+                          }}>
+                          <Text style={styles.pendIconConfirmText}>✓</Text>
                         </Pressable>
                       </View>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               );
@@ -430,32 +442,45 @@ export default function CauseDetailScreen() {
                 </Text>
               );
             }
+            // 3.5: la lista de "recibidos" no tiene techo (puede crecer a
+            // miles); se muestra de a tandas en vez de montar todo junto.
+            const visible = expandedContribs ? shown : shown.slice(0, CONTRIBS_PAGE_SIZE);
+            const remaining = shown.length - visible.length;
             const thankedIds = new Set(thanks.map((t) => t.contributionId));
-            return shown.map((c) => {
-              const alreadyThanked = thankedIds.has(c.id);
-              return (
-                <View key={c.id} style={styles.row}>
-                  <View style={styles.dot}>
-                    <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{c.name}</Text>
-                    {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
-                  </View>
-                  <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
-                  {closed && isOwner && (
-                    <Pressable
-                      style={[styles.thankPill, alreadyThanked && styles.thankPillDone]}
-                      disabled={alreadyThanked}
-                      onPress={() => openThank(c)}>
-                      <Text style={[styles.thankPillText, alreadyThanked && styles.thankPillTextDone]}>
-                        {alreadyThanked ? 'Agradecido ✓' : 'Agradecer'}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              );
-            });
+            return (
+              <>
+                {visible.map((c) => {
+                  const alreadyThanked = thankedIds.has(c.id);
+                  return (
+                    <View key={c.id} style={styles.row}>
+                      <View style={styles.dot}>
+                        <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.name}>{c.name}</Text>
+                        {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
+                      </View>
+                      <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
+                      {closed && isOwner && (
+                        <Pressable
+                          style={[styles.thankPill, alreadyThanked && styles.thankPillDone]}
+                          disabled={alreadyThanked}
+                          onPress={() => openThank(c)}>
+                          <Text style={[styles.thankPillText, alreadyThanked && styles.thankPillTextDone]}>
+                            {alreadyThanked ? 'Agradecido ✓' : 'Agradecer'}
+                          </Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
+                {remaining > 0 && (
+                  <Pressable style={styles.seeMoreBtn} onPress={() => setExpandedContribs(true)}>
+                    <Text style={styles.seeMoreText}>Ver los {remaining} aportes restantes</Text>
+                  </Pressable>
+                )}
+              </>
+            );
           })()}
         </View>
       </ScrollView>
@@ -502,6 +527,52 @@ export default function CauseDetailScreen() {
                 disabled={!thankText.trim() || sendingThank}
                 onPress={submitThank}>
                 <Text style={styles.pendConfirmText}>{sendingThank ? 'Enviando...' : 'Enviar'}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={!!receiptTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReceiptTarget(null)}>
+        <Pressable style={styles.backdrop} onPress={() => setReceiptTarget(null)}>
+          <Pressable style={styles.receiptModal} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.pendTop}>
+              <Text style={styles.pendName} numberOfLines={1}>
+                {receiptTarget?.name}
+              </Text>
+              <Text style={styles.pendAmt}>{receiptTarget ? formatARS(receiptTarget.amount) : ''}</Text>
+            </View>
+            {receiptTarget?.message ? <Text style={styles.msg}>“{receiptTarget.message}”</Text> : null}
+            {receiptTarget && (
+              <Text style={styles.pendCountdown}>
+                Si no la revisás, se confirma sola en {hoursUntilAutoConfirm(receiptTarget.createdAt)} hs
+              </Text>
+            )}
+            {receiptUrl ? (
+              <Image source={{ uri: receiptUrl }} style={styles.pendReceipt} resizeMode="cover" />
+            ) : (
+              <View style={styles.pendReceiptLoading}>
+                <ActivityIndicator color={Colors.brand} />
+              </View>
+            )}
+            <View style={styles.pendActions}>
+              <Pressable
+                style={[styles.pendBtn, styles.pendReject]}
+                disabled={!!reviewing}
+                onPress={() => receiptTarget && reviewPending(receiptTarget.id, false)}>
+                <Text style={styles.pendRejectText}>No me llegó</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.pendBtn, styles.pendConfirm]}
+                disabled={!!reviewing}
+                onPress={() => receiptTarget && reviewPending(receiptTarget.id, true)}>
+                <Text style={styles.pendConfirmText}>
+                  {reviewing === receiptTarget?.id ? '...' : 'Me llegó, confirmar'}
+                </Text>
               </Pressable>
             </View>
           </Pressable>
@@ -634,13 +705,36 @@ const styles = StyleSheet.create({
   amt: { fontWeight: '800', fontSize: 14.5, color: Colors.brandDark },
   pendBlock: { marginBottom: Spacing.lg },
   pendHint: { fontSize: 12, color: Colors.muted, marginBottom: Spacing.md, lineHeight: 17 },
-  pendCard: {
+  // 3.5: fila compacta (reemplaza la tarjeta completa con la imagen
+  // precargada); el comprobante se ve recién al tocar, en el modal.
+  pendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
     borderWidth: 1,
     borderColor: '#F0D9A6',
     backgroundColor: '#FEF9EE',
     borderRadius: Radius.md,
     padding: Spacing.md,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  pendRowName: { fontSize: 13.5, fontWeight: '700', color: Colors.ink },
+  pendRowSub: { fontSize: 11, color: Colors.muted, marginTop: 2 },
+  pendRowAmt: { fontSize: 14, fontWeight: '800', color: Colors.ink },
+  pendRowActions: { flexDirection: 'row', gap: 6 },
+  pendIconBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  pendIconReject: { backgroundColor: '#FBE9E9' },
+  pendIconRejectText: { color: '#C0392B', fontWeight: '800', fontSize: 14 },
+  pendIconConfirm: { backgroundColor: Colors.happy },
+  pendIconConfirmText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  seeMoreBtn: { alignItems: 'center', paddingVertical: Spacing.md },
+  seeMoreText: { fontSize: 13, fontWeight: '700', color: Colors.brandDark },
+  receiptModal: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#fff',
+    borderRadius: Radius.xl,
+    padding: Spacing.xl,
   },
   pendTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
   pendName: { fontSize: 14, fontWeight: '700', color: Colors.ink, flex: 1 },
