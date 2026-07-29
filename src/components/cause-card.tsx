@@ -34,58 +34,73 @@ export function CauseCard({ cause, onPress, mine }: Props) {
     setActiveImage(Math.round(e.nativeEvent.contentOffset.x / coverWidth));
   };
 
+  const badge = (
+    <View style={styles.badgeRow}>
+      <View style={styles.badge}>
+        <View style={[styles.tick, done && styles.tickHappy]}>
+          <Text style={styles.tickText}>✓</Text>
+        </View>
+        <Text style={[styles.badgeText, done && styles.badgeTextHappy]}>
+          {done ? 'Meta alcanzada' : 'Causa verificada'}
+        </Text>
+      </View>
+      {mine && (
+        <View style={styles.minePill}>
+          <Text style={styles.mineText}>Tu causa</Text>
+        </View>
+      )}
+    </View>
+  );
+
   return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-      onPress={onPress}>
-      <View
-        style={[styles.cover, { backgroundColor: cause.coverTint }]}
-        onLayout={(e) => setCoverWidth(e.nativeEvent.layout.width)}>
-        {images.length > 0 && coverWidth > 0 && (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            scrollEnabled={images.length > 1}
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={onScrollEnd}
-            style={StyleSheet.absoluteFill}>
-            {images.map((uri, i) => (
-              <Image
-                key={i}
-                source={{ uri }}
-                style={{ width: coverWidth, height: COVER_HEIGHT }}
-                resizeMode="cover"
-              />
-            ))}
-          </ScrollView>
-        )}
-        <View style={styles.badgeRow}>
-          <View style={styles.badge}>
-            <View style={[styles.tick, done && styles.tickHappy]}>
-              <Text style={styles.tickText}>✓</Text>
-            </View>
-            <Text style={[styles.badgeText, done && styles.badgeTextHappy]}>
-              {done ? 'Meta alcanzada' : 'Causa verificada'}
-            </Text>
-          </View>
-          {mine && (
-            <View style={styles.minePill}>
-              <Text style={styles.mineText}>Tu causa</Text>
+    <View style={styles.card}>
+      {images.length > 0 ? (
+        // Con fotos, la portada es un View simple (no Pressable): un Pressable
+        // ancestro rompe el swipe del ScrollView horizontal de abajo, en
+        // iOS y Android. El tap para abrir vive en cada foto (hijo del
+        // ScrollView), que sí convive bien con el scroll.
+        <View
+          style={[styles.cover, { backgroundColor: cause.coverTint }]}
+          onLayout={(e) => setCoverWidth(e.nativeEvent.layout.width)}>
+          {coverWidth > 0 && (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              scrollEnabled={images.length > 1}
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={onScrollEnd}
+              style={StyleSheet.absoluteFill}>
+              {images.map((uri, i) => (
+                <Pressable key={i} onPress={onPress} style={{ width: coverWidth, height: COVER_HEIGHT }}>
+                  <Image
+                    source={{ uri }}
+                    style={{ width: coverWidth, height: COVER_HEIGHT }}
+                    resizeMode="cover"
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+          {badge}
+          {images.length > 1 && (
+            <View style={styles.dots}>
+              {images.map((_, i) => (
+                <View key={i} style={[styles.dot, i === activeImage && styles.dotActive]} />
+              ))}
             </View>
           )}
         </View>
-        {images.length === 0 && <Text style={styles.emoji}>{cause.emoji}</Text>}
-        {images.length > 1 && (
-          <View style={styles.dots}>
-            {images.map((_, i) => (
-              <View key={i} style={[styles.dot, i === activeImage && styles.dotActive]} />
-            ))}
-          </View>
-        )}
-      </View>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [styles.cover, { backgroundColor: cause.coverTint }, pressed && styles.pressed]}
+          onPress={onPress}>
+          {badge}
+          <Text style={styles.emoji}>{cause.emoji}</Text>
+        </Pressable>
+      )}
 
-      <View style={styles.body}>
+      <Pressable style={({ pressed }) => [styles.body, pressed && styles.pressed]} onPress={onPress}>
         <Text style={styles.title}>{cause.title}</Text>
         <Text style={styles.who}>{cause.who}</Text>
 
@@ -107,8 +122,8 @@ export function CauseCard({ cause, onPress, mine }: Props) {
             {done ? 'Cumplida ✓' : `${cause.daysLeft} días restantes`}
           </Text>
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
