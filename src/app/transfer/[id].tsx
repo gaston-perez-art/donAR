@@ -139,7 +139,14 @@ export default function TransferScreen() {
           style={[styles.btn, (!receiptUri || submitting || !payout) && styles.btnDisabled]}
           disabled={!receiptUri || submitting || !payout}
           onPress={confirm}>
-          <Text style={styles.btnText}>{submitting ? 'Enviando...' : 'Ya transferí, enviar comprobante'}</Text>
+          {submitting ? (
+            <View style={styles.btnRow}>
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={styles.btnText}>Subiendo comprobante...</Text>
+            </View>
+          ) : (
+            <Text style={styles.btnText}>Ya transferí, enviar comprobante</Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -210,5 +217,6 @@ const styles = StyleSheet.create({
   cta: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },
   btnDisabled: { backgroundColor: '#AFC8DD' },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   btnText: { color: '#fff', fontSize: 15.5, fontWeight: '700' },
 });

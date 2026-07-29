@@ -136,7 +136,12 @@ const styles = StyleSheet.create({
   pill: {
     alignSelf: 'stretch',
     height: PILL_HEIGHT,
-    // Sombra suave para despegar la pill del feed y que "flote".
+    // Sombra suave para despegar la pill del feed y que "flote". El
+    // borderRadius va acá TAMBIÉN (no solo en `glass`, adentro): en Android
+    // el elevation dibuja la sombra en base al borde de ESTA vista, y si no
+    // tiene su propio radio la sombra sale cuadrada aunque el contenido se
+    // vea redondeado.
+    borderRadius: RADIUS,
     shadowColor: '#0B2A3A',
     shadowOpacity: 0.16,
     shadowRadius: 18,

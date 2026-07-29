@@ -337,23 +337,23 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        {/* Donado + recibido */}
+        {/* Donado + recibido, tapeables: llevan al historial completo */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
+          <Pressable style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]} onPress={() => router.push('/donated')}>
             <Text style={styles.statLabel}>Donaste</Text>
             <Text style={styles.statValue}>{formatARS(a.donatedTotal)}</Text>
             <Text style={styles.statSub}>
               {a.donationsCount} {a.donationsCount === 1 ? 'aporte' : 'aportes'} · {a.causesSupported}{' '}
               {a.causesSupported === 1 ? 'causa' : 'causas'}
             </Text>
-          </View>
-          <View style={styles.statCard}>
+          </Pressable>
+          <Pressable style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]} onPress={() => router.push('/received')}>
             <Text style={styles.statLabel}>Recibiste</Text>
             <Text style={[styles.statValue, { color: Colors.happy }]}>{formatARS(a.receivedTotal)}</Text>
             <Text style={styles.statSub}>
               {a.myCausesCount} {a.myCausesCount === 1 ? 'causa creada' : 'causas creadas'}
             </Text>
-          </View>
+          </Pressable>
         </View>
 
         {/* Mis causas */}
@@ -415,36 +415,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Historial de impacto */}
-        <View style={styles.section}>
-          <Text style={styles.secTitle}>Historial de impacto</Text>
-          {a.contributions.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💙</Text>
-              <Text style={styles.emptyText}>Todavía no donaste a ninguna causa.</Text>
-              <Pressable style={styles.emptyBtn} onPress={() => router.navigate('/')}>
-                <Text style={styles.emptyBtnText}>Ver causas</Text>
-              </Pressable>
-            </View>
-          ) : (
-            a.contributions.map((c) => (
-              <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.causeId}`)}>
-                <View style={[styles.rowIcon, { backgroundColor: c.causeTint }]}>
-                  <Text style={{ fontSize: 18 }}>{c.causeEmoji}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rowTitle} numberOfLines={1}>
-                    {c.causeTitle}
-                  </Text>
-                  <Text style={styles.rowSub}>
-                    {c.causeStatus === 'completed' ? 'Meta cumplida' : 'En curso'}
-                  </Text>
-                </View>
-                <Text style={styles.rowAmt}>+{formatARS(c.amount)}</Text>
-              </Pressable>
-            ))
-          )}
-        </View>
       </ScrollView>
 
       {/* Modal de medalla */}
@@ -566,6 +536,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
   },
+  statCardPressed: { opacity: 0.8 },
   statLabel: { fontSize: 12.5, color: Colors.muted, fontWeight: '600' },
   statValue: { fontSize: 21, fontWeight: '800', color: Colors.ink, marginTop: 6, letterSpacing: -0.4 },
   statSub: { fontSize: 11.5, color: Colors.muted, marginTop: 4 },
@@ -590,16 +561,6 @@ const styles = StyleSheet.create({
   medalLabel: { fontSize: 13.5, fontWeight: '700', color: Colors.ink, marginTop: 8, textAlign: 'center' },
   medalLabelLocked: { color: Colors.muted },
   medalHint: { fontSize: 11, color: Colors.muted, marginTop: 4, textAlign: 'center', lineHeight: 15 },
-  empty: { alignItems: 'center', paddingVertical: Spacing.xxl },
-  emptyEmoji: { fontSize: 34 },
-  emptyText: { fontSize: 14, color: Colors.muted, marginTop: 10, marginBottom: 16 },
-  emptyBtn: {
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.md,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-  },
-  emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -617,7 +578,6 @@ const styles = StyleSheet.create({
   },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
-  rowAmt: { fontSize: 14.5, fontWeight: '800', color: Colors.brandDark },
   myCausePill: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   myCausePillBad: { backgroundColor: '#FBE9E9' },
   myCausePillOk: { backgroundColor: '#E4F7EE' },

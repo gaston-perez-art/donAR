@@ -137,6 +137,32 @@ export type MyContribution = {
   causeStatus: Cause['status'];
 };
 
+/** Un aporte que ME hicieron a alguna de mis causas. Solo confirmados
+ * (approved): es la misma regla que ya usa el total "Recibiste" del perfil. */
+export type ReceivedContribution = {
+  id: string;
+  amount: number;
+  message: string | null;
+  createdAt: string;
+  donorName: string;
+  causeId: string;
+  causeTitle: string;
+  causeEmoji: string;
+  causeTint: string;
+};
+
+/** Una transferencia pendiente en alguna de mis causas: todavía no la confirmé. */
+export type PendingTransfer = {
+  id: string;
+  amount: number;
+  donorName: string;
+  causeId: string;
+  causeTitle: string;
+  causeEmoji: string;
+  causeTint: string;
+  createdAt: string;
+};
+
 /** Resumen de actividad del usuario para el perfil. Todo derivado de datos reales. */
 export type MyActivity = {
   donatedTotal: number; // suma de lo que doné
@@ -211,6 +237,8 @@ type CausesContextValue = {
   reviewTransfer: (contributionId: string, approve: boolean) => Promise<boolean>;
   recordPlatformSupport: (causeId?: string) => Promise<boolean>;
   getMyActivity: () => Promise<MyActivity>;
+  getReceivedContributions: () => Promise<ReceivedContribution[]>;
+  getPendingTransfersForMyCauses: () => Promise<PendingTransfer[]>;
   getMonthlyRanking: () => Promise<RankingEntry[]>;
   isCurator: boolean;
   refreshIsCurator: () => Promise<void>;
@@ -570,6 +598,64 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     };
   }, [userId, causes]);
 
+  const getReceivedContributions = useCallback(async (): Promise<ReceivedContribution[]> => {
+    const uid = userId ?? (await ensureSession());
+    if (!uid) return [];
+    // Solo approved: misma regla que el total "Recibiste" (causes_public.raised_amount).
+    const { data, error } = await supabase
+      .from('contributions')
+      .select('id, amount, message, created_at, anonymous, cause_id, causes!inner(title, emoji, cover_tint, owner_id)')
+      .eq('causes.owner_id', uid)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('getReceivedContributions error:', error.message);
+      return [];
+    }
+    return (data ?? []).map((row: any) => {
+      const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+      return {
+        id: row.id,
+        amount: Number(row.amount) || 0,
+        message: row.message,
+        createdAt: row.created_at,
+        donorName: row.anonymous ? 'Anónimo' : 'Alguien de la comunidad',
+        causeId: row.cause_id,
+        causeTitle: cause?.title ?? 'Causa',
+        causeEmoji: cause?.emoji ?? '💙',
+        causeTint: cause?.cover_tint ?? '#CFE6FB',
+      };
+    });
+  }, [userId]);
+
+  const getPendingTransfersForMyCauses = useCallback(async (): Promise<PendingTransfer[]> => {
+    const uid = userId ?? (await ensureSession());
+    if (!uid) return [];
+    const { data, error } = await supabase
+      .from('contributions')
+      .select('id, amount, anonymous, created_at, cause_id, causes!inner(title, emoji, cover_tint, owner_id)')
+      .eq('causes.owner_id', uid)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('getPendingTransfersForMyCauses error:', error.message);
+      return [];
+    }
+    return (data ?? []).map((row: any) => {
+      const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+      return {
+        id: row.id,
+        amount: Number(row.amount) || 0,
+        donorName: row.anonymous ? 'Anónimo' : 'Alguien de la comunidad',
+        causeId: row.cause_id,
+        causeTitle: cause?.title ?? 'Causa',
+        causeEmoji: cause?.emoji ?? '💙',
+        causeTint: cause?.cover_tint ?? '#CFE6FB',
+        createdAt: row.created_at,
+      };
+    });
+  }, [userId]);
+
   const getMonthlyRanking = useCallback(async (): Promise<RankingEntry[]> => {
     const uid = userId ?? (await ensureSession());
 
@@ -705,6 +791,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       reviewTransfer,
       recordPlatformSupport,
       getMyActivity,
+      getReceivedContributions,
+      getPendingTransfersForMyCauses,
       getMonthlyRanking,
       isCurator,
       refreshIsCurator,
@@ -730,6 +818,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       reviewTransfer,
       recordPlatformSupport,
       getMyActivity,
+      getReceivedContributions,
+      getPendingTransfersForMyCauses,
       getMonthlyRanking,
       isCurator,
       refreshIsCurator,

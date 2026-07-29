@@ -44,8 +44,9 @@ POC funcionando de punta a punta, con datos reales de Supabase (no mock).
 - [x] **Dos métodos de pago**: transferencia con comprobante (canónico del MVP) + Mercado Pago (apagado con flag, ver Encuadre legal)
 - [x] **Confirmación de la transferencia por el beneficiado**: sube comprobante → entra `pending` → el beneficiado confirma "me llegó" → recién ahí suma a la meta y a los puntos
 - [x] **Aporte voluntario a donAR** (modelo GoFundMe) en la pantalla post-transferencia
-- [x] Perfil único (donado + recibido), medallas y nivel
+- [x] Perfil único (donado + recibido, tapeables con historial completo), medallas y nivel
 - [x] Ranking mensual + lógica de puntos (fórmula del paper)
+- [x] **Actividad**: feed real (transferencias por confirmar, aportes recibidos, aportes que hice). Notificaciones push quedan para cuando el proyecto tenga build nativo (no funcionan en Expo Go desde el SDK 53)
 - [ ] Cierre de causa (cumplida / cerrada sin llegar) + mini-reporte + agradecimiento
 - [ ] Monto mínimo para pedir
 
@@ -63,11 +64,14 @@ src/
       index.tsx        feed
       ranking.tsx      ranking mensual + puntos
       profile.tsx      perfil, medallas, "mis causas", vincular mail
-      activity.tsx     placeholder (TBD, post-MVP)
+      activity.tsx     feed de actividad (transferencias por confirmar,
+                       recibidos, donados)
     cause/[id].tsx     detalle de causa (con branch "mi causa" para el dueño)
     donate/[id].tsx    elegir método de pago (MP con flag / transferir)
     transfer/[id].tsx  flujo de transferencia + subir comprobante
     gracias.tsx        post-transferencia + aporte voluntario a donAR
+    donated.tsx        historial de lo donado (desde el perfil)
+    received.tsx       historial de lo recibido (desde el perfil)
     create / cobro / review    flujo de crear causa + evidencia (pantallas
                        del Stack, no tabs: se empujan encima con navegación
                        nativa)
