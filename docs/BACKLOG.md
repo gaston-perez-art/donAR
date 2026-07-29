@@ -48,7 +48,7 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - 🅿️ **5.3** +200 por verificar identidad (no aplica a donantes en el flujo actual).
 
 ## Épica 6 — Reglas de creación de causa
-- ⬜ **6.1** Monto mínimo para pedir (que no se pueda crear una causa pidiendo $1). Define un piso razonable para el MVP.
+- ⬜ **6.1** Monto mínimo para pedir. **Monto DECIDIDO: $5.000 ARS (29 jul).** Confirmado como falta real: Gastón probó crear una causa con meta de $50 y lo dejó avanzar sin frenarlo. Validación simple en `create.tsx` (mismo lugar que ya valida título/fecha/evidencia faltante).
 - ⬜ **6.2** Revisar máximos / coherencia monto vs. evidencia (ya lo mira el curador, ver si sumar validación blanda).
 
 ## Épica 8 — Estética "liquid glass" (UI premium)
@@ -77,6 +77,8 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
   - ✅ **PASOS MANUALES ya hechos por Gastón:** (1) apagó "Confirm email" en Supabase Auth; (2) le puso contraseña a su cuenta vieja (ascendida desde anónima, sin pass) via SQL directo (`update auth.users set encrypted_password = crypt('...', gen_salt('bf')), email_confirmed_at = coalesce(..., now())`), porque el panel solo ofrecía "send recovery" y ese mail no llega (Resend sin dominio). Método a reusar para cualquier cuenta vieja sin pass.
 - ⬜ **10.2** **Recuperar contraseña ("olvidé mi contraseña") — pedido explícito de Gastón, 29 jul.** Hoy no existe: si un usuario olvida la pass, hay que resetearla a mano (SQL o dashboard). El flujo real (mail con link de reset) necesita un **dominio propio verificado en Resend** para que el mail llegue a cualquier casilla (hoy el sender de prueba solo entrega al mail de Gastón). Es la dependencia dura. Sube de prioridad: es de lo poco que le falta al MVP para ser usable por gente real que no sea Gastón.
 - ⬜ **10.3** **Foto de perfil + iniciales — pedido de Gastón, 29 jul ("lo veo clave").** Dos partes: (a) que el avatar muestre iniciales reales en vez del "VOS"/"GP" hardcodeado (para eso conviene pedir **nombre y apellido** en el registro, o al menos un nombre); (b) poder subir una **foto de perfil** propia (bucket público tipo `avatars`, mismo patrón que `cause-covers`). Junta lo que antes era 10.3 (nombre real en el registro): el nombre sirve para las iniciales, el ranking y los agradecimientos. El `display_name` hoy se deriva del mail (parte antes del @), es un parche.
+  - 💡 **Simplificación posible (pedido de Gastón, 29 jul):** el avatar de arriba del feed (`GP` hardcodeado en `index.tsx`) y el de Perfil (`VOS` hardcodeado en `profile.tsx`) hoy son estáticos y no dependen de nada real. Versión mínima, sin pedir nombre en el registro: mostrar la **inicial del mail** (ya disponible con login obligatorio, cero data nueva). Nombre/apellido completo (para ranking + agradecimientos) queda como mejora aparte, no bloquea esto.
+  - 💡 **El avatar del feed debería ser un botón real (pedido de Gastón, 29 jul):** hoy no hace nada al tocarlo. Gastón propone que sirva para cerrar sesión. A definir al implementar: ¿cierra sesión directo al tocar (riesgo: un toque accidental te desloguea) o abre un menú/lleva al Perfil (donde ya vive "Cerrar sesión")? Perfil ya tiene ese botón; puede alcanzar con navegar ahí.
 - 🅿️ **10.5** Google Sign-In. Ya evaluado y descartado hasta el build nativo (necesita credenciales OAuth, incompatible con Expo Go). Se retoma ahí.
 
 ## Épica 7 — Descubrimiento por cercanía (post-MVP)
