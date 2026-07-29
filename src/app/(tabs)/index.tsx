@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
+import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
@@ -15,6 +16,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function FeedScreen() {
   const router = useRouter();
+  const scroll = useTabBarScroll();
   const { causes, myCauses, loading } = useCauses();
 
   const active = causes.filter((c) => c.status === 'active');
@@ -35,6 +37,8 @@ export default function FeedScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        onScroll={scroll?.onScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={{ paddingBottom: TabBarHeight + Spacing.xl }}>
         {myPending.length > 0 && (
           <>

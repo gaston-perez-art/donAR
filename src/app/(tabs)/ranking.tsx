@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { supabase } from '@/lib/supabase';
 import { useCauses, type RankingEntry } from '@/store/causes-store';
@@ -22,6 +23,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function RankingScreen() {
   const router = useRouter();
+  const scroll = useTabBarScroll();
   const { getMonthlyRanking } = useCauses();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,8 @@ export default function RankingScreen() {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
+          onScroll={scroll?.onScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: TabBarHeight + Spacing.xl }}>
           {registered === false && (
             <Pressable style={styles.joinCard} onPress={() => router.navigate('/profile')}>

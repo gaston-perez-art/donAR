@@ -10,6 +10,7 @@ Documento fundacional, contexto y prototipo de diseño en `docs/` (`paper-fundac
 - **Expo Router**: ruteo por archivos (estándar actual de Expo).
 - **TypeScript**: chequeo de tipos, más seguro de mantener.
 - **StyleSheet + theme central** (`src/constants/donar-theme.ts`): sin librerías de estilo extra, menos dependencias.
+- **UI premium de la tab bar**: pill flotante de vidrio (`expo-blur`) con íconos vectoriales (`@expo/vector-icons`, ya incluido en Expo) y "shrink on scroll" con el `Animated` nativo de React Native. El blur real corre en iOS; en Android se usa un vidrio translúcido sólido (el método de blur en runtime crashea en las transiciones). El Liquid Glass nativo de iOS 26 queda para el build nativo.
 
 Decisiones y trade-offs completos: ver el paper fundacional.
 
@@ -73,7 +74,8 @@ src/
   screens/
     curar-screen.tsx   panel del curador (no es una ruta: es el modo completo
                        de la app cuando la identidad es curador)
-  components/          cause-card, donar-tab-bar, placeholder, ui/
+  components/          cause-card, donar-tab-bar (pill de vidrio),
+                       tab-bar-scroll (canal scroll↔barra), placeholder, ui/
   constants/           donar-theme (paleta, spacing, formato de pesos)
   lib/                 supabase (auth + storage), mercadopago
   store/               causes-store (data layer: causas, donaciones, curaduría)

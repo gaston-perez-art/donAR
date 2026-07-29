@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { usePathname, useRouter } from 'expo-router';
 import { ComponentProps } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/donar-theme';
+import { useTabBarScroll } from '@/components/tab-bar-scroll';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type TabItem = { icon: IoniconName; iconOutline: IoniconName; label: string; path: string };
@@ -21,13 +22,14 @@ const RIGHT: TabItem[] = [
 
 /**
  * Tab bar tipo "pill" flotante de vidrio (frosted glass), al estilo iOS 26 /
- * Instagram, con el + de crear causa sobresaliendo por encima. Flota sobre el
- * contenido (position:absolute) para que el feed scrollee por detrás y el blur
- * tenga qué difuminar; las pantallas reservan TabBarHeight abajo.
+ * Instagram. Cinco slots parejos: los 4 íconos + el botón de crear (+) en el
+ * centro, alineado horizontal con el resto (destacado por color, ya no
+ * sobresale). Flota sobre el contenido (position:absolute) para que el feed
+ * scrollee por detrás; las pantallas reservan TabBarHeight abajo.
  *
- * Estructura en dos capas para poder redondear el vidrio SIN recortar el +:
- * `glass` (fondo, overflow:hidden + borderRadius, contiene el BlurView) y
- * `row` (íconos + el +, encima, sin recorte, el + sobresale con marginTop).
+ * Shrink on scroll: se achica y se corre al deslizar hacia abajo, vuelve al
+ * subir. El valor lo maneja TabBarScrollProvider (ver tab-bar-scroll.tsx); acá
+ * solo se consume para animar el wrap con Animated nativo.
  *
  * Paridad iOS/Android SIN crashear: en iOS, blur nativo real (BlurView). En
  * Android NO se usa BlurView: el método de blur en runtime (dimezisBlurView)
@@ -42,6 +44,7 @@ export function DonarTabBar() {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const scroll = useTabBarScroll();
 
   const isActive = (path: string) =>
     path === '/' ? pathname === '/' : pathname.startsWith(path);
@@ -69,9 +72,24 @@ export function DonarTabBar() {
     );
   };
 
+  // Achica (scale), corre hacia abajo (translateY) y baja un toque la opacidad
+  // al scrollear. Sin canal de scroll (no debería pasar), queda en su lugar.
+  const p = scroll?.progress;
+  const animStyle = p
+    ? {
+        opacity: p.interpolate({ inputRange: [0, 1], outputRange: [1, 0.92] }),
+        transform: [
+          { translateY: p.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) },
+          { scale: p.interpolate({ inputRange: [0, 1], outputRange: [1, 0.86] }) },
+        ],
+      }
+    : null;
+
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]} pointerEvents="box-none">
-      <View style={styles.pill} pointerEvents="box-none">
+    <Animated.View
+      style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }, animStyle]}
+      pointerEvents="box-none">
+      <View style={styles.pill}>
         {/* Capa de vidrio: redondeada y recortada, solo el fondo. En iOS, blur
             nativo. En Android, solo el tinte sólido (sin BlurView: el blur en
             runtime crashea en las transiciones). */}
@@ -82,26 +100,24 @@ export function DonarTabBar() {
           <View style={[styles.tint, Platform.OS === 'android' && styles.tintAndroid]} />
         </View>
 
-        {/* Capa de contenido: encima del vidrio, sin recorte (el + sobresale). */}
-        <View style={styles.row} pointerEvents="box-none">
+        {/* Capa de contenido: 5 slots parejos, el + inline en el centro. */}
+        <View style={styles.row}>
           {LEFT.map(renderTab)}
 
-          <View style={styles.plusSlot} pointerEvents="box-none">
-            <Pressable
-              style={styles.plusWrap}
-              onPress={() => goTo('/create')}
-              accessibilityRole="button"
-              accessibilityLabel="Crear causa">
-              <View style={styles.plus}>
-                <Text style={styles.plusText}>+</Text>
-              </View>
-            </Pressable>
-          </View>
+          <Pressable
+            style={styles.tab}
+            onPress={() => goTo('/create')}
+            accessibilityRole="button"
+            accessibilityLabel="Crear causa">
+            <View style={styles.plus}>
+              <Ionicons name="add" size={28} color="#fff" />
+            </View>
+          </Pressable>
 
           {RIGHT.map(renderTab)}
         </View>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -155,23 +171,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapActive: { backgroundColor: 'rgba(74,144,226,0.14)' },
-  plusSlot: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  plusWrap: { alignItems: 'center', justifyContent: 'center' },
+  // Botón de crear, inline con los íconos (alineado horizontal), destacado por
+  // el color de marca. Ya no sobresale por encima de la pill.
   plus: {
-    width: 52,
-    height: 52,
-    borderRadius: 19,
-    marginTop: -30,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
     backgroundColor: Colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.9)',
     shadowColor: Colors.brand,
-    shadowOpacity: 0.45,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
-  plusText: { color: '#fff', fontSize: 30, fontWeight: '600', marginTop: -2 },
 });

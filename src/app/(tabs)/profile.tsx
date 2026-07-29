@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import {
   confirmLinkEmail,
@@ -232,6 +233,7 @@ const MY_CAUSE_STATUS: Record<string, string> = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const scroll = useTabBarScroll();
   const { getMyActivity, refreshIsCurator, signOut, myCauses } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -289,7 +291,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={scroll?.onScroll}
+        scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Encabezado */}
         <View style={styles.head}>
           <View style={styles.avatar}>
