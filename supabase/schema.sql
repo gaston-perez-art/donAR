@@ -346,3 +346,17 @@ from causes c;
 -- vive detrás de un view (se lee directo con RLS), así que esta columna
 -- queda expuesta sin recrear nada.
 alter table contributions add column if not exists confirmed_at timestamptz;
+
+-- 29 jul 2026 (10.3: foto de perfil + nombre real). profiles ya es legible
+-- por cualquiera (RLS "profiles readable"), así que avatar_url no necesita
+-- policy nueva de lectura. Bucket público, mismo patrón que cause-covers.
+alter table profiles add column if not exists avatar_url text;
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "avatar file insert own" on storage.objects for insert
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatar file public read" on storage.objects for select
+  using (bucket_id = 'avatars');

@@ -21,20 +21,41 @@ import { useCauses } from '@/store/causes-store';
  * La renderiza _layout.tsx cuando no hay sesión real (ver AppShell).
  */
 export default function AuthScreen() {
-  const { signIn, signUp } = useCauses();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const { signIn, signUp, requestPasswordReset } = useCauses();
+  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
-  const valid = email.trim().includes('@') && password.length >= 6;
+  const valid =
+    mode === 'forgot'
+      ? email.trim().includes('@')
+      : email.trim().includes('@') && password.length >= 6 && (mode === 'login' || fullName.trim().length >= 2);
+
+  const goToMode = (m: 'login' | 'signup' | 'forgot') => {
+    setMode(m);
+    setError(null);
+    setResetSent(false);
+  };
 
   const submit = async () => {
     if (submitting || !valid) return;
     setSubmitting(true);
     setError(null);
-    const { error } = mode === 'login' ? await signIn(email, password) : await signUp(email, password);
+
+    if (mode === 'forgot') {
+      const { error } = await requestPasswordReset(email);
+      setSubmitting(false);
+      if (error) setError(error);
+      else setResetSent(true);
+      return;
+    }
+
+    const { error } =
+      mode === 'login' ? await signIn(email, password) : await signUp(email, password, fullName);
     // Si sale bien, el gate de _layout desmonta esta pantalla solo. Si falla,
     // seguimos acá mostrando el error.
     if (error) {
@@ -57,62 +78,122 @@ export default function AuthScreen() {
             <Text style={styles.tagline}>Colectas solidarias verificadas</Text>
           </View>
 
-          <Text style={styles.h2}>{mode === 'login' ? 'Entrá a tu cuenta' : 'Creá tu cuenta'}</Text>
+          <Text style={styles.h2}>
+            {mode === 'login' ? 'Entrá a tu cuenta' : mode === 'signup' ? 'Creá tu cuenta' : 'Recuperar contraseña'}
+          </Text>
           <Text style={styles.sub}>
             {mode === 'login'
               ? 'Para donar, crear una causa o recibir, todo queda guardado en tu cuenta.'
-              : 'Con tu cuenta no perdés tu historial ni tus causas, en este celular o en otro.'}
+              : mode === 'signup'
+                ? 'Con tu cuenta no perdés tu historial ni tus causas, en este celular o en otro.'
+                : 'Te mandamos un mail con un link para elegir una contraseña nueva.'}
           </Text>
 
-          <View style={styles.field}>
-            <Text style={styles.label}>Mail</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="vos@mail.com"
-              placeholderTextColor={Colors.muted}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-
-          <View style={styles.field}>
-            <Text style={styles.label}>Contraseña</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Al menos 6 caracteres"
-              placeholderTextColor={Colors.muted}
-              secureTextEntry
-              autoCapitalize="none"
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Pressable
-            style={[styles.btn, (!valid || submitting) && styles.btnDisabled]}
-            disabled={!valid || submitting}
-            onPress={submit}>
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
+          {mode === 'forgot' ? (
+            resetSent ? (
+              <Text style={styles.success}>
+                Si esa cuenta existe, te va a llegar un mail con el link. Revisá tu bandeja (y spam).
+              </Text>
             ) : (
-              <Text style={styles.btnText}>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</Text>
-            )}
-          </Pressable>
+              <>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Mail</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="vos@mail.com"
+                    placeholderTextColor={Colors.muted}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <Pressable
+                  style={[styles.btn, (!valid || submitting) && styles.btnDisabled]}
+                  disabled={!valid || submitting}
+                  onPress={submit}>
+                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Enviar instrucciones</Text>}
+                </Pressable>
+              </>
+            )
+          ) : (
+            <>
+              {mode === 'signup' && (
+                <View style={styles.field}>
+                  <Text style={styles.label}>Nombre y apellido</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Como querés que te vean en DonAR"
+                    placeholderTextColor={Colors.muted}
+                    autoCapitalize="words"
+                    value={fullName}
+                    onChangeText={setFullName}
+                  />
+                </View>
+              )}
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Mail</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="vos@mail.com"
+                  placeholderTextColor={Colors.muted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Contraseña</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Al menos 6 caracteres"
+                  placeholderTextColor={Colors.muted}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              </View>
+
+              {mode === 'login' && (
+                <Pressable onPress={() => goToMode('forgot')} style={styles.forgotLink}>
+                  <Text style={styles.switchLink}>¿Olvidaste tu contraseña?</Text>
+                </Pressable>
+              )}
+
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+
+              <Pressable
+                style={[styles.btn, (!valid || submitting) && styles.btnDisabled]}
+                disabled={!valid || submitting}
+                onPress={submit}>
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnText}>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</Text>
+                )}
+              </Pressable>
+            </>
+          )}
 
           <Pressable
             style={styles.switch}
-            onPress={() => {
-              setMode((m) => (m === 'login' ? 'signup' : 'login'));
-              setError(null);
-            }}>
+            onPress={() => goToMode(mode === 'signup' ? 'login' : mode === 'forgot' ? 'login' : 'signup')}>
             <Text style={styles.switchText}>
-              {mode === 'login' ? '¿No tenés cuenta? ' : '¿Ya tenés cuenta? '}
-              <Text style={styles.switchLink}>{mode === 'login' ? 'Creá una' : 'Entrá'}</Text>
+              {mode === 'forgot'
+                ? ''
+                : mode === 'login'
+                  ? '¿No tenés cuenta? '
+                  : '¿Ya tenés cuenta? '}
+              <Text style={styles.switchLink}>
+                {mode === 'forgot' ? 'Volver a entrar' : mode === 'login' ? 'Creá una' : 'Entrá'}
+              </Text>
             </Text>
           </Pressable>
         </ScrollView>
@@ -143,6 +224,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   error: { color: '#C0392B', fontSize: 13, marginBottom: Spacing.md, fontWeight: '600' },
+  success: {
+    color: Colors.happy,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    backgroundColor: '#E4F7EE',
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+  },
+  forgotLink: { alignSelf: 'flex-end', marginBottom: Spacing.md },
   btn: {
     backgroundColor: Colors.brand,
     borderRadius: Radius.md,

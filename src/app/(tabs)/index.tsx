@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
@@ -17,12 +17,12 @@ const STATUS_LABEL: Record<string, string> = {
 export default function FeedScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
-  const { causes, myCauses, loading, accountEmail } = useCauses();
+  const { causes, myCauses, loading, accountEmail, displayName, avatarUrl } = useCauses();
 
   const active = causes.filter((c) => c.status === 'active');
   const completed = causes.filter((c) => c.status === 'completed');
   const myPending = myCauses.filter((c) => c.status !== 'active' && c.status !== 'completed');
-  const initial = accountEmail?.trim().charAt(0).toUpperCase() || '?';
+  const initial = (displayName || accountEmail)?.trim().charAt(0).toUpperCase() || '?';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -32,7 +32,11 @@ export default function FeedScreen() {
           <Text style={styles.brandAr}>AR</Text>
         </Text>
         <Pressable style={styles.avatar} onPress={() => router.navigate('/profile')}>
-          <Text style={styles.avatarText}>{initial}</Text>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          ) : (
+            <Text style={styles.avatarText}>{initial}</Text>
+          )}
         </Pressable>
       </View>
 
@@ -128,7 +132,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: 40, height: 40 },
   avatarText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   sec: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.md, paddingTop: Spacing.xs },
   secTitle: { fontSize: 17, fontWeight: '700', color: Colors.ink, letterSpacing: -0.3 },

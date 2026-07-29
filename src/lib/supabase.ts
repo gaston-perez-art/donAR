@@ -50,12 +50,20 @@ function authError(message?: string): string | null {
  * Crea una cuenta con mail + contraseña y deja la sesión iniciada. Requiere que
  * "Confirm email" esté APAGADO en Supabase (si no, no loguea hasta confirmar,
  * y el mail de confirmación hoy no se entrega sin dominio propio en Resend).
+ * El nombre completo (si se manda) llega como metadata: el trigger
+ * handle_new_user() ya sabe leerlo para setear full_name/initials en profiles.
  */
 export async function signUpWithPassword(
   email: string,
   password: string,
+  fullName?: string,
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+  const name = fullName?.trim();
+  const { error } = await supabase.auth.signUp({
+    email: email.trim(),
+    password,
+    options: name ? { data: { full_name: name } } : undefined,
+  });
   return { error: authError(error?.message) };
 }
 
@@ -69,19 +77,94 @@ export async function signInWithPassword(
 }
 
 /**
- * Marca el perfil propio como registrado y le pone un nombre para mostrar en el
- * ranking, derivado del mail (la parte antes del @, capitalizada). Se llama al
- * vincular o loguear con mail, y como self-heal para cuentas ya vinculadas.
+ * Pide el mail de "olvidé mi contraseña" (10.2). El link lleva de vuelta a la
+ * app por deep link (`redirectTo`), con los tokens de recuperación en el
+ * fragment de la URL. DEPENDENCIA DURA: necesita un dominio propio verificado
+ * en Resend para que el mail llegue a cualquier casilla (hoy el sender de
+ * prueba solo entrega a la cuenta de Resend) — sin eso, el código es
+ * correcto pero no se puede probar de punta a punta.
  */
-export async function ensureRegisteredProfile(email: string): Promise<void> {
+export async function requestPasswordReset(
+  email: string,
+  redirectTo: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+  return { error: authError(error?.message) };
+}
+
+/**
+ * Extrae los tokens de recuperación del deep link (vienen en el fragment,
+ * `#access_token=...&refresh_token=...&type=recovery`; algunos clientes de
+ * mail los mandan como query `?...`, se contempla también). null si la URL
+ * no es un link de recuperación.
+ */
+function parseRecoveryTokens(url: string): { accessToken: string; refreshToken: string } | null {
+  const hashIndex = url.indexOf('#');
+  const queryIndex = url.indexOf('?');
+  const paramsString = hashIndex >= 0 ? url.slice(hashIndex + 1) : queryIndex >= 0 ? url.slice(queryIndex + 1) : '';
+  if (!paramsString) return null;
+  const params = new URLSearchParams(paramsString);
+  if (params.get('type') !== 'recovery') return null;
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (!accessToken || !refreshToken) return null;
+  return { accessToken, refreshToken };
+}
+
+/** Establece la sesión de recuperación a partir del deep link. true si era un
+ * link de recuperación válido y quedó lista la sesión para cambiar la pass. */
+export async function beginPasswordRecovery(url: string): Promise<boolean> {
+  const tokens = parseRecoveryTokens(url);
+  if (!tokens) return false;
+  const { error } = await supabase.auth.setSession({
+    access_token: tokens.accessToken,
+    refresh_token: tokens.refreshToken,
+  });
+  if (error) {
+    console.warn('beginPasswordRecovery error:', error.message);
+    return false;
+  }
+  return true;
+}
+
+/** Cambia la contraseña. Requiere una sesión de recuperación activa (ver
+ * beginPasswordRecovery) o una sesión normal ya logueada. */
+export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  return { error: authError(error?.message) };
+}
+
+/**
+ * Marca el perfil propio como registrado y le pone un nombre para mostrar en
+ * el ranking. Si viene `fullName` (registro nuevo, 10.3), se usa ese; si no,
+ * y el perfil todavía no tiene display_name (cuenta vieja, o login sin
+ * pasar nombre), se auto-completa derivándolo del mail como antes. Importante:
+ * NO pisa un display_name ya bueno en cada login (antes lo recalculaba del
+ * mail cada vez, así que un nombre real quedaría sobreescrito al día
+ * siguiente si esto no se cuidara).
+ */
+export async function ensureRegisteredProfile(email: string, fullName?: string): Promise<void> {
   const uid = await ensureSession();
   if (!uid) return;
-  const local = (email.split('@')[0] || 'Donante').trim();
-  const displayName = local.charAt(0).toUpperCase() + local.slice(1);
-  const { error } = await supabase
-    .from('profiles')
-    .update({ display_name: displayName, is_registered: true })
-    .eq('id', uid);
+
+  const patch: Record<string, unknown> = { is_registered: true };
+  const name = fullName?.trim();
+  if (name) {
+    patch.display_name = name;
+    patch.full_name = name;
+  } else {
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', uid)
+      .maybeSingle();
+    if (!existing?.display_name) {
+      const local = (email.split('@')[0] || 'Donante').trim();
+      patch.display_name = local.charAt(0).toUpperCase() + local.slice(1);
+    }
+  }
+
+  const { error } = await supabase.from('profiles').update(patch).eq('id', uid);
   if (error) console.warn('ensureRegisteredProfile error:', error.message);
 }
 
@@ -194,6 +277,39 @@ export async function uploadClosingPhoto(
     if (error) return { url: null, error: error.message };
     const { data } = supabase.storage.from('cause-covers').getPublicUrl(path);
     return { url: data.publicUrl, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error subiendo la foto';
+    return { url: null, error: message };
+  }
+}
+
+/**
+ * Sube la foto de perfil (bucket avatars, público, mismo patrón que
+ * cause-covers). Un solo archivo por usuario (path fijo): la nueva pisa la
+ * vieja.
+ */
+export async function uploadAvatarPhoto(
+  localUri: string,
+  contentType: string,
+): Promise<{ url: string | null; error: string | null }> {
+  const uid = await ensureSession();
+  if (!uid) return { url: null, error: 'No hay sesión' };
+
+  try {
+    const path = `${uid}/avatar.jpg`;
+
+    const response = await fetch(localUri);
+    const arrayBuffer = await response.arrayBuffer();
+
+    const { error } = await supabase.storage
+      .from('avatars')
+      .upload(path, arrayBuffer, { contentType, upsert: true });
+
+    if (error) return { url: null, error: error.message };
+    // Cache-bust: mismo path, así que sin esto el cliente podría mostrar la
+    // imagen vieja cacheada tras cambiar la foto.
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    return { url: `${data.publicUrl}?t=${Date.now()}`, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error subiendo la foto';
     return { url: null, error: message };

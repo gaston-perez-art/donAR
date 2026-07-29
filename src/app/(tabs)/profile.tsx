@@ -1,7 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
@@ -95,16 +96,50 @@ const MY_CAUSE_STATUS: Record<string, string> = {
 export default function ProfileScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
-  const { getMyActivity, refreshIsCurator, signOut, myCauses, isCurator, setViewAsDonor, accountEmail } =
-    useCauses();
+  const {
+    getMyActivity,
+    refreshIsCurator,
+    signOut,
+    myCauses,
+    isCurator,
+    setViewAsDonor,
+    accountEmail,
+    displayName,
+    avatarUrl,
+    updateAvatar,
+  } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMedal, setOpenMedal] = useState<Medal | null>(null);
   const [phrase, setPhrase] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const showMedal = (m: Medal) => {
     setPhrase(randomPhrase());
     setOpenMedal(m);
+  };
+
+  const pickAvatar = async () => {
+    if (uploadingAvatar) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Necesitamos acceso a tus fotos',
+        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > DonAR > Fotos.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setUploadingAvatar(true);
+    const ok = await updateAvatar(result.assets[0].uri);
+    setUploadingAvatar(false);
+    if (!ok) Alert.alert('No se pudo subir la foto', 'Probá de nuevo en un momento.');
   };
 
   useFocusEffect(
@@ -148,9 +183,20 @@ export default function ProfileScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Encabezado */}
         <View style={styles.head}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{accountEmail?.trim().charAt(0).toUpperCase() || '?'}</Text>
-          </View>
+          <Pressable style={styles.avatar} onPress={pickAvatar} disabled={uploadingAvatar}>
+            {uploadingAvatar ? (
+              <ActivityIndicator color="#fff" />
+            ) : avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {(displayName || accountEmail)?.trim().charAt(0).toUpperCase() || '?'}
+              </Text>
+            )}
+            <View style={styles.avatarEditBadge}>
+              <Text style={styles.avatarEditBadgeText}>✎</Text>
+            </View>
+          </Pressable>
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>Tu impacto</Text>
             <View style={styles.levelPill}>
@@ -329,8 +375,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.skySoft,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
+  avatarImg: { width: 58, height: 58, borderRadius: 29 },
   avatarText: { color: Colors.brandDark, fontWeight: '800', fontSize: 15 },
+  avatarEditBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.brand,
+    borderWidth: 2,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEditBadgeText: { color: '#fff', fontSize: 10 },
   name: { fontSize: 22, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3 },
   levelPill: {
     alignSelf: 'flex-start',

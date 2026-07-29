@@ -1,3 +1,4 @@
+import * as Linking from 'expo-linking';
 import {
   createContext,
   useCallback,
@@ -10,12 +11,16 @@ import {
 
 import type { Cause } from '@/data/causes';
 import {
+  beginPasswordRecovery as beginPasswordRecoveryRequest,
   ensureRegisteredProfile,
   ensureSession,
   isCurator as fetchIsCurator,
+  requestPasswordReset as requestPasswordResetEmail,
   signInWithPassword,
   signUpWithPassword,
   supabase,
+  updatePassword,
+  uploadAvatarPhoto,
   uploadClosingPhoto,
   uploadCoverPhoto,
   uploadEvidence,
@@ -352,9 +357,16 @@ type CausesContextValue = {
   resubmitCause: (causeId: string) => Promise<boolean>;
   isAuthenticated: boolean;
   accountEmail: string | null;
-  signUp: (email: string, password: string) => Promise<{ error: string | null }>;
+  displayName: string | null;
+  avatarUrl: string | null;
+  updateAvatar: (photoUri: string) => Promise<boolean>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  passwordRecovery: boolean;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  beginPasswordRecovery: (url: string) => Promise<boolean>;
+  completePasswordReset: (newPassword: string) => Promise<{ error: string | null }>;
 };
 
 const CausesContext = createContext<CausesContextValue | null>(null);
@@ -364,11 +376,18 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [accountEmail, setAccountEmail] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [draft, setDraftState] = useState<CauseDraft>(emptyDraft);
   const [isCurator, setIsCurator] = useState(false);
   // La misma cuenta puede ser curador Y beneficiado de una causa propia (caso
   // real: Gastón). "viewAsDonor" deja ver el lado donante sin cerrar sesión.
   const [viewAsDonor, setViewAsDonor] = useState(false);
+  // Sesión de recuperación activa (10.2): true entre tocar el link del mail y
+  // terminar de elegir la contraseña nueva. Mientras esté true, el gate de
+  // _layout muestra la pantalla de nueva contraseña ANTES que nada más
+  // (incluso con sesión ya "autenticada", que es justo lo que setSession deja).
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const fetchCauses = useCallback(async (uid: string | null) => {
     const { data, error } = await supabase
@@ -395,10 +414,19 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     if (uid) {
       const { data } = await supabase.auth.getUser();
       setAccountEmail(data.user?.email ?? null);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url')
+        .eq('id', uid)
+        .maybeSingle();
+      setDisplayName(profile?.display_name ?? null);
+      setAvatarUrl(profile?.avatar_url ?? null);
       await fetchCauses(uid);
       await refreshIsCurator();
     } else {
       setAccountEmail(null);
+      setDisplayName(null);
+      setAvatarUrl(null);
       setCauses([]);
       setIsCurator(false);
     }
@@ -433,22 +461,72 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     setViewAsDonor(false);
     setUserId(null);
     setAccountEmail(null);
+    setDisplayName(null);
+    setAvatarUrl(null);
     setCauses([]);
     setIsCurator(false);
     setLoading(false);
   }, []);
 
+  /** Sube y guarda la foto de perfil (10.3). */
+  const updateAvatar = useCallback(async (photoUri: string): Promise<boolean> => {
+    const uid = userId ?? (await ensureSession());
+    if (!uid) return false;
+    const { url, error: upErr } = await uploadAvatarPhoto(photoUri, 'image/jpeg');
+    if (upErr || !url) {
+      console.warn('updateAvatar upload error:', upErr);
+      return false;
+    }
+    const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', uid);
+    if (error) {
+      console.warn('updateAvatar db error:', error.message);
+      return false;
+    }
+    setAvatarUrl(url);
+    return true;
+  }, [userId]);
+
+  /** Pide el mail de reset (10.2). `redirectTo` es el deep link de esta app:
+   * el mismo esquema que ya usa el retorno de Mercado Pago. */
+  const requestPasswordReset = useCallback(async (email: string): Promise<{ error: string | null }> => {
+    const redirectTo = Linking.createURL('reset-password');
+    return requestPasswordResetEmail(email, redirectTo);
+  }, []);
+
+  /** Se llama con la URL completa del deep link cuando el usuario toca el
+   * link del mail. Si es un link de recuperación válido, deja lista la
+   * sesión de recuperación y prende `passwordRecovery`. */
+  const beginPasswordRecovery = useCallback(async (url: string): Promise<boolean> => {
+    const ok = await beginPasswordRecoveryRequest(url);
+    if (ok) setPasswordRecovery(true);
+    return ok;
+  }, []);
+
+  const completePasswordReset = useCallback(
+    async (newPassword: string): Promise<{ error: string | null }> => {
+      const { error } = await updatePassword(newPassword);
+      if (error) return { error };
+      setPasswordRecovery(false);
+      setLoading(true);
+      await loadSession();
+      setLoading(false);
+      return { error: null };
+    },
+    [loadSession],
+  );
+
   /** Registra o loguea con mail + contraseña y carga los datos de la cuenta.
    * Devuelve el error legible si falla (para mostrarlo en la pantalla). */
   const authenticate = useCallback(
     async (
-      fn: (email: string, password: string) => Promise<{ error: string | null }>,
+      fn: (email: string, password: string, fullName?: string) => Promise<{ error: string | null }>,
       email: string,
       password: string,
+      fullName?: string,
     ): Promise<{ error: string | null }> => {
-      const { error } = await fn(email, password);
+      const { error } = await fn(email, password, fullName);
       if (error) return { error };
-      await ensureRegisteredProfile(email);
+      await ensureRegisteredProfile(email, fullName);
       setLoading(true);
       await loadSession();
       setLoading(false);
@@ -458,7 +536,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   );
 
   const signUp = useCallback(
-    (email: string, password: string) => authenticate(signUpWithPassword, email, password),
+    (email: string, password: string, fullName: string) =>
+      authenticate(signUpWithPassword, email, password, fullName),
     [authenticate],
   );
   const signIn = useCallback(
@@ -1068,9 +1147,16 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       resubmitCause,
       isAuthenticated: !!userId,
       accountEmail,
+      displayName,
+      avatarUrl,
+      updateAvatar,
       signUp,
       signIn,
       signOut,
+      passwordRecovery,
+      requestPasswordReset,
+      beginPasswordRecovery,
+      completePasswordReset,
     }),
     [
       causes,
@@ -1102,9 +1188,16 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       resubmitCause,
       userId,
       accountEmail,
+      displayName,
+      avatarUrl,
+      updateAvatar,
       signUp,
       signIn,
       signOut,
+      passwordRecovery,
+      requestPasswordReset,
+      beginPasswordRecovery,
+      completePasswordReset,
     ],
   );
 
