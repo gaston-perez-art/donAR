@@ -83,6 +83,7 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 ---
 
 ## Decisiones abiertas (producto, no código)
+- ❓ **Riesgo de identidad huérfana (29 jul, descubierto en testing real).** El hermano de Gastón donó por transferencia a "muero de hambre" (causa de Gastón); a Gastón no le aparecía nada para confirmar. Hipótesis fuerte (a confirmar con SQL): la causa se creó bajo una sesión anónima que después se cerró (`signOut`, la función que armamos para alternar curador/donante) sin vincular mail a ESA sesión puntual, dejando la causa sin ningún dueño recuperable. Riesgo real de producto, no solo de testing: cualquier donante/beneficiado real que cree una causa sin vincular mail y pierda la sesión (reinstala, borra datos) pierde el control de su causa para siempre. Sin resolver: ¿bloqueamos crear una causa sin mail vinculado? ¿avisamos antes de cerrar sesión si hay causas propias sin vincular?
 - ❓ **Modelo de confianza de la transferencia.** Recomendado: el beneficiado confirma, comprobante público, solo lo confirmado suma. Falta OK final. (Analizado en el paper.)
 - ❓ **Qué hacemos con Mercado Pago:** ¿queda como "demo / próximamente" hasta tener split de pagos, o se muestra igual sabiendo que es custodial?
 - ❓ **Timeout de confirmación** de transferencia (Épica 3.3).
