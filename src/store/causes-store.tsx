@@ -171,10 +171,14 @@ async function autoConfirmIfNeeded(rows: any[], isOwner: boolean): Promise<boole
   for (const row of rows) {
     if (row.status !== 'pending') continue;
     if (now - new Date(row.created_at).getTime() < windowMs) continue;
+    const confirmedAt = new Date().toISOString();
     row.status = 'approved';
+    row.confirmed_at = confirmedAt;
     changed = true;
     if (isOwner) {
-      updates.push(supabase.from('contributions').update({ status: 'approved' }).eq('id', row.id));
+      updates.push(
+        supabase.from('contributions').update({ status: 'approved', confirmed_at: confirmedAt }).eq('id', row.id),
+      );
     }
   }
   if (updates.length) await Promise.all(updates);
@@ -220,6 +224,9 @@ export type MyContribution = {
   causeStatus: Cause['status'];
   /** 'approved' (confirmado) | 'pending' (transferencia por confirmar) | 'rejected'. */
   status: string;
+  /** Cuándo se confirmó (a mano o auto, 3.3). null si sigue pending. Sirve
+   * para el kudos "recién te lo confirmaron" (3.4). */
+  confirmedAt: string | null;
   /** Mensaje de cierre general que dejó el beneficiado (si ya cerró la causa). */
   causeClosingMessage: string | null;
   /** Agradecimiento puntual del beneficiado a ESTE aporte, si lo hubo. */
@@ -607,6 +614,10 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         anonymous,
         status: 'approved',
         method: 'mp',
+        // MP es instantáneo: no hay una "confirmación" separada del aporte,
+        // así que confirmed_at = el mismo momento (evita null y que el aviso
+        // de "recién confirmado" de 3.4 confunda esto con una transferencia).
+        confirmed_at: new Date().toISOString(),
       });
       if (error) {
         console.warn('donate error:', error.message);
@@ -690,10 +701,10 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     async (contributionId: string, approve: boolean): Promise<boolean> => {
       // Solo el dueño de la causa (RLS lo valida). Aprobar -> 'approved': suma a
       // la meta y cuenta para los puntos. Rechazar -> 'rejected': no cuenta.
-      const { error } = await supabase
-        .from('contributions')
-        .update({ status: approve ? 'approved' : 'rejected' })
-        .eq('id', contributionId);
+      const patch = approve
+        ? { status: 'approved', confirmed_at: new Date().toISOString() }
+        : { status: 'rejected' };
+      const { error } = await supabase.from('contributions').update(patch).eq('id', contributionId);
       if (error) {
         console.warn('reviewTransfer error:', error.message);
         return false;
@@ -769,7 +780,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from('contributions')
       .select(
-        'id, amount, message, created_at, status, cause_id, causes(title, emoji, status, cover_tint, closing_message)',
+        'id, amount, message, created_at, status, confirmed_at, cause_id, causes(title, emoji, status, cover_tint, closing_message)',
       )
       .eq('donor_id', uid)
       .order('created_at', { ascending: false });
@@ -810,6 +821,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         causeTint: cause?.cover_tint ?? '#CFE6FB',
         causeStatus: (cause?.status ?? 'active') as Cause['status'],
         status: row.status ?? 'approved',
+        confirmedAt: row.confirmed_at ?? null,
         causeClosingMessage: cause?.closing_message ?? null,
         thankYouMessage: thanksByContribution.get(row.id) ?? null,
       };
@@ -908,10 +920,14 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     start.setDate(1);
     start.setHours(0, 0, 0, 0);
 
-    // Aportes del mes calendario, con el estado de la causa embebido.
+    // Aportes del mes calendario, con el estado de la causa embebido. Solo
+    // approved: antes esta query no filtraba status, así que un aporte
+    // pending (o hasta rejected) ya sumaba puntos. Con 3.3, approved incluye
+    // tanto lo confirmado a mano como lo auto-confirmado a las 48hs.
     const { data, error } = await supabase
       .from('contributions')
       .select('donor_id, amount, cause_id, causes(status)')
+      .eq('status', 'approved')
       .gte('created_at', start.toISOString());
     if (error) {
       console.warn('getMonthlyRanking error:', error.message);

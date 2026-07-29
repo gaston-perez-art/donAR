@@ -339,3 +339,10 @@ select
   (select count(*) from contributions ct
    where ct.cause_id = c.id and ct.status = 'approved') as contributors
 from causes c;
+
+-- 29 jul 2026 (3.4: kudos al donante). Hasta ahora solo había created_at (el
+-- momento del aporte original); no había forma de distinguir "recién te lo
+-- confirmaron" de un aporte viejo ya aprobado hace días. contributions no
+-- vive detrás de un view (se lee directo con RLS), así que esta columna
+-- queda expuesta sin recrear nada.
+alter table contributions add column if not exists confirmed_at timestamptz;

@@ -22,6 +22,17 @@ function timeAgo(iso: string): string {
   return `hace ${days} días`;
 }
 
+/** 3.4: "recién te lo confirmaron" vs. un aporte viejo que ya estaba
+ * aprobado. Dos condiciones: que haya habido una espera real (no MP
+ * instantáneo, donde confirmed_at ≈ created_at) y que la confirmación en sí
+ * sea reciente (últimos 3 días, si no el aviso deja de ser una novedad). */
+function isRecentlyConfirmed(c: MyContribution): boolean {
+  if (c.status !== 'approved' || !c.confirmedAt) return false;
+  const waited = new Date(c.confirmedAt).getTime() - new Date(c.createdAt).getTime();
+  const sinceConfirmed = Date.now() - new Date(c.confirmedAt).getTime();
+  return waited > 3600_000 && sinceConfirmed < 3 * 86400000;
+}
+
 type Data = {
   pending: PendingTransfer[];
   received: ReceivedContribution[];
@@ -158,8 +169,13 @@ export default function ActivityScreen() {
           {data.donated.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.secTitle}>Tus aportes</Text>
-              {data.donated.map((d) => (
-                <Pressable key={d.id} style={styles.row} onPress={() => router.push(`/cause/${d.causeId}`)}>
+              {data.donated.map((d) => {
+                const justConfirmed = isRecentlyConfirmed(d);
+                return (
+                <Pressable
+                  key={d.id}
+                  style={[styles.row, justConfirmed && styles.rowHappy]}
+                  onPress={() => router.push(`/cause/${d.causeId}`)}>
                   <View style={[styles.rowIcon, { backgroundColor: d.causeTint }]}>
                     <Text style={{ fontSize: 18 }}>{d.causeEmoji}</Text>
                   </View>
@@ -170,12 +186,15 @@ export default function ActivityScreen() {
                     <Text style={styles.rowSub}>
                       {d.status === 'pending'
                         ? `Por confirmar · se confirma sola en ${hoursUntilAutoConfirm(d.createdAt)} hs`
-                        : timeAgo(d.createdAt)}
+                        : justConfirmed
+                          ? `✓ Te lo confirmaron ${timeAgo(d.confirmedAt!)}`
+                          : timeAgo(d.createdAt)}
                     </Text>
                   </View>
                   <Text style={styles.rowAmt}>{formatARS(d.amount)}</Text>
                 </Pressable>
-              ))}
+                );
+              })}
             </View>
           )}
         </ScrollView>

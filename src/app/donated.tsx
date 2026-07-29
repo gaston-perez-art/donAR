@@ -7,6 +7,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { hoursUntilAutoConfirm, useCauses, type MyContribution } from '@/store/causes-store';
 
+/** 3.4: "recién te lo confirmaron" vs. un aporte viejo ya aprobado. Ver la
+ * misma lógica en activity.tsx. */
+function isRecentlyConfirmed(c: MyContribution): boolean {
+  if (c.status !== 'approved' || !c.confirmedAt) return false;
+  const waited = new Date(c.confirmedAt).getTime() - new Date(c.createdAt).getTime();
+  const sinceConfirmed = Date.now() - new Date(c.confirmedAt).getTime();
+  return waited > 3600_000 && sinceConfirmed < 3 * 86400000;
+}
+
 export default function DonatedScreen() {
   const router = useRouter();
   const { getMyActivity } = useCauses();
@@ -48,17 +57,23 @@ export default function DonatedScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {contributions.map((c) => {
+            const justConfirmed = isRecentlyConfirmed(c);
             const statusLabel =
               c.status === 'pending'
                 ? `Por confirmar · se confirma sola en ${hoursUntilAutoConfirm(c.createdAt)} hs`
-                : c.causeStatus === 'completed'
-                  ? 'Meta cumplida 🎉'
-                  : c.causeStatus === 'closed'
-                    ? 'Se cerró sin llegar'
-                    : 'En curso';
+                : justConfirmed
+                  ? '✓ Te lo confirmaron'
+                  : c.causeStatus === 'completed'
+                    ? 'Meta cumplida 🎉'
+                    : c.causeStatus === 'closed'
+                      ? 'Se cerró sin llegar'
+                      : 'En curso';
             const thanks = c.thankYouMessage ?? c.causeClosingMessage;
             return (
-              <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.causeId}`)}>
+              <Pressable
+                key={c.id}
+                style={[styles.row, justConfirmed && styles.rowHappy]}
+                onPress={() => router.push(`/cause/${c.causeId}`)}>
                 <View style={[styles.rowIcon, { backgroundColor: c.causeTint }]}>
                   <Text style={{ fontSize: 18 }}>{c.causeEmoji}</Text>
                 </View>
@@ -66,7 +81,7 @@ export default function DonatedScreen() {
                   <Text style={styles.rowTitle} numberOfLines={1}>
                     {c.causeTitle}
                   </Text>
-                  <Text style={styles.rowSub}>{statusLabel}</Text>
+                  <Text style={[styles.rowSub, justConfirmed && styles.rowSubHappy]}>{statusLabel}</Text>
                   {thanks ? (
                     <Text style={styles.rowThanks} numberOfLines={2}>
                       “{thanks}”
@@ -119,8 +134,10 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.line,
   },
   rowIcon: { width: 42, height: 42, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  rowHappy: { backgroundColor: '#F0FBF5' },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
+  rowSubHappy: { color: Colors.happy, fontWeight: '700' },
   rowThanks: { fontSize: 12, color: Colors.brandDark, fontStyle: 'italic', marginTop: 3, lineHeight: 16 },
   rowAmt: { fontSize: 14.5, fontWeight: '800', color: Colors.brandDark },
 });
