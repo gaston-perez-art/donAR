@@ -1,7 +1,8 @@
+import { useFocusEffect } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
@@ -32,6 +33,29 @@ export default function GraciasScreen() {
     setSupported(true);
     await recordPlatformSupport(cause);
   };
+
+  // Salir de la pantalla terminal: cerramos todo el flujo de donación
+  // (cause/donate/transfer/gracias) y aterrizamos limpio en el tab destino.
+  const leaveTo = useCallback(
+    (tab: '/' | '/ranking') => {
+      if (router.canDismiss()) router.dismissAll();
+      router.navigate(tab);
+    },
+    [router],
+  );
+
+  // Paridad con iOS (que ya bloquea el swipe-back vía gestureEnabled:false):
+  // en Android, el botón/gesto de retroceso del sistema tampoco debe volver
+  // al formulario de donación ya cerrado. Lo redirigimos a la salida limpia.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        leaveTo('/');
+        return true;
+      });
+      return () => sub.remove();
+    }, [leaveTo]),
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -74,11 +98,11 @@ export default function GraciasScreen() {
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
         {!isPending && (
-          <Pressable onPress={() => router.replace('/ranking')}>
+          <Pressable onPress={() => leaveTo('/ranking')}>
             <Text style={styles.secondary}>Ver ranking de solidarios</Text>
           </Pressable>
         )}
-        <Pressable style={styles.btn} onPress={() => router.replace('/')}>
+        <Pressable style={styles.btn} onPress={() => leaveTo('/')}>
           <Text style={styles.btnText}>Seguir ayudando</Text>
         </Pressable>
       </View>

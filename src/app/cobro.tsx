@@ -22,7 +22,7 @@ export default function CobroScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.back} onPress={() => router.replace('/create')}>
+        <Pressable style={styles.back} onPress={() => router.back()}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>¿Dónde recibís el dinero?</Text>

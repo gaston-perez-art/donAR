@@ -416,7 +416,7 @@ export default function ProfileScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💙</Text>
               <Text style={styles.emptyText}>Todavía no donaste a ninguna causa.</Text>
-              <Pressable style={styles.emptyBtn} onPress={() => router.push('/')}>
+              <Pressable style={styles.emptyBtn} onPress={() => router.navigate('/')}>
                 <Text style={styles.emptyBtnText}>Ver causas</Text>
               </Pressable>
             </View>

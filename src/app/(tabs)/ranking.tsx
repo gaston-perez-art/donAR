@@ -65,7 +65,7 @@ export default function RankingScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: TabBarHeight + Spacing.xl }}>
           {registered === false && (
-            <Pressable style={styles.joinCard} onPress={() => router.push('/profile')}>
+            <Pressable style={styles.joinCard} onPress={() => router.navigate('/profile')}>
               <Text style={styles.joinEmoji}>🏆</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.joinTitle}>Sumá tu mail para entrar al ranking</Text>

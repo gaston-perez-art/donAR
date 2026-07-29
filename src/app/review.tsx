@@ -35,13 +35,23 @@ export default function ReviewScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState<{ causeId: string; phrase: string } | null>(null);
 
-  // La pantalla vive en un Tab y no se desmonta: si no se resetea acá, un
-  // segundo intento arranca con submitting=true y el botón queda tildado.
+  // Reset defensivo al enfocar: si un envío quedó a mitad y se vuelve a esta
+  // pantalla, que el botón no arranque tildado en submitting=true.
   useFocusEffect(
     useCallback(() => {
       setSubmitting(false);
     }, []),
   );
+
+  // Cierra el flujo de creación entero y abre el detalle de la causa recién
+  // creada sobre los tabs (swipe-back va al feed, no a un paso a medias).
+  const goToCreatedCause = useCallback(() => {
+    const causeId = sent?.causeId;
+    setSent(null);
+    if (!causeId) return;
+    if (router.canDismiss()) router.dismissAll();
+    router.push(`/cause/${causeId}`);
+  }, [sent, router]);
 
   const goalNumber = parseInt(draft.goal.replace(/\D/g, ''), 10) || 0;
 
@@ -73,7 +83,7 @@ export default function ReviewScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Pressable style={styles.back} onPress={() => router.replace('/cobro')}>
+        <Pressable style={styles.back} onPress={() => router.back()}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
         <Text style={styles.title}>Revisión</Text>
@@ -124,7 +134,7 @@ export default function ReviewScreen() {
         </Text>
       </View>
 
-      <Modal visible={!!sent} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={!!sent} transparent animationType="fade" onRequestClose={goToCreatedCause}>
         <View style={styles.backdrop}>
           <View style={styles.sentCard}>
             <Text style={{ fontSize: 48 }}>🎉</Text>
@@ -136,13 +146,7 @@ export default function ReviewScreen() {
                 publicada, o si te pedimos algo más) en el feed, en "Tus causas".
               </Text>
             </View>
-            <Pressable
-              style={styles.sentBtn}
-              onPress={() => {
-                const causeId = sent?.causeId;
-                setSent(null);
-                if (causeId) router.replace(`/cause/${causeId}`);
-              }}>
+            <Pressable style={styles.sentBtn} onPress={goToCreatedCause}>
               <Text style={styles.sentBtnText}>Ver el estado de mi causa</Text>
             </Pressable>
           </View>

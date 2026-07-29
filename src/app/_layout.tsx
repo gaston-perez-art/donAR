@@ -46,7 +46,9 @@ function AppShell() {
       <Stack.Screen name="cause/[id]" />
       <Stack.Screen name="donate/[id]" />
       <Stack.Screen name="transfer/[id]" />
-      <Stack.Screen name="gracias" />
+      {/* Pantalla de éxito: terminal. Sin swipe-back a la donación ya cerrada
+          (como cualquier confirmación de iOS). Se sale por sus botones. */}
+      <Stack.Screen name="gracias" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }
