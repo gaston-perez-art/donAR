@@ -234,7 +234,7 @@ const MY_CAUSE_STATUS: Record<string, string> = {
 export default function ProfileScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
-  const { getMyActivity, refreshIsCurator, signOut, myCauses } = useCauses();
+  const { getMyActivity, refreshIsCurator, signOut, myCauses, isCurator, setViewAsDonor } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMedal, setOpenMedal] = useState<Medal | null>(null);
@@ -316,9 +316,16 @@ export default function ProfileScreen() {
           {accountEmail ? (
             <View style={styles.accountLinkedRow}>
               <Text style={styles.accountLinked}>✓ Vinculado con {accountEmail}</Text>
-              <Pressable onPress={signOut}>
-                <Text style={styles.signOutLink}>Cerrar sesión</Text>
-              </Pressable>
+              <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+                {isCurator && (
+                  <Pressable onPress={() => setViewAsDonor(false)}>
+                    <Text style={styles.signOutLink}>Volver a curar</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={signOut}>
+                  <Text style={styles.signOutLink}>Cerrar sesión</Text>
+                </Pressable>
+              </View>
             </View>
           ) : (
             <AccountLink onLinked={refreshAccount} />

@@ -242,6 +242,8 @@ type CausesContextValue = {
   getMonthlyRanking: () => Promise<RankingEntry[]>;
   isCurator: boolean;
   refreshIsCurator: () => Promise<void>;
+  viewAsDonor: boolean;
+  setViewAsDonor: (v: boolean) => void;
   pendingCauses: Cause[];
   getReviewInfo: (causeId: string) => Promise<ReviewInfo>;
   reviewCause: (causeId: string, action: ReviewAction, note?: string) => Promise<boolean>;
@@ -257,6 +259,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [draft, setDraftState] = useState<CauseDraft>(emptyDraft);
   const [isCurator, setIsCurator] = useState(false);
+  // La misma cuenta puede ser curador Y beneficiado de una causa propia (caso
+  // real: Gastón). "viewAsDonor" deja ver el lado donante sin cerrar sesión.
+  const [viewAsDonor, setViewAsDonor] = useState(false);
 
   const fetchCauses = useCallback(async (uid: string | null) => {
     const { data, error } = await supabase
@@ -302,6 +307,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     await supabase.auth.signOut();
     setDraftState(emptyDraft);
+    setViewAsDonor(false);
     const uid = await ensureSession();
     setUserId(uid);
     await fetchCauses(uid);
@@ -796,6 +802,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getMonthlyRanking,
       isCurator,
       refreshIsCurator,
+      viewAsDonor,
+      setViewAsDonor,
       pendingCauses: causes.filter((c) => c.status === 'review' || c.status === 'needs_info'),
       getReviewInfo,
       reviewCause,
@@ -823,6 +831,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getMonthlyRanking,
       isCurator,
       refreshIsCurator,
+      viewAsDonor,
       getReviewInfo,
       reviewCause,
       resubmitCause,

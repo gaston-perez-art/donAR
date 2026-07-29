@@ -33,11 +33,14 @@ const EVIDENCE_LABELS: { key: keyof ReviewInfo; label: string }[] = [
 /**
  * Toda la app para un curador: sin tabs, sin feed, sin perfil de donante.
  * La renderiza directo _layout.tsx cuando isCurator es true, no es una ruta.
- * "Cerrar sesión" es la única salida, vuelve a una sesión anónima nueva.
+ * "Cerrar sesión" vuelve a una sesión anónima nueva. "Ver como donante" es
+ * más suave: misma cuenta, sin cerrar sesión, para cuando el curador
+ * también es dueño/beneficiado de una causa propia y necesita ver el lado
+ * donante (Perfil, Actividad, etc.) sin perder su identidad de curador.
  */
 export default function CurarScreen() {
   const insets = useSafeAreaInsets();
-  const { pendingCauses, refresh, getReviewInfo, reviewCause, signOut } = useCauses();
+  const { pendingCauses, refresh, getReviewInfo, reviewCause, signOut, setViewAsDonor } = useCauses();
   const [selected, setSelected] = useState<Cause | null>(null);
   const [info, setInfo] = useState<ReviewInfo | null>(null);
   const [urls, setUrls] = useState<Record<string, string | null>>({});
@@ -98,9 +101,14 @@ export default function CurarScreen() {
           <Text style={styles.title}>Causas pendientes</Text>
           <Text style={styles.subtitle}>Panel de curador</Text>
         </View>
-        <Pressable style={styles.signOutBtn} onPress={signOut}>
-          <Text style={styles.signOutText}>Cerrar sesión</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.signOutBtn} onPress={() => setViewAsDonor(true)}>
+            <Text style={styles.signOutText}>Ver como donante</Text>
+          </Pressable>
+          <Pressable style={styles.signOutBtn} onPress={signOut}>
+            <Text style={styles.signOutText}>Cerrar sesión</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
@@ -241,6 +249,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
   },
+  headerActions: { flexDirection: 'row', gap: Spacing.sm },
   signOutBtn: {
     borderWidth: 1,
     borderColor: Colors.line,
