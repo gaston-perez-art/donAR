@@ -5,7 +5,7 @@ import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, formatARS, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { Colors, formatARS, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { levelFor, medalsFor } from '@/lib/gamification';
 import { supabase } from '@/lib/supabase';
 import { useCauses, type DonorProfile, type RankingEntry } from '@/store/causes-store';
@@ -130,7 +130,7 @@ export default function RankingScreen() {
                     {entry.avatarUrl ? (
                       <Image source={{ uri: entry.avatarUrl }} style={styles.avatarImg} />
                     ) : (
-                      <Text style={styles.avatarText}>{entry.name.slice(0, 2).toUpperCase()}</Text>
+                      <Text style={styles.avatarText}>{initialsFor(entry.name)}</Text>
                     )}
                   </View>
                   <Text style={[styles.name, entry.isMe && styles.nameMe]} numberOfLines={1}>
@@ -171,9 +171,7 @@ export default function RankingScreen() {
                       style={styles.donorAvatarImg}
                     />
                   ) : (
-                    <Text style={styles.donorAvatarText}>
-                      {(selectedEntry?.name ?? '?').slice(0, 2).toUpperCase()}
-                    </Text>
+                    <Text style={styles.donorAvatarText}>{initialsFor(selectedEntry?.name)}</Text>
                   )}
                 </View>
                 <Text style={styles.donorName}>

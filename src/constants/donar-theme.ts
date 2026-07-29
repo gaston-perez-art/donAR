@@ -45,3 +45,17 @@ export function formatARS(value: number): string {
   const withDots = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `$${withDots}`;
 }
+
+/**
+ * Iniciales para un avatar: primera letra del primer y del último token
+ * ("Gastón Pérez" -> "GP", ignora nombres del medio). Si el nombre es una
+ * sola palabra (cuentas viejas sin nombre/apellido separados, o el mail como
+ * fallback), usa sus primeros 2 caracteres en vez de una sola letra.
+ */
+export function initialsFor(name?: string | null): string {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return '?';
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}

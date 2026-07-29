@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -22,7 +22,7 @@ export default function FeedScreen() {
   const active = causes.filter((c) => c.status === 'active');
   const completed = causes.filter((c) => c.status === 'completed');
   const myPending = myCauses.filter((c) => c.status !== 'active' && c.status !== 'completed');
-  const initial = (displayName || accountEmail)?.trim().charAt(0).toUpperCase() || '?';
+  const initials = initialsFor(displayName || accountEmail);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -35,7 +35,7 @@ export default function FeedScreen() {
           {avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
           ) : (
-            <Text style={styles.avatarText}>{initial}</Text>
+            <Text style={styles.avatarText}>{initials}</Text>
           )}
         </Pressable>
       </View>

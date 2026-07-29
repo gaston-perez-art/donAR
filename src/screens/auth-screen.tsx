@@ -23,7 +23,12 @@ import { useCauses } from '@/store/causes-store';
 export default function AuthScreen() {
   const { signIn, signUp, requestPasswordReset } = useCauses();
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
-  const [fullName, setFullName] = useState('');
+  // Nombre y apellido por separado (29 jul, pedido de Gastón): un solo campo
+  // de texto libre no garantiza poder sacar las DOS iniciales reales (p.ej.
+  // alguien que solo pone su nombre). Con dos campos obligatorios, siempre
+  // hay nombre + apellido para "GP" en vez de una sola letra.
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -33,7 +38,9 @@ export default function AuthScreen() {
   const valid =
     mode === 'forgot'
       ? email.trim().includes('@')
-      : email.trim().includes('@') && password.length >= 6 && (mode === 'login' || fullName.trim().length >= 2);
+      : email.trim().includes('@') &&
+        password.length >= 6 &&
+        (mode === 'login' || (firstName.trim().length >= 1 && lastName.trim().length >= 1));
 
   const goToMode = (m: 'login' | 'signup' | 'forgot') => {
     setMode(m);
@@ -54,6 +61,7 @@ export default function AuthScreen() {
       return;
     }
 
+    const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
     const { error } =
       mode === 'login' ? await signIn(email, password) : await signUp(email, password, fullName);
     // Si sale bien, el gate de _layout desmonta esta pantalla solo. Si falla,
@@ -121,16 +129,29 @@ export default function AuthScreen() {
           ) : (
             <>
               {mode === 'signup' && (
-                <View style={styles.field}>
-                  <Text style={styles.label}>Nombre y apellido</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Como querés que te vean en DonAR"
-                    placeholderTextColor={Colors.muted}
-                    autoCapitalize="words"
-                    value={fullName}
-                    onChangeText={setFullName}
-                  />
+                <View style={styles.nameRow}>
+                  <View style={[styles.field, styles.nameField]}>
+                    <Text style={styles.label}>Nombre</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Gastón"
+                      placeholderTextColor={Colors.muted}
+                      autoCapitalize="words"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                    />
+                  </View>
+                  <View style={[styles.field, styles.nameField]}>
+                    <Text style={styles.label}>Apellido</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Pérez"
+                      placeholderTextColor={Colors.muted}
+                      autoCapitalize="words"
+                      value={lastName}
+                      onChangeText={setLastName}
+                    />
+                  </View>
                 </View>
               )}
 
@@ -213,6 +234,8 @@ const styles = StyleSheet.create({
   h2: { fontSize: 22, fontWeight: '800', color: Colors.ink, letterSpacing: -0.4 },
   sub: { fontSize: 13.5, color: Colors.muted, lineHeight: 20, marginTop: 6, marginBottom: Spacing.lg },
   field: { marginBottom: Spacing.md },
+  nameRow: { flexDirection: 'row', gap: Spacing.md },
+  nameField: { flex: 1 },
   label: { fontSize: 12.5, color: Colors.muted, fontWeight: '600', marginBottom: Spacing.sm },
   input: {
     borderWidth: 1.5,

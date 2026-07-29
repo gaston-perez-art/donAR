@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { Colors, formatARS, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { levelFor, medalsFor, type Medal } from '@/lib/gamification';
 import { useCauses, type MyActivity } from '@/store/causes-store';
 
@@ -134,9 +134,7 @@ export default function ProfileScreen() {
             ) : avatarUrl ? (
               <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
             ) : (
-              <Text style={styles.avatarText}>
-                {(displayName || accountEmail)?.trim().charAt(0).toUpperCase() || '?'}
-              </Text>
+              <Text style={styles.avatarText}>{initialsFor(displayName || accountEmail)}</Text>
             )}
             <View style={styles.avatarEditBadge}>
               <Text style={styles.avatarEditBadgeText}>✎</Text>
@@ -152,24 +150,23 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Cuenta: el mail siempre está (login obligatorio) */}
-        <View style={styles.accountSection}>
-          <View style={styles.accountLinkedRow}>
-            <Text style={styles.accountLinked} numberOfLines={1}>
-              {accountEmail ?? 'Tu cuenta'}
-            </Text>
-            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
-              {isCurator && (
-                <Pressable onPress={() => setViewAsDonor(false)}>
-                  <Text style={styles.signOutLink}>Volver a curar</Text>
-                </Pressable>
-              )}
-              <Pressable onPress={signOut}>
-                <Text style={styles.signOutLink}>Cerrar sesión</Text>
+        {/* Cuenta: el mail siempre está (login obligatorio). "Cerrar sesión"
+            vive al final de la pantalla (ver más abajo), como en el patrón
+            de apps grandes (Instagram/Uber/Airbnb: cuenta arriba, salir de
+            la cuenta es la última acción). Acá arriba solo lo que hace falta
+            ver de entrada. */}
+        {isCurator && (
+          <View style={styles.accountSection}>
+            <View style={styles.accountLinkedRow}>
+              <Text style={styles.accountLinked} numberOfLines={1}>
+                {accountEmail ?? 'Tu cuenta'}
+              </Text>
+              <Pressable onPress={() => setViewAsDonor(false)}>
+                <Text style={styles.signOutLink}>Volver a curar</Text>
               </Pressable>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Progreso de nivel */}
         <View style={styles.levelCard}>
@@ -269,6 +266,18 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Cuenta / salir: al final, patrón de apps grandes (Instagram,
+            Uber, Airbnb) donde "cerrar sesión" es la última acción de la
+            pantalla de cuenta, no algo que compite arriba con el resto. */}
+        <View style={styles.signOutSection}>
+          <Text style={styles.signOutEmail} numberOfLines={1}>
+            {accountEmail}
+          </Text>
+          <Pressable style={styles.signOutBtn} onPress={signOut}>
+            <Text style={styles.signOutBtnText}>Cerrar sesión</Text>
+          </Pressable>
+        </View>
+
       </ScrollView>
 
       {/* Modal de medalla */}
@@ -357,6 +366,18 @@ const styles = StyleSheet.create({
   },
   accountLinked: { fontSize: 12.5, color: Colors.happy, fontWeight: '700', flexShrink: 1 },
   signOutLink: { fontSize: 12, color: Colors.muted, fontWeight: '700', textDecorationLine: 'underline' },
+  signOutSection: { paddingHorizontal: Spacing.xl, marginTop: Spacing.xxl, alignItems: 'center' },
+  signOutEmail: { fontSize: 12, color: Colors.muted, marginBottom: Spacing.md },
+  signOutBtn: {
+    alignSelf: 'stretch',
+    borderWidth: 1.5,
+    borderColor: '#F3D5D5',
+    backgroundColor: '#FFF7F7',
+    borderRadius: Radius.md,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  signOutBtnText: { color: '#C0392B', fontWeight: '700', fontSize: 14.5 },
   levelCard: {
     marginHorizontal: Spacing.xl,
     marginBottom: Spacing.lg,
