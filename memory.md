@@ -25,6 +25,7 @@ DonAR: app móvil (Android/iOS) + landing web de colectas persona a persona, con
 - Se arranca por el problema y el usuario, no por la tecnología. Validar antes de invertir.
 - Antes de codear: ficha del proyecto cerrada + stack propuesto con OK de Gastón.
 - Cuando una tarea tiene varias piezas grandes (schema + storage + UI + pantalla nueva), armar y mostrar una lista de tareas para no perder el hilo, e ir marcando el avance real.
+- **Paridad iOS/Android SIEMPRE (pedido enfático, 28 jul, en mayúsculas: "esto tiene que ser optimo tanto para iphone como para android. JAMAS NO CONSIDERES ALGUNO").** Todo fix o feature tiene que funcionar bien en las dos plataformas, nunca priorizar una a costa de la otra. Antes de diagnosticar un bug de gestos/layout/UI, preguntar en qué dispositivo se vio (no asumir); y el fix elegido tiene que resolverlo en ambas, no solo en la reportada. Desconfiar de soluciones platform-specific (`Platform.OS`, props solo-Android como `nestedScrollEnabled`, etc.) como fix único.
 
 ---
 
