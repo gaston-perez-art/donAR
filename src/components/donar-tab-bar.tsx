@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { usePathname, useRouter } from 'expo-router';
 import { ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/donar-theme';
@@ -29,11 +29,14 @@ const RIGHT: TabItem[] = [
  * `glass` (fondo, overflow:hidden + borderRadius, contiene el BlurView) y
  * `row` (íconos + el +, encima, sin recorte, el + sobresale con marginTop).
  *
- * Paridad iOS/Android: experimentalBlurMethod="dimezisBlurView" para que
- * Android también bluree. Vidrio claro por ahora; seguir el theme del sistema
- * (claro/oscuro) queda en el backlog (Épica 8). El Liquid Glass nativo real
- * (expo-glass-effect, iOS 26) se suma en el build nativo, con este blur de
- * fallback para Android.
+ * Paridad iOS/Android SIN crashear: en iOS, blur nativo real (BlurView). En
+ * Android NO se usa BlurView: el método de blur en runtime (dimezisBlurView)
+ * es experimental y crashea durante las transiciones de pantalla (se veía la
+ * causa en blanco al abrirla desde el feed). Android usa un vidrio translúcido
+ * sólido (tinte más opaco), estable y visualmente coherente con la pill. El
+ * blur real de Android se retoma con una vía estable en el build nativo (junto
+ * al Liquid Glass nativo de iOS 26, expo-glass-effect). Vidrio claro por ahora;
+ * theme claro/oscuro del sistema queda en el backlog (Épica 8).
  */
 export function DonarTabBar() {
   const pathname = usePathname();
@@ -69,15 +72,14 @@ export function DonarTabBar() {
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]} pointerEvents="box-none">
       <View style={styles.pill} pointerEvents="box-none">
-        {/* Capa de vidrio: redondeada y recortada, solo el fondo. */}
+        {/* Capa de vidrio: redondeada y recortada, solo el fondo. En iOS, blur
+            nativo. En Android, solo el tinte sólido (sin BlurView: el blur en
+            runtime crashea en las transiciones). */}
         <View style={styles.glass}>
-          <BlurView
-            intensity={30}
-            tint="light"
-            experimentalBlurMethod="dimezisBlurView"
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.tint} />
+          {Platform.OS === 'ios' && (
+            <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
+          )}
+          <View style={[styles.tint, Platform.OS === 'android' && styles.tintAndroid]} />
         </View>
 
         {/* Capa de contenido: encima del vidrio, sin recorte (el + sobresale). */}
@@ -136,6 +138,9 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.58)',
   },
+  // Sin blur real detrás: subimos la opacidad para que la pill se lea como
+  // vidrio esmerilado sólido (estable, no crashea).
+  tintAndroid: { backgroundColor: 'rgba(248,251,253,0.94)' },
   row: {
     flex: 1,
     flexDirection: 'row',
