@@ -20,7 +20,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { getReceiptUrl } from '@/lib/supabase';
-import { useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
+import { hoursUntilAutoConfirm, useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
 
 const STATUS_COPY: Record<string, { title: string; sub: string }> = {
   review: {
@@ -385,6 +385,9 @@ export default function CauseDetailScreen() {
                         <Text style={styles.pendAmt}>{formatARS(c.amount)}</Text>
                       </View>
                       {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
+                      <Text style={styles.pendCountdown}>
+                        Si no la revisás, se confirma sola en {hoursUntilAutoConfirm(c.createdAt)} hs
+                      </Text>
                       {receiptUrls[c.id] ? (
                         <Image source={{ uri: receiptUrls[c.id]! }} style={styles.pendReceipt} resizeMode="cover" />
                       ) : (
@@ -642,6 +645,7 @@ const styles = StyleSheet.create({
   pendTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.sm },
   pendName: { fontSize: 14, fontWeight: '700', color: Colors.ink, flex: 1 },
   pendAmt: { fontSize: 15, fontWeight: '800', color: Colors.ink },
+  pendCountdown: { fontSize: 11, color: Colors.muted, marginTop: 4 },
   pendReceipt: { width: '100%', height: 200, borderRadius: Radius.sm, marginTop: Spacing.sm },
   pendReceiptLoading: {
     width: '100%',

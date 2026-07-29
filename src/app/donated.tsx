@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
-import { useCauses, type MyContribution } from '@/store/causes-store';
+import { hoursUntilAutoConfirm, useCauses, type MyContribution } from '@/store/causes-store';
 
 export default function DonatedScreen() {
   const router = useRouter();
@@ -49,7 +49,13 @@ export default function DonatedScreen() {
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {contributions.map((c) => {
             const statusLabel =
-              c.causeStatus === 'completed' ? 'Meta cumplida 🎉' : c.causeStatus === 'closed' ? 'Se cerró sin llegar' : 'En curso';
+              c.status === 'pending'
+                ? `Por confirmar · se confirma sola en ${hoursUntilAutoConfirm(c.createdAt)} hs`
+                : c.causeStatus === 'completed'
+                  ? 'Meta cumplida 🎉'
+                  : c.causeStatus === 'closed'
+                    ? 'Se cerró sin llegar'
+                    : 'En curso';
             const thanks = c.thankYouMessage ?? c.causeClosingMessage;
             return (
               <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.causeId}`)}>

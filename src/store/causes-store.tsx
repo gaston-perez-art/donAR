@@ -27,6 +27,19 @@ import {
  * la data: solo usan este store.
  */
 
+/** Ventana de auto-confirmación de una transferencia (Épica 3.3, decidido 29
+ * jul): si el beneficiado no confirma ni rechaza, se confirma sola. Se
+ * exporta para que las pantallas puedan mostrar el countdown con el mismo
+ * número. */
+export const AUTO_CONFIRM_HOURS = 48;
+
+/** Horas que faltan para que una transferencia `pending` se confirme sola. 0
+ * si ya se venció la ventana (se confirmará en la próxima lectura). */
+export function hoursUntilAutoConfirm(createdAtIso: string): number {
+  const deadline = new Date(createdAtIso).getTime() + AUTO_CONFIRM_HOURS * 3600 * 1000;
+  return Math.max(0, Math.ceil((deadline - Date.now()) / 3600000));
+}
+
 export type EvidenceFile = { uri: string; mimeType: string } | null;
 
 export type CauseDraft = {
@@ -142,6 +155,32 @@ async function autoCloseIfNeeded(rows: any[], uid: string | null): Promise<void>
   if (updates.length) await Promise.all(updates);
 }
 
+/**
+ * Auto-confirmación de transferencias (3.3): igual patrón que el cierre de
+ * causa, sin servidor. Solo persiste si `isOwner` (RLS solo deja UPDATE al
+ * dueño de la causa); si no lo es, la fila se muta igual en memoria para que
+ * el que mira vea el estado correcto, pero no se escribe (el dueño la
+ * persiste en su propia próxima lectura). Devuelve true si confirmó algo
+ * (para saber si hay que refrescar los totales de la causa).
+ */
+async function autoConfirmIfNeeded(rows: any[], isOwner: boolean): Promise<boolean> {
+  const now = Date.now();
+  const windowMs = AUTO_CONFIRM_HOURS * 3600 * 1000;
+  const updates: PromiseLike<unknown>[] = [];
+  let changed = false;
+  for (const row of rows) {
+    if (row.status !== 'pending') continue;
+    if (now - new Date(row.created_at).getTime() < windowMs) continue;
+    row.status = 'approved';
+    changed = true;
+    if (isOwner) {
+      updates.push(supabase.from('contributions').update({ status: 'approved' }).eq('id', row.id));
+    }
+  }
+  if (updates.length) await Promise.all(updates);
+  return changed;
+}
+
 export type ReviewInfo = {
   dniFrontPath: string | null;
   dniBackPath: string | null;
@@ -179,6 +218,8 @@ export type MyContribution = {
   causeEmoji: string;
   causeTint: string;
   causeStatus: Cause['status'];
+  /** 'approved' (confirmado) | 'pending' (transferencia por confirmar) | 'rejected'. */
+  status: string;
   /** Mensaje de cierre general que dejó el beneficiado (si ya cerró la causa). */
   causeClosingMessage: string | null;
   /** Agradecimiento puntual del beneficiado a ESTE aporte, si lo hubo. */
@@ -531,7 +572,15 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         console.warn('fetch contributions error:', error.message);
         return [];
       }
-      return (data ?? []).map((row: any) => ({
+      const rows = data ?? [];
+      // 3.3: si alguna transferencia lleva más de 48hs sin confirmar/rechazar,
+      // se confirma sola. Solo se persiste si quien mira es el dueño de la
+      // causa (RLS); si confirmó algo, los totales de la causa (meta, cierre)
+      // pueden haber cambiado, así que se refrescan.
+      const isOwnerOfCause = causes.find((c) => c.id === causeId)?.mine ?? false;
+      const changed = await autoConfirmIfNeeded(rows, isOwnerOfCause);
+      if (changed && isOwnerOfCause) await fetchCauses(userId);
+      return rows.map((row: any) => ({
         id: row.id,
         name: row.anonymous ? 'Anónimo' : row.donor_id === userId ? 'Vos' : 'Alguien de la comunidad',
         amount: Number(row.amount) || 0,
@@ -543,7 +592,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         receiptPath: row.receipt_url ?? null,
       }));
     },
-    [userId],
+    [userId, causes, fetchCauses],
   );
 
   const donate = useCallback(
@@ -720,7 +769,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase
       .from('contributions')
       .select(
-        'id, amount, message, created_at, cause_id, causes(title, emoji, status, cover_tint, closing_message)',
+        'id, amount, message, created_at, status, cause_id, causes(title, emoji, status, cover_tint, closing_message)',
       )
       .eq('donor_id', uid)
       .order('created_at', { ascending: false });
@@ -731,6 +780,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     }
 
     const rows = data ?? [];
+    // 3.3: el donante no persiste (no es owner, RLS lo bloquearía), pero así
+    // ve "confirmado" en vez de "pendiente" si ya pasaron las 48hs.
+    await autoConfirmIfNeeded(rows, false);
 
     // Agradecimientos puntuales que me dejaron en mis aportes (consulta aparte:
     // cause_thanks referencia dos tablas y así se evita la ambigüedad del embed).
@@ -757,6 +809,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
         causeEmoji: cause?.emoji ?? '💙',
         causeTint: cause?.cover_tint ?? '#CFE6FB',
         causeStatus: (cause?.status ?? 'active') as Cause['status'],
+        status: row.status ?? 'approved',
         causeClosingMessage: cause?.closing_message ?? null,
         thankYouMessage: thanksByContribution.get(row.id) ?? null,
       };
@@ -826,20 +879,27 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       console.warn('getPendingTransfersForMyCauses error:', error.message);
       return [];
     }
-    return (data ?? []).map((row: any) => {
-      const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
-      return {
-        id: row.id,
-        amount: Number(row.amount) || 0,
-        donorName: row.anonymous ? 'Anónimo' : 'Alguien de la comunidad',
-        causeId: row.cause_id,
-        causeTitle: cause?.title ?? 'Causa',
-        causeEmoji: cause?.emoji ?? '💙',
-        causeTint: cause?.cover_tint ?? '#CFE6FB',
-        createdAt: row.created_at,
-      };
-    });
-  }, [userId]);
+    const rows = data ?? [];
+    // 3.3: acá el que mira siempre es el dueño (el query ya filtra por
+    // owner_id), así que lo vencido se confirma y persiste directo.
+    const changed = await autoConfirmIfNeeded(rows, true);
+    if (changed) await fetchCauses(uid);
+    return rows
+      .filter((row: any) => row.status === 'pending')
+      .map((row: any) => {
+        const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+        return {
+          id: row.id,
+          amount: Number(row.amount) || 0,
+          donorName: row.anonymous ? 'Anónimo' : 'Alguien de la comunidad',
+          causeId: row.cause_id,
+          causeTitle: cause?.title ?? 'Causa',
+          causeEmoji: cause?.emoji ?? '💙',
+          causeTint: cause?.cover_tint ?? '#CFE6FB',
+          createdAt: row.created_at,
+        };
+      });
+  }, [userId, fetchCauses]);
 
   const getMonthlyRanking = useCallback(async (): Promise<RankingEntry[]> => {
     const uid = userId ?? (await ensureSession());

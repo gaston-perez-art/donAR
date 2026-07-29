@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, formatARS, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import {
+  hoursUntilAutoConfirm,
   useCauses,
   type MyContribution,
   type PendingTransfer,
@@ -100,6 +101,9 @@ export default function ActivityScreen() {
                       {p.donorName} te transfirió a &quot;{p.causeTitle}&quot;
                     </Text>
                     <Text style={styles.rowSub}>Tocá para revisar el comprobante · {timeAgo(p.createdAt)}</Text>
+                    <Text style={styles.rowCountdown}>
+                      Se confirma sola en {hoursUntilAutoConfirm(p.createdAt)} hs si no la revisás
+                    </Text>
                   </View>
                   <Text style={styles.rowAmt}>{formatARS(p.amount)}</Text>
                 </Pressable>
@@ -163,7 +167,11 @@ export default function ActivityScreen() {
                     <Text style={styles.rowTitle} numberOfLines={1}>
                       Donaste a &quot;{d.causeTitle}&quot;
                     </Text>
-                    <Text style={styles.rowSub}>{timeAgo(d.createdAt)}</Text>
+                    <Text style={styles.rowSub}>
+                      {d.status === 'pending'
+                        ? `Por confirmar · se confirma sola en ${hoursUntilAutoConfirm(d.createdAt)} hs`
+                        : timeAgo(d.createdAt)}
+                    </Text>
                   </View>
                   <Text style={styles.rowAmt}>{formatARS(d.amount)}</Text>
                 </Pressable>
@@ -202,5 +210,6 @@ const styles = StyleSheet.create({
   rowIcon: { width: 40, height: 40, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 13.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 11.5, color: Colors.muted, marginTop: 2 },
+  rowCountdown: { fontSize: 11, color: '#B98900', marginTop: 2 },
   rowAmt: { fontSize: 14, fontWeight: '800', color: Colors.brandDark },
 });
