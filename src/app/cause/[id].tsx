@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { causeInitial, Colors, formatARS, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARS, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { getReceiptUrl } from '@/lib/supabase';
 import { hoursUntilAutoConfirm, useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
 
@@ -295,9 +295,9 @@ export default function CauseDetailScreen() {
             <View style={[styles.fill, { width: `${pct}%`, backgroundColor: done ? Colors.happy : Colors.brand }]} />
           </View>
           <View style={styles.statRow}>
-            <Text style={styles.raised}>{formatARS(cause.raised)}</Text>
+            <Text style={styles.raised}>{formatARSCompact(cause.raised)}</Text>
             <Text style={styles.goal}>
-              meta {formatARS(cause.goal)}
+              meta {formatARSCompact(cause.goal)}
               {'\n'}
               {done ? 'cumplida' : expired ? 'cerrada sin llegar' : `${cause.daysLeft} días restantes`}
             </Text>
@@ -308,7 +308,7 @@ export default function CauseDetailScreen() {
           {closed && (
             <View style={styles.miniReport}>
               <View style={styles.miniReportItem}>
-                <Text style={styles.miniReportValue}>{formatARS(cause.raised)}</Text>
+                <Text style={styles.miniReportValue}>{formatARSCompact(cause.raised)}</Text>
                 <Text style={styles.miniReportLabel}>se juntaron</Text>
               </View>
               <View style={styles.miniReportDivider} />

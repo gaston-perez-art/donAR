@@ -47,20 +47,25 @@ export function formatARS(value: number): string {
 }
 
 /**
- * Versión abreviada, solo para totales grandes en tarjetas chicas (ej. los
- * stats "Donaste"/"Recibiste" del perfil, que rompían a 2 líneas con montos
- * de 8+ cifras). Abrevia recién desde el millón (mismo criterio que
- * Instagram/redes), NUNCA para montos individuales de un aporte: ahí la cifra
- * exacta es parte de la trazabilidad, el eje del producto.
- * 2160000 -> "$2,2M" · 111000000 -> "$111M" · 850000 -> "$850.000" (sin cambios).
+ * Versión abreviada, para totales grandes: montos AGREGADOS/resumen (stats
+ * "Donaste"/"Recibiste" del perfil, recaudado/meta de una causa, mini-reporte
+ * de cierre), nunca para el monto de UN aporte puntual, un pago en curso o
+ * una instrucción de transferencia: ahí la cifra exacta es la trazabilidad
+ * (o, en una transferencia, la seguridad del pago) y no debe abreviarse.
+ * Umbral en $10.000.000 (30 jul, pedido de Gastón: por debajo no vale la
+ * pena, la versión con puntos ya se lee bien). Formato "N Mill" (con espacio,
+ * como se abrevia "millones" en criollo), no "NM": más legible que la
+ * convención de redes en inglés.
+ * 2.160.000 -> "$2.160.000" (sin cambios, no llega al umbral)
+ * 111.000.000 -> "$111 Mill" · 12.300.000 -> "$12,3 Mill".
  */
 export function formatARSCompact(value: number): string {
   const abs = Math.abs(value);
-  if (abs < 1_000_000) return formatARS(value);
+  if (abs < 10_000_000) return formatARS(value);
   const millions = value / 1_000_000;
   const rounded = Math.round(millions * 10) / 10;
   const digits = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace('.', ',');
-  return `$${digits}M`;
+  return `$${digits} Mill`;
 }
 
 /**

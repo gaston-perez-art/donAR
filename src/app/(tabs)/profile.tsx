@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { causeInitial, Colors, formatARS, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { levelFor, medalsFor, type Medal } from '@/lib/gamification';
 import { useCauses, type MyActivity } from '@/store/causes-store';
 
@@ -228,7 +228,7 @@ export default function ProfileScreen() {
                       {c.title}
                     </Text>
                     <Text style={styles.rowSub}>
-                      {active ? `${formatARS(c.raised)} de ${formatARS(c.goal)}` : label}
+                      {active ? `${formatARSCompact(c.raised)} de ${formatARSCompact(c.goal)}` : label}
                     </Text>
                   </View>
                   <View

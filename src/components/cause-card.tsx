@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { causeInitial, Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARSCompact, Radius, Spacing } from '@/constants/donar-theme';
 import type { Cause } from '@/data/causes';
 
 type Props = {
@@ -115,8 +115,8 @@ export function CauseCard({ cause, onPress, mine }: Props) {
 
         <View style={styles.amounts}>
           <Text style={styles.raised}>
-            {formatARS(cause.raised)}{' '}
-            <Text style={styles.goal}>de {formatARS(cause.goal)}</Text>
+            {formatARSCompact(cause.raised)}{' '}
+            <Text style={styles.goal}>de {formatARSCompact(cause.goal)}</Text>
           </Text>
           <Text style={[styles.days, done && styles.daysHappy]}>
             {done ? 'Cumplida ✓' : `${cause.daysLeft} días restantes`}
