@@ -115,6 +115,13 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ⬜ **12.1** El curador puede dar de baja una causa ya publicada (o cumplida/cerrada). **Recomendación:** no borrar de verdad (rompería la trazabilidad de aportes ya hechos, eje de confianza de donAR); en cambio, un estado nuevo (`removed`, distinto de `rejected` para no confundir "nunca se aprobó" con "se aprobó y después se bajó") que la saca de `causes_public` pero preserva contributions/historial. Requiere: (a) estado nuevo en el enum `cause_status`; (b) el panel de curador necesita una vista de "causas activas" (hoy `pendingCauses` solo trae pendientes, no existe forma de navegar/buscar una causa ya publicada desde `curar-screen.tsx`); (c) motivo de la baja, visible al creador (mismo patrón que `review_note`).
 - ⬜ **12.2** Copy/UX de qué ve el creador cuando su causa fue dada de baja después de publicada (distinto tono a un rechazo inicial: "se publicó y después se bajó" ≠ "nunca se aprobó").
 
+## Épica 13 — Marca / assets de las stores
+*Necesario para publicar. Hoy el ícono de la app es el default del scaffold de Expo.*
+
+- 🔨 **13.1** **Ícono/logo de la app.** En proceso (29 jul), método AI-first documentado paso a paso en `docs/proceso-logo.md`. Recorrido: corazón simple (descartado, genérico) → conceptos AR / gesto de dar (SVG) → idea "estilo ML pero una mano dando a otra" → se pasó a IA de imagen (ChatGPT) porque las manos ilustradas no van en SVG a mano → primera versión "muy Mercado Pago" → ajustes de color/forma → feedback (sobrecargado, sin aire, sin jerarquía) → iterando variaciones. Cuando salga la definitiva, Claude deriva con `sharp` los 8 archivos (icon 1024, Play 512, foreground/background/monochrome de Android, splash, favicon, feature graphic) y los engancha en `app.json`.
+- ⬜ **13.2** Screenshots para las fichas de App Store / Play Store (con marco de celular + copy). Recomendado Figma con template, no generador de imágenes.
+- ⬜ **13.3** Feature graphic de Play Store (1024×500): banner con el símbolo + wordmark `donAR` sobre fondo de marca.
+
 ---
 
 ## Bugs / known issues
