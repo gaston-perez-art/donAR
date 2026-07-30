@@ -116,6 +116,8 @@ Ingreso secundario (fase 2): acuerdos con marcas que pagan por acceder a la comu
 
 Lo que se resigna al elegir el fee sobre recaudación en vez del modelo de publicidad puro de Pasito: el ingreso depende del volumen de colectas exitosas, que al principio será bajo. Es un modelo que recién rinde con escala. Se asume conscientemente porque el fee es lo que alinea el producto con la confianza: la app cobra solo cuando el dinero efectivamente llega a la causa.
 
+**Ingreso terciario, idea volada sin validar (30 jul, propuesta de Gastón).** Si el producto se complejiza, funcionalidades premium de alcance o visibilidad en el feed (por ejemplo, destacar una causa o darle más lugar en el descubrimiento) podrían ser una clave de monetización que no dependa de que una causa cierre, a diferencia del fee. Vale la pena registrarla, pero tiene una tensión real que hay que resolver antes de construir algo: choca de frente con dos principios ya documentados acá (sección 5, el curador no juzga si una causa "merece"; sección 9, sin ranking público competitivo por el riesgo ético de jerarquizar necesidades). Pagar por visibilidad es, de hecho, una forma de jerarquizar necesidades según la capacidad de pago de quien pide, justo lo que el diseño evita hoy. Si se explora en el futuro, conviene separar dos variantes muy distintas éticamente: visibilidad pagada por el BENEFACTOR (alguien banca que una causa ajena se vea más, filantropía de segundo orden, más limpio) vs. visibilidad pagada por el BENEFICIADO (paga el que pide ayuda para que lo vean más, mucho más delicado). Sin desarrollar ni decidir; se retoma cuando haya volumen real y valga la pena confrontar esa tensión.
+
 ---
 
 ## 9. Alcance del MVP

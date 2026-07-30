@@ -53,11 +53,11 @@ export function formatARS(value: number): string {
  * una instrucción de transferencia: ahí la cifra exacta es la trazabilidad
  * (o, en una transferencia, la seguridad del pago) y no debe abreviarse.
  * Umbral en $10.000.000 (30 jul, pedido de Gastón: por debajo no vale la
- * pena, la versión con puntos ya se lee bien). Formato "N Mill" (con espacio,
- * como se abrevia "millones" en criollo), no "NM": más legible que la
- * convención de redes en inglés.
+ * pena, la versión con puntos ya se lee bien). Formato "N mill." (minúscula
+ * + punto de abreviación, como "mill." de "millones" en criollo), no "NM":
+ * más legible que la convención de redes en inglés.
  * 2.160.000 -> "$2.160.000" (sin cambios, no llega al umbral)
- * 111.000.000 -> "$111 Mill" · 12.300.000 -> "$12,3 Mill".
+ * 111.000.000 -> "$111 mill." · 12.300.000 -> "$12,3 mill.".
  */
 export function formatARSCompact(value: number): string {
   const abs = Math.abs(value);
@@ -65,7 +65,7 @@ export function formatARSCompact(value: number): string {
   const millions = value / 1_000_000;
   const rounded = Math.round(millions * 10) / 10;
   const digits = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace('.', ',');
-  return `$${digits} Mill`;
+  return `$${digits} mill.`;
 }
 
 /**
