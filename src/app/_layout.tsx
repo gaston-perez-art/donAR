@@ -3,10 +3,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { Colors } from '@/constants/donar-theme';
+import { BrandMark } from '@/components/brand-mark';
+import { Colors, Spacing } from '@/constants/donar-theme';
 import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
 import ResetPasswordScreen from '@/screens/reset-password-screen';
@@ -49,8 +50,9 @@ function AppShell() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg }}>
-        <ActivityIndicator color={Colors.brand} />
+      <View style={styles.loadingScreen}>
+        <BrandMark />
+        <ActivityIndicator color={Colors.brand} style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -100,3 +102,8 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg },
+  loadingSpinner: { marginTop: Spacing.lg },
+});

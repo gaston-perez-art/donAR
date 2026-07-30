@@ -4,7 +4,8 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { BrandMark } from '@/components/brand-mark';
+import { causeInitial, Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { hoursUntilAutoConfirm, useCauses, type MyContribution } from '@/store/causes-store';
 
 /** 3.4: "recién te lo confirmaron" vs. un aporte viejo ya aprobado. Ver la
@@ -48,7 +49,7 @@ export default function DonatedScreen() {
         </View>
       ) : contributions.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>💙</Text>
+          <BrandMark size={64} />
           <Text style={styles.emptyText}>Todavía no donaste a ninguna causa.</Text>
           <Pressable style={styles.emptyBtn} onPress={() => router.navigate('/')}>
             <Text style={styles.emptyBtnText}>Ver causas</Text>
@@ -75,7 +76,7 @@ export default function DonatedScreen() {
                 style={[styles.row, justConfirmed && styles.rowHappy]}
                 onPress={() => router.push(`/cause/${c.causeId}`)}>
                 <View style={[styles.rowIcon, { backgroundColor: c.causeTint }]}>
-                  <Text style={{ fontSize: 18 }}>{c.causeEmoji}</Text>
+                  <Text style={styles.rowIconInitial}>{causeInitial(c.causeTitle)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowTitle} numberOfLines={1}>
@@ -120,7 +121,6 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
-  emptyEmoji: { fontSize: 34 },
   emptyText: { fontSize: 14, color: Colors.muted, marginTop: 10, marginBottom: 16, textAlign: 'center' },
   emptyBtn: { backgroundColor: Colors.brand, borderRadius: Radius.md, paddingHorizontal: 22, paddingVertical: 12 },
   emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.line,
   },
   rowIcon: { width: 42, height: 42, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  rowIconInitial: { color: Colors.brandDark, fontWeight: '700', fontSize: 15 },
   rowHappy: { backgroundColor: '#F0FBF5' },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },

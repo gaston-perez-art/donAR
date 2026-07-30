@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARS, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { getReceiptUrl } from '@/lib/supabase';
 import { hoursUntilAutoConfirm, useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
 
@@ -277,7 +277,7 @@ export default function CauseDetailScreen() {
               {done ? 'Meta alcanzada' : expired ? 'Causa cerrada' : 'Causa verificada por DonAR'}
             </Text>
           </View>
-          {cause.imageUrls.length === 0 && <Text style={styles.heroEmoji}>{cause.emoji}</Text>}
+          {cause.imageUrls.length === 0 && <Text style={styles.heroEmoji}>{causeInitial(cause.title)}</Text>}
           {cause.imageUrls.length > 1 && (
             <View style={styles.heroDots}>
               {cause.imageUrls.map((_, i) => (
@@ -391,9 +391,13 @@ export default function CauseDetailScreen() {
                   </Text>
                   {pending.map((c) => (
                     <Pressable key={c.id} style={styles.pendRow} onPress={() => setReceiptTarget(c)}>
-                      <View style={styles.dot}>
-                        <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
-                      </View>
+                      {c.avatarUrl ? (
+                        <Image source={{ uri: c.avatarUrl }} style={styles.dot} />
+                      ) : (
+                        <View style={styles.dot}>
+                          <Text style={styles.dotText}>{initialsFor(c.name)}</Text>
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text style={styles.pendRowName} numberOfLines={1}>
                           {c.name}
@@ -453,9 +457,13 @@ export default function CauseDetailScreen() {
                   const alreadyThanked = thankedIds.has(c.id);
                   return (
                     <View key={c.id} style={styles.row}>
-                      <View style={styles.dot}>
-                        <Text style={styles.dotText}>{c.name.slice(0, 2).toUpperCase()}</Text>
-                      </View>
+                      {c.avatarUrl ? (
+                        <Image source={{ uri: c.avatarUrl }} style={styles.dot} />
+                      ) : (
+                        <View style={styles.dot}>
+                          <Text style={styles.dotText}>{initialsFor(c.name)}</Text>
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text style={styles.name}>{c.name}</Text>
                         {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
@@ -645,7 +653,14 @@ const styles = StyleSheet.create({
   },
   tickText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   badgeText: { color: Colors.brandDark, fontSize: 11.5, fontWeight: '700' },
-  heroEmoji: { position: 'absolute', bottom: 16, right: 18, fontSize: 58 },
+  heroEmoji: {
+    position: 'absolute',
+    bottom: -4,
+    right: 12,
+    fontSize: 88,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.55)',
+  },
   heroDots: {
     position: 'absolute',
     bottom: 14,

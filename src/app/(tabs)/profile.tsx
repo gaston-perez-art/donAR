@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, formatARS, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARS, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { levelFor, medalsFor, type Medal } from '@/lib/gamification';
 import { useCauses, type MyActivity } from '@/store/causes-store';
 
@@ -194,7 +194,7 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <Pressable style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]} onPress={() => router.push('/donated')}>
             <Text style={styles.statLabel}>Donaste</Text>
-            <Text style={styles.statValue}>{formatARS(a.donatedTotal)}</Text>
+            <Text style={styles.statValue}>{formatARSCompact(a.donatedTotal)}</Text>
             <Text style={styles.statSub}>
               {a.donationsCount} {a.donationsCount === 1 ? 'aporte' : 'aportes'} · {a.causesSupported}{' '}
               {a.causesSupported === 1 ? 'causa' : 'causas'}
@@ -202,7 +202,7 @@ export default function ProfileScreen() {
           </Pressable>
           <Pressable style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]} onPress={() => router.push('/received')}>
             <Text style={styles.statLabel}>Recibiste</Text>
-            <Text style={[styles.statValue, { color: Colors.happy }]}>{formatARS(a.receivedTotal)}</Text>
+            <Text style={[styles.statValue, { color: Colors.happy }]}>{formatARSCompact(a.receivedTotal)}</Text>
             <Text style={styles.statSub}>
               {a.myCausesCount} {a.myCausesCount === 1 ? 'causa creada' : 'causas creadas'}
             </Text>
@@ -221,7 +221,7 @@ export default function ProfileScreen() {
               return (
                 <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.id}`)}>
                   <View style={[styles.rowIcon, { backgroundColor: c.coverTint }]}>
-                    <Text style={{ fontSize: 18 }}>{c.emoji}</Text>
+                    <Text style={styles.rowIconInitial}>{causeInitial(c.title)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
@@ -442,6 +442,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rowIconInitial: { color: Colors.brandDark, fontWeight: '700', fontSize: 15 },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   myCausePill: { backgroundColor: '#FDEFC7', borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },

@@ -1,11 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, formatARS, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARS, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import {
   hoursUntilAutoConfirm,
   useCauses,
@@ -104,9 +104,13 @@ export default function ActivityScreen() {
                   key={p.id}
                   style={[styles.row, styles.rowAlert]}
                   onPress={() => router.push(`/cause/${p.causeId}`)}>
-                  <View style={[styles.rowIcon, { backgroundColor: p.causeTint }]}>
-                    <Text style={{ fontSize: 18 }}>{p.causeEmoji}</Text>
-                  </View>
+                  {p.avatarUrl ? (
+                    <Image source={{ uri: p.avatarUrl }} style={styles.rowIcon} />
+                  ) : (
+                    <View style={[styles.rowIcon, { backgroundColor: Colors.skySoft }]}>
+                      <Text style={styles.rowIconInitials}>{initialsFor(p.donorName)}</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
                       {p.donorName} te transfirió a &quot;{p.causeTitle}&quot;
@@ -127,9 +131,13 @@ export default function ActivityScreen() {
               <Text style={styles.secTitle}>Te llegaron</Text>
               {data.received.map((r) => (
                 <Pressable key={r.id} style={styles.row} onPress={() => router.push(`/cause/${r.causeId}`)}>
-                  <View style={[styles.rowIcon, { backgroundColor: r.causeTint }]}>
-                    <Text style={{ fontSize: 18 }}>{r.causeEmoji}</Text>
-                  </View>
+                  {r.avatarUrl ? (
+                    <Image source={{ uri: r.avatarUrl }} style={styles.rowIcon} />
+                  ) : (
+                    <View style={[styles.rowIcon, { backgroundColor: Colors.skySoft }]}>
+                      <Text style={styles.rowIconInitials}>{initialsFor(r.donorName)}</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
                       {r.donorName} donó a &quot;{r.causeTitle}&quot;
@@ -151,7 +159,7 @@ export default function ActivityScreen() {
                   style={[styles.row, styles.rowHappy]}
                   onPress={() => router.push(`/cause/${d.causeId}`)}>
                   <View style={[styles.rowIcon, { backgroundColor: d.causeTint }]}>
-                    <Text style={{ fontSize: 18 }}>{d.causeEmoji}</Text>
+                    <Text style={styles.rowIconInitials}>{causeInitial(d.causeTitle)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
@@ -177,7 +185,7 @@ export default function ActivityScreen() {
                   style={[styles.row, justConfirmed && styles.rowHappy]}
                   onPress={() => router.push(`/cause/${d.causeId}`)}>
                   <View style={[styles.rowIcon, { backgroundColor: d.causeTint }]}>
-                    <Text style={{ fontSize: 18 }}>{d.causeEmoji}</Text>
+                    <Text style={styles.rowIconInitials}>{causeInitial(d.causeTitle)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.rowTitle} numberOfLines={1}>
@@ -227,6 +235,7 @@ const styles = StyleSheet.create({
   rowAlert: { borderColor: '#F0D9A6', backgroundColor: '#FEF9EE' },
   rowHappy: { borderColor: '#BEE8D3', backgroundColor: '#F0FBF5' },
   rowIcon: { width: 40, height: 40, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  rowIconInitials: { color: Colors.brandDark, fontWeight: '700', fontSize: 13 },
   rowTitle: { fontSize: 13.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 11.5, color: Colors.muted, marginTop: 2 },
   rowCountdown: { fontSize: 11, color: '#B98900', marginTop: 2 },

@@ -190,6 +190,24 @@ async function autoConfirmIfNeeded(rows: any[], isOwner: boolean): Promise<boole
   return changed;
 }
 
+/** Trae display_name/avatar_url de un conjunto de donantes de una sola vez,
+ * para no repetir este join en cada función que lista aportes (evita el bug
+ * de mostrar "Alguien de la comunidad" en vez del donante real). */
+async function fetchDonorProfiles(
+  donorIds: (string | null)[],
+): Promise<Map<string, { displayName: string | null; avatarUrl: string | null }>> {
+  const ids = Array.from(new Set(donorIds.filter((id): id is string => !!id)));
+  if (ids.length === 0) return new Map();
+  const { data, error } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', ids);
+  if (error) {
+    console.warn('fetchDonorProfiles error:', error.message);
+    return new Map();
+  }
+  return new Map(
+    (data ?? []).map((p: any) => [p.id, { displayName: p.display_name ?? null, avatarUrl: p.avatar_url ?? null }]),
+  );
+}
+
 export type ReviewInfo = {
   dniFrontPath: string | null;
   dniBackPath: string | null;
@@ -204,6 +222,10 @@ export type ReviewAction = 'approve' | 'reject' | 'needs_info';
 export type Contribution = {
   id: string;
   name: string;
+  /** null si donó anónimo, o el donante no tiene cuenta recuperable. */
+  donorId: string | null;
+  /** null si donó anónimo o no tiene foto de perfil: cae a iniciales en la UI. */
+  avatarUrl: string | null;
   amount: number;
   message: string | null;
   createdAt: string;
@@ -249,6 +271,8 @@ export type ReceivedContribution = {
   message: string | null;
   createdAt: string;
   donorName: string;
+  donorId: string | null;
+  avatarUrl: string | null;
   causeId: string;
   causeTitle: string;
   causeEmoji: string;
@@ -260,6 +284,8 @@ export type PendingTransfer = {
   id: string;
   amount: number;
   donorName: string;
+  donorId: string | null;
+  avatarUrl: string | null;
   causeId: string;
   causeTitle: string;
   causeEmoji: string;
@@ -683,17 +709,26 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       const isOwnerOfCause = causes.find((c) => c.id === causeId)?.mine ?? false;
       const changed = await autoConfirmIfNeeded(rows, isOwnerOfCause);
       if (changed && isOwnerOfCause) await fetchCauses(userId);
-      return rows.map((row: any) => ({
-        id: row.id,
-        name: row.anonymous ? 'Anónimo' : row.donor_id === userId ? 'Vos' : 'Alguien de la comunidad',
-        amount: Number(row.amount) || 0,
-        message: row.message,
-        createdAt: row.created_at,
-        mine: row.donor_id === userId,
-        status: row.status ?? 'approved',
-        method: row.method ?? 'mp',
-        receiptPath: row.receipt_url ?? null,
-      }));
+
+      const donorProfiles = await fetchDonorProfiles(rows.map((r: any) => r.donor_id));
+
+      return rows.map((row: any) => {
+        const mine = row.donor_id === userId;
+        const profile = row.donor_id ? donorProfiles.get(row.donor_id) : undefined;
+        return {
+          id: row.id,
+          name: row.anonymous ? 'Anónimo' : mine ? 'Vos' : profile?.displayName || 'Alguien de la comunidad',
+          donorId: row.anonymous ? null : (row.donor_id ?? null),
+          avatarUrl: row.anonymous ? null : (profile?.avatarUrl ?? null),
+          amount: Number(row.amount) || 0,
+          message: row.message,
+          createdAt: row.created_at,
+          mine,
+          status: row.status ?? 'approved',
+          method: row.method ?? 'mp',
+          receiptPath: row.receipt_url ?? null,
+        };
+      });
     },
     [userId, causes, fetchCauses],
   );
@@ -950,7 +985,9 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     // Solo approved: misma regla que el total "Recibiste" (causes_public.raised_amount).
     const { data, error } = await supabase
       .from('contributions')
-      .select('id, amount, message, created_at, anonymous, cause_id, causes!inner(title, emoji, cover_tint, owner_id)')
+      .select(
+        'id, amount, message, created_at, anonymous, donor_id, cause_id, causes!inner(title, emoji, cover_tint, owner_id)',
+      )
       .eq('causes.owner_id', uid)
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
@@ -958,14 +995,19 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       console.warn('getReceivedContributions error:', error.message);
       return [];
     }
-    return (data ?? []).map((row: any) => {
+    const rows = data ?? [];
+    const donorProfiles = await fetchDonorProfiles(rows.map((r: any) => r.donor_id));
+    return rows.map((row: any) => {
       const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+      const profile = row.donor_id ? donorProfiles.get(row.donor_id) : undefined;
       return {
         id: row.id,
         amount: Number(row.amount) || 0,
         message: row.message,
         createdAt: row.created_at,
-        donorName: row.anonymous ? 'Anónimo' : 'Alguien de la comunidad',
+        donorName: row.anonymous ? 'Anónimo' : profile?.displayName || 'Alguien de la comunidad',
+        donorId: row.anonymous ? null : (row.donor_id ?? null),
+        avatarUrl: row.anonymous ? null : (profile?.avatarUrl ?? null),
         causeId: row.cause_id,
         causeTitle: cause?.title ?? 'Causa',
         causeEmoji: cause?.emoji ?? '💙',
@@ -979,7 +1021,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     if (!uid) return [];
     const { data, error } = await supabase
       .from('contributions')
-      .select('id, amount, anonymous, created_at, cause_id, causes!inner(title, emoji, cover_tint, owner_id)')
+      .select('id, amount, anonymous, created_at, donor_id, cause_id, causes!inner(title, emoji, cover_tint, owner_id)')
       .eq('causes.owner_id', uid)
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
@@ -992,21 +1034,24 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     // owner_id), así que lo vencido se confirma y persiste directo.
     const changed = await autoConfirmIfNeeded(rows, true);
     if (changed) await fetchCauses(uid);
-    return rows
-      .filter((row: any) => row.status === 'pending')
-      .map((row: any) => {
-        const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
-        return {
-          id: row.id,
-          amount: Number(row.amount) || 0,
-          donorName: row.anonymous ? 'Anónimo' : 'Alguien de la comunidad',
-          causeId: row.cause_id,
-          causeTitle: cause?.title ?? 'Causa',
-          causeEmoji: cause?.emoji ?? '💙',
-          causeTint: cause?.cover_tint ?? '#CFE6FB',
-          createdAt: row.created_at,
-        };
-      });
+    const stillPending = rows.filter((row: any) => row.status === 'pending');
+    const donorProfiles = await fetchDonorProfiles(stillPending.map((r: any) => r.donor_id));
+    return stillPending.map((row: any) => {
+      const cause = Array.isArray(row.causes) ? row.causes[0] : row.causes;
+      const profile = row.donor_id ? donorProfiles.get(row.donor_id) : undefined;
+      return {
+        id: row.id,
+        amount: Number(row.amount) || 0,
+        donorName: row.anonymous ? 'Anónimo' : profile?.displayName || 'Alguien de la comunidad',
+        donorId: row.anonymous ? null : (row.donor_id ?? null),
+        avatarUrl: row.anonymous ? null : (profile?.avatarUrl ?? null),
+        causeId: row.cause_id,
+        causeTitle: cause?.title ?? 'Causa',
+        causeEmoji: cause?.emoji ?? '💙',
+        causeTint: cause?.cover_tint ?? '#CFE6FB',
+        createdAt: row.created_at,
+      };
+    });
   }, [userId, fetchCauses]);
 
   const getMonthlyRanking = useCallback(async (): Promise<RankingEntry[]> => {

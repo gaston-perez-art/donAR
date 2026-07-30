@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { causeInitial, Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import type { Cause } from '@/data/causes';
 
 type Props = {
@@ -96,7 +96,7 @@ export function CauseCard({ cause, onPress, mine }: Props) {
           style={({ pressed }) => [styles.cover, { backgroundColor: cause.coverTint }, pressed && styles.pressed]}
           onPress={onPress}>
           {badge}
-          <Text style={styles.emoji}>{cause.emoji}</Text>
+          <Text style={styles.emoji}>{causeInitial(cause.title)}</Text>
         </Pressable>
       )}
 
@@ -167,7 +167,14 @@ const styles = StyleSheet.create({
   tickText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   badgeText: { color: Colors.brandDark, fontSize: 11.5, fontWeight: '700' },
   badgeTextHappy: { color: '#0F7A49' },
-  emoji: { position: 'absolute', bottom: 10, right: 14, fontSize: 44 },
+  emoji: {
+    position: 'absolute',
+    bottom: -6,
+    right: 10,
+    fontSize: 76,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.55)',
+  },
   dots: {
     position: 'absolute',
     bottom: 10,

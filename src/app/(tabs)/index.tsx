@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BrandMark } from '@/components/brand-mark';
 import { CauseCard } from '@/components/cause-card';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
@@ -87,7 +88,9 @@ export default function FeedScreen() {
 
         {!loading && active.length === 0 && (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>💙</Text>
+            <View style={{ marginBottom: Spacing.md }}>
+              <BrandMark size={64} />
+            </View>
             {myActiveCount > 0 ? (
               <>
                 <Text style={styles.emptyTitle}>Tu causa ya está publicada</Text>
@@ -170,7 +173,6 @@ const styles = StyleSheet.create({
   myCausePillText: { fontSize: 11, fontWeight: '700', color: '#8A6D00' },
   myCausePillTextBad: { color: '#C0392B' },
   empty: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxl },
-  emptyEmoji: { fontSize: 44, marginBottom: Spacing.md },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   emptySub: {
     fontSize: 13,

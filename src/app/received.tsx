@@ -1,10 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
+import { BrandMark } from '@/components/brand-mark';
+import { Colors, formatARS, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type ReceivedContribution } from '@/store/causes-store';
 
 export default function ReceivedScreen() {
@@ -39,7 +40,7 @@ export default function ReceivedScreen() {
         </View>
       ) : contributions.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>💙</Text>
+          <BrandMark size={64} />
           <Text style={styles.emptyText}>
             Todavía no recibiste aportes confirmados. Cuando alguien te done y lo confirmes, va a
             aparecer acá.
@@ -49,9 +50,13 @@ export default function ReceivedScreen() {
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {contributions.map((c) => (
             <Pressable key={c.id} style={styles.row} onPress={() => router.push(`/cause/${c.causeId}`)}>
-              <View style={[styles.rowIcon, { backgroundColor: c.causeTint }]}>
-                <Text style={{ fontSize: 18 }}>{c.causeEmoji}</Text>
-              </View>
+              {c.avatarUrl ? (
+                <Image source={{ uri: c.avatarUrl }} style={styles.rowIcon} />
+              ) : (
+                <View style={[styles.rowIcon, { backgroundColor: Colors.skySoft }]}>
+                  <Text style={styles.rowIconInitial}>{initialsFor(c.donorName)}</Text>
+                </View>
+              )}
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
                   {c.causeTitle}
@@ -92,7 +97,6 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
-  emptyEmoji: { fontSize: 34 },
   emptyText: { fontSize: 14, color: Colors.muted, marginTop: 10, textAlign: 'center', lineHeight: 20 },
   list: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   row: {
@@ -104,6 +108,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.line,
   },
   rowIcon: { width: 42, height: 42, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center' },
+  rowIconInitial: { color: Colors.brandDark, fontWeight: '700', fontSize: 15 },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   rowAmt: { fontSize: 14.5, fontWeight: '800', color: Colors.happy },
