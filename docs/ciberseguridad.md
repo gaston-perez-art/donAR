@@ -28,16 +28,18 @@ De ahí sale el principio de diseño que se adopta desde la revisión del 30 jul
 
 ### 30 jul 2026 — primer barrido, pre-publicación en Play Store
 
-Pedido de Gastón: revisar todo el código antes de subir la app a la store. Alcance: RLS de Supabase (`supabase/schema.sql`), manejo de secretos en el cliente, storage de evidencia, flujo de auth y deep links. **Estado al cierre de esta revisión: hallazgos documentados y SQL de fix redactado; nada corrido todavía en la base real** (no hay service role key ni CLI linkeado en el repo, toda migración la corre Gastón a mano en el SQL Editor).
+Pedido de Gastón: revisar todo el código antes de subir la app a la store. Alcance: RLS de Supabase (`supabase/schema.sql`), manejo de secretos en el cliente, storage de evidencia, flujo de auth y deep links. **Estado: los 4 fixes de RLS/triggers fueron corridos por Gastón en el SQL Editor de Supabase el mismo 30 jul.** Falta un paso: confirmar en caliente que los dos exploits críticos ahora fallan de verdad (ver checklist, sección 6).
 
 | # | Severidad | Hallazgo | Archivo/línea | Estado |
 |---|---|---|---|---|
-| 15.1 | Crítico | Se puede insertar una `contribution` con `status: 'approved'` y monto arbitrario sin haber transferido nada. La policy `contributions insert` solo valida `donor_id`, no `status` ni `method` | `schema.sql:98-99` | Pendiente de aplicar |
-| 15.2 | Crítico | Cualquier usuario puede `update profiles set is_curator = true` sobre sí mismo. Da acceso a leer DNI/selfie de otros y a aprobar/rechazar cualquier causa | `schema.sql:80` | Pendiente de aplicar |
-| 15.3 | Alto | El dueño de una causa puede poner `status: 'active'` él mismo, sin pasar por curaduría | `schema.sql:86` | Pendiente de aplicar |
-| 15.4 | Medio | El dueño de una causa puede alterar `amount` (y otras columnas) de un aporte ajeno al confirmar/rechazar una transferencia | `schema.sql:263-264` | Pendiente de aplicar |
+| 15.1 | Crítico | Se podía insertar una `contribution` con `status: 'approved'` y monto arbitrario sin haber transferido nada. La policy `contributions insert` solo validaba `donor_id`, no `status` ni `method` | `schema.sql:98-99` | ✅ Fix aplicado (30 jul) |
+| 15.2 | Crítico | Cualquier usuario podía `update profiles set is_curator = true` sobre sí mismo. Daba acceso a leer DNI/selfie de otros y a aprobar/rechazar cualquier causa | `schema.sql:80` | ✅ Fix aplicado (30 jul) |
+| 15.3 | Alto | El dueño de una causa podía poner `status: 'active'` él mismo, sin pasar por curaduría | `schema.sql:86` | ✅ Fix aplicado (30 jul) |
+| 15.4 | Medio | El dueño de una causa podía alterar `amount` (y otras columnas) de un aporte ajeno al confirmar/rechazar una transferencia | `schema.sql:263-264` | ✅ Fix aplicado (30 jul) |
 | 15.5 | Bajo | Deep link `donar://reset-password` usa esquema custom, interceptable en teoría por otra app instalada en Android | `app.json` (`scheme`) | Anotado, se resuelve al pasar a build nativo con dominio propio (App Links verificados) |
 | 15.6 | No es código | Falta Privacy Policy publicada y formulario de Data Safety de Play Store, obligatorios porque la app recolecta documento de identidad + selfie (categoría sensible) | — | Texto listo en `docs/privacidad.md`, falta URL pública y completar el formulario en Play Console |
+| 15.7 | No es código | Faltaban Términos y Condiciones de uso | — | Texto listo en `docs/terminos-y-condiciones.md`, falta revisión legal y publicar |
+| 15.8 | No es código, alerta de marca | El dominio candidato `donar-online.com` casi coincide con "Donar Online" (`donaronline.org`), competidor real nombrado en el paper fundacional (sección 3). Riesgo de confusión de marca y posible conflicto legal | — | Detectado 30 jul, decisión de Gastón en pausa (ver `docs/go-to-market.md`, tarea 14.2) |
 
 El detalle de cada hallazgo (por qué es explotable, con qué llamada exacta, y el SQL de fix completo con triggers) vive en el historial de la conversación del 30 jul y en `docs/BACKLOG.md` Épica 15. Los cuatro fixes de RLS/triggers se verificaron contra el código real de `causes-store.tsx` (no son teóricos): son compatibles con el flujo de transferencia, confirmación, auto-cierre y reenvío tras "necesita info" tal como están construidos hoy.
 
@@ -55,19 +57,19 @@ El detalle de cada hallazgo (por qué es explotable, con qué llamada exacta, y 
 
 ## 6. Checklist de seguridad pre-publicación (Play Store)
 
-- [ ] Aplicar los 4 fixes de RLS de la Épica 15 (15.1 a 15.4) en el SQL Editor de Supabase.
+- [x] Aplicar los 4 fixes de RLS de la Épica 15 (15.1 a 15.4) en el SQL Editor de Supabase (corrido 30 jul).
 - [ ] Confirmar en caliente, con una cuenta de prueba, que `update profiles set is_curator = true` sobre la propia cuenta ahora falla.
 - [ ] Confirmar que insertar una `contribution` con `status: 'approved'` fuera del flujo autorizado ahora falla.
+- [ ] Probar el flujo legítimo completo tras el fix: donar por transferencia, confirmar, reenviar tras "necesita info", auto-cierre. Nada de esto debería cambiar de comportamiento para un usuario real.
 - [ ] Pasar el proyecto de Supabase de free tier a un plan pago antes de anunciar el lanzamiento (evita la pausa por inactividad y los techos de almacenamiento/ancho de banda del tier gratuito).
-- [ ] Publicar `docs/privacidad.md` en una URL pública y linkearla en la ficha de Play Store.
+- [ ] Publicar `docs/privacidad.md` y `docs/terminos-y-condiciones.md` en URLs públicas y linkearlas en la ficha de Play Store.
 - [ ] Completar el formulario de Data Safety de Play Console, declarando explícitamente la categoría "información personal sensible / documento de identidad".
-- [ ] Términos y condiciones de uso (pendiente, no armado todavía; es un documento distinto de la política de privacidad).
-- [ ] Revisión legal formal del encuadre "conectar sin custodiar" (paper, sección 11.c). No bloquea subir el MVP a la store, pero sí bloquea escalar y es la pregunta que un usuario informado o la propia Google podrían hacer sobre cómo se maneja el dinero.
+- [ ] Resolver el conflicto de nombre del dominio (15.8) antes de imprimirlo en cualquier material público.
+- [ ] Revisión legal formal del encuadre "conectar sin custodiar" (paper, sección 11.c) y de ambos documentos (`privacidad.md`, `terminos-y-condiciones.md`). No bloquea subir el MVP a la store, pero sí bloquea escalar y es la pregunta que un usuario informado o la propia Google podrían hacer sobre cómo se maneja el dinero.
 
 ## 7. Próximos pasos
 
-1. Gastón corre el SQL de la Épica 15 en el SQL Editor de Supabase (los 4 fixes).
-2. Probar el flujo completo una vez corridos los fixes: donar por transferencia, confirmar, reenviar tras "necesita info", auto-cierre. Nada de esto debería cambiar de comportamiento para un usuario legítimo.
-3. Intentar en caliente los dos exploits críticos (auto-nombrarse curador, insertar una donación "approved" trucha) para confirmar que ahora fallan.
-4. Publicar la Privacy Policy (`docs/privacidad.md`) en una URL real antes de cargar la ficha de Play Store.
-5. Cuando se decida el dominio (`docs/go-to-market.md`, tarea 14.2), mover el contacto de esta política y del proyecto en general a un mail propio (`contacto@donar.ar` o similar) en vez del mail personal de Gastón.
+1. Confirmar en caliente los dos exploits críticos (auto-nombrarse curador, insertar una donación "approved" trucha) para verificar que el SQL corrido el 30 jul los cierra de verdad.
+2. Probar el flujo legítimo completo tras el fix (transferencia, confirmación, reenvío, auto-cierre) para descartar regresiones.
+3. Publicar `docs/privacidad.md` y `docs/terminos-y-condiciones.md` en URLs reales antes de cargar la ficha de Play Store.
+4. Resolver el nombre de dominio (choque con "Donar Online", `docs/go-to-market.md` tarea 14.2) antes de mover el contacto de estos documentos a un mail propio.
