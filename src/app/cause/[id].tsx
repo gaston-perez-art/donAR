@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DonorProfileModal } from '@/components/donor-profile-modal';
 import { causeInitial, Colors, formatARS, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { getReceiptUrl } from '@/lib/supabase';
 import { hoursUntilAutoConfirm, useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
@@ -77,6 +78,11 @@ export default function CauseDetailScreen() {
   const [thankTarget, setThankTarget] = useState<Contribution | null>(null);
   const [thankText, setThankText] = useState('');
   const [sendingThank, setSendingThank] = useState(false);
+  const thankedIds = new Set(thanks.map((t) => t.contributionId));
+
+  // Mini-perfil del donante al tocar su avatar en "Aportes recibidos" (30
+  // jul, pedido de Gastón: la misma vista que ya existe en el ranking).
+  const [selectedContrib, setSelectedContrib] = useState<Contribution | null>(null);
 
   useEffect(() => {
     if (id) getContributions(String(id)).then(setContribs);
@@ -386,9 +392,7 @@ export default function CauseDetailScreen() {
               return (
                 <View style={styles.pendBlock}>
                   <Text style={styles.secTitle}>Transferencias por confirmar</Text>
-                  <Text style={styles.pendHint}>
-                    Tocá una para ver el comprobante y confirmar, o resolvela directo con ✓ / ✕.
-                  </Text>
+                  <Text style={styles.pendHint}>Tocá una para ver el comprobante.</Text>
                   {pending.map((c) => (
                     <Pressable key={c.id} style={styles.pendRow} onPress={() => setReceiptTarget(c)}>
                       {c.avatarUrl ? (
@@ -450,24 +454,28 @@ export default function CauseDetailScreen() {
             // miles); se muestra de a tandas en vez de montar todo junto.
             const visible = expandedContribs ? shown : shown.slice(0, CONTRIBS_PAGE_SIZE);
             const remaining = shown.length - visible.length;
-            const thankedIds = new Set(thanks.map((t) => t.contributionId));
             return (
               <>
                 {visible.map((c) => {
                   const alreadyThanked = thankedIds.has(c.id);
                   return (
                     <View key={c.id} style={styles.row}>
-                      {c.avatarUrl ? (
-                        <Image source={{ uri: c.avatarUrl }} style={styles.dot} />
-                      ) : (
-                        <View style={styles.dot}>
-                          <Text style={styles.dotText}>{initialsFor(c.name)}</Text>
+                      <Pressable
+                        style={styles.rowTapArea}
+                        disabled={!c.donorId}
+                        onPress={() => setSelectedContrib(c)}>
+                        {c.avatarUrl ? (
+                          <Image source={{ uri: c.avatarUrl }} style={styles.dot} />
+                        ) : (
+                          <View style={styles.dot}>
+                            <Text style={styles.dotText}>{initialsFor(c.name)}</Text>
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.name}>{c.name}</Text>
+                          {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
                         </View>
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.name}>{c.name}</Text>
-                        {c.message ? <Text style={styles.msg}>“{c.message}”</Text> : null}
-                      </View>
+                      </Pressable>
                       <Text style={styles.amt}>+{formatARS(c.amount)}</Text>
                       {closed && isOwner && (
                         <Pressable
@@ -512,6 +520,26 @@ export default function CauseDetailScreen() {
           </Pressable>
         )}
       </View>
+
+      <DonorProfileModal
+        donorId={selectedContrib?.donorId ?? null}
+        fallbackName={selectedContrib?.name}
+        fallbackAvatarUrl={selectedContrib?.avatarUrl}
+        onClose={() => setSelectedContrib(null)}
+        action={
+          closed && isOwner && selectedContrib
+            ? {
+                label: 'Agradecer',
+                doneLabel: 'Agradecido ✓',
+                done: thankedIds.has(selectedContrib.id),
+                onPress: () => {
+                  openThank(selectedContrib);
+                  setSelectedContrib(null);
+                },
+              }
+            : undefined
+        }
+      />
 
       <Modal visible={!!thankTarget} transparent animationType="fade" onRequestClose={() => setThankTarget(null)}>
         <Pressable style={styles.backdrop} onPress={() => setThankTarget(null)}>
@@ -706,6 +734,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.line,
   },
+  rowTapArea: { flexDirection: 'row', alignItems: 'center', gap: 11, flex: 1 },
   dot: {
     width: 34,
     height: 34,

@@ -3,10 +3,9 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { BrandMark } from '@/components/brand-mark';
 import { Colors, Spacing } from '@/constants/donar-theme';
 import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
@@ -49,10 +48,14 @@ function AppShell() {
   }, [beginPasswordRecovery]);
 
   if (loading) {
+    // Mismo azul y mismo asset (símbolo + wordmark) que el splash nativo del
+    // arranque (app.json): continúa la pantalla en vez de cortar a blanco,
+    // pedido de Gastón ("para eso la hicimos"). SplashScreen.hideAsync() ya
+    // se disparó, así que sin esto había un salto azul -> blanco.
     return (
       <View style={styles.loadingScreen}>
-        <BrandMark />
-        <ActivityIndicator color={Colors.brand} style={styles.loadingSpinner} />
+        <Image source={require('../../assets/images/splash-icon.png')} style={styles.loadingSplash} />
+        <ActivityIndicator color="#fff" style={styles.loadingSpinner} />
       </View>
     );
   }
@@ -104,6 +107,7 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bg },
+  loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.brand },
+  loadingSplash: { width: 220, height: 220, resizeMode: 'contain' },
   loadingSpinner: { marginTop: Spacing.lg },
 });

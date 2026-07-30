@@ -1,14 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DonorProfileModal } from '@/components/donor-profile-modal';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
-import { Colors, formatARS, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
-import { levelFor, medalsFor } from '@/lib/gamification';
+import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { supabase } from '@/lib/supabase';
-import { useCauses, type DonorProfile, type RankingEntry } from '@/store/causes-store';
+import { useCauses, type RankingEntry } from '@/store/causes-store';
 
 const MONTHS = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -20,36 +20,20 @@ function currentMonthLabel(): string {
   return `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 }
 
-/** "Se sumó en marzo 2026", para el mini-perfil. */
-function memberSinceLabel(iso: string): string {
-  const d = new Date(iso);
-  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-}
-
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function RankingScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
-  const { getMonthlyRanking, getDonorProfile } = useCauses();
+  const { getMonthlyRanking } = useCauses();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [registered, setRegistered] = useState<boolean | null>(null);
 
   // Mini-perfil (29 jul, "estilo Airbnb" al tocar a alguien del ranking).
+  // Componente extraído a DonorProfileModal (30 jul) para reusarlo en
+  // "Aportes recibidos" también.
   const [selectedEntry, setSelectedEntry] = useState<RankingEntry | null>(null);
-  const [donorProfile, setDonorProfile] = useState<DonorProfile | null>(null);
-  const [loadingDonor, setLoadingDonor] = useState(false);
-
-  const openDonor = (entry: RankingEntry) => {
-    setSelectedEntry(entry);
-    setDonorProfile(null);
-    setLoadingDonor(true);
-    getDonorProfile(entry.donorId).then((p) => {
-      setDonorProfile(p);
-      setLoadingDonor(false);
-    });
-  };
 
   // Mismo fix que profile.tsx: spinner de pantalla completa solo la primera
   // vez, no en cada re-foco de la tab.
@@ -123,7 +107,7 @@ export default function RankingScreen() {
                 <Pressable
                   key={entry.donorId}
                   style={[styles.row, entry.isMe && styles.rowMe]}
-                  onPress={() => openDonor(entry)}>
+                  onPress={() => setSelectedEntry(entry)}>
                   <View style={styles.posWrap}>
                     {position <= 3 ? (
                       <Text style={styles.medal}>{MEDALS[position - 1]}</Text>
@@ -156,89 +140,14 @@ export default function RankingScreen() {
         </ScrollView>
       )}
 
-      <Modal
-        visible={!!selectedEntry}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedEntry(null)}>
-        <Pressable style={styles.backdrop} onPress={() => setSelectedEntry(null)}>
-          <Pressable style={styles.donorCard} onPress={(e) => e.stopPropagation()}>
-            {loadingDonor ? (
-              <View style={styles.donorLoading}>
-                <ActivityIndicator color={Colors.brand} />
-              </View>
-            ) : (
-              <>
-                <View style={styles.donorAvatarWrap}>
-                  {(donorProfile?.avatarUrl ?? selectedEntry?.avatarUrl) ? (
-                    <Image
-                      source={{ uri: (donorProfile?.avatarUrl ?? selectedEntry?.avatarUrl)! }}
-                      style={styles.donorAvatarImg}
-                    />
-                  ) : (
-                    <Text style={styles.donorAvatarText}>{initialsFor(selectedEntry?.name)}</Text>
-                  )}
-                </View>
-                <Text style={styles.donorName}>
-                  {selectedEntry?.name}
-                  {selectedEntry?.isMe ? ' (vos)' : ''}
-                </Text>
-                {donorProfile && (
-                  <>
-                    <View style={styles.donorLevelPill}>
-                      <Text style={styles.donorLevelPillText}>
-                        Nivel {levelFor(donorProfile.causesSupported).number} ·{' '}
-                        {levelFor(donorProfile.causesSupported).name}
-                      </Text>
-                    </View>
-                    <Text style={styles.donorSince}>Se sumó en {memberSinceLabel(donorProfile.memberSince)}</Text>
-
-                    <View style={styles.donorDonatedWrap}>
-                      <Text style={styles.donorDonatedValue}>{formatARS(donorProfile.donatedTotal)}</Text>
-                      <Text style={styles.donorDonatedLabel}>donados en total</Text>
-                    </View>
-
-                    <View style={styles.donorStatsRow}>
-                      <View style={styles.donorStatItem}>
-                        <Text style={styles.donorStatValue}>{selectedEntry?.points}</Text>
-                        <Text style={styles.donorStatLabel}>puntos este mes</Text>
-                      </View>
-                      <View style={styles.donorStatDivider} />
-                      <View style={styles.donorStatItem}>
-                        <Text style={styles.donorStatValue}>{donorProfile.causesSupported}</Text>
-                        <Text style={styles.donorStatLabel}>
-                          {donorProfile.causesSupported === 1 ? 'causa apoyada' : 'causas apoyadas'}
-                        </Text>
-                      </View>
-                      <View style={styles.donorStatDivider} />
-                      <View style={styles.donorStatItem}>
-                        <Text style={styles.donorStatValue}>{donorProfile.completedSupported}</Text>
-                        <Text style={styles.donorStatLabel}>
-                          {donorProfile.completedSupported === 1 ? 'meta cumplida' : 'metas cumplidas'}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.donorMedalRow}>
-                      {medalsFor(donorProfile).map((m) => (
-                        <View key={m.key} style={[styles.donorMedal, !m.earned && styles.donorMedalLocked]}>
-                          <Text style={[styles.donorMedalEmoji, !m.earned && styles.donorMedalEmojiLocked]}>
-                            {m.emoji}
-                          </Text>
-                        </View>
-                      ))}
-                    </View>
-                  </>
-                )}
-
-                <Pressable style={styles.donorClose} onPress={() => setSelectedEntry(null)}>
-                  <Text style={styles.donorCloseText}>Cerrar</Text>
-                </Pressable>
-              </>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <DonorProfileModal
+        donorId={selectedEntry?.donorId ?? null}
+        fallbackName={selectedEntry?.name}
+        fallbackAvatarUrl={selectedEntry?.avatarUrl}
+        isMe={selectedEntry?.isMe}
+        monthlyPoints={selectedEntry?.points}
+        onClose={() => setSelectedEntry(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -309,80 +218,4 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     maxWidth: 280,
   },
-
-  // Mini-perfil (modal "estilo Airbnb" al tocar a alguien del ranking)
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(20,40,60,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: Spacing.xl,
-  },
-  donorCard: {
-    width: '100%',
-    maxWidth: 340,
-    backgroundColor: '#fff',
-    borderRadius: Radius.xl,
-    padding: Spacing.xxl,
-    alignItems: 'center',
-  },
-  donorLoading: { height: 220, alignItems: 'center', justifyContent: 'center' },
-  donorAvatarWrap: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: Colors.skySoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginBottom: Spacing.md,
-  },
-  donorAvatarImg: { width: 84, height: 84 },
-  donorAvatarText: { color: Colors.brandDark, fontWeight: '800', fontSize: 26 },
-  donorName: { fontSize: 19, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3, textAlign: 'center' },
-  donorLevelPill: {
-    marginTop: 10,
-    backgroundColor: Colors.skySoft,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 13,
-    paddingVertical: 6,
-  },
-  donorLevelPillText: { color: Colors.brandDark, fontWeight: '700', fontSize: 12.5 },
-  donorSince: { fontSize: 12, color: Colors.muted, marginTop: 8 },
-  donorDonatedWrap: { alignItems: 'center', marginTop: Spacing.lg },
-  donorDonatedValue: { fontSize: 26, fontWeight: '800', color: Colors.brandDark, letterSpacing: -0.5 },
-  donorDonatedLabel: { fontSize: 12, color: Colors.muted, marginTop: 2 },
-  donorStatsRow: {
-    flexDirection: 'row',
-    alignSelf: 'stretch',
-    backgroundColor: Colors.skyTint,
-    borderRadius: Radius.md,
-    paddingVertical: Spacing.lg,
-    marginTop: Spacing.xl,
-  },
-  donorStatItem: { flex: 1, alignItems: 'center' },
-  donorStatValue: { fontSize: 17, fontWeight: '800', color: Colors.ink },
-  donorStatLabel: { fontSize: 10.5, color: Colors.muted, marginTop: 2, textAlign: 'center' },
-  donorStatDivider: { width: 1, backgroundColor: Colors.line },
-  donorMedalRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xl },
-  donorMedal: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FDEFC7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  donorMedalLocked: { backgroundColor: '#F1F4F7' },
-  donorMedalEmoji: { fontSize: 20 },
-  donorMedalEmojiLocked: { opacity: 0.3 },
-  donorClose: {
-    alignSelf: 'stretch',
-    backgroundColor: Colors.brand,
-    borderRadius: Radius.md,
-    padding: 15,
-    alignItems: 'center',
-    marginTop: Spacing.xxl,
-  },
-  donorCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
