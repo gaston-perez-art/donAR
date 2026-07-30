@@ -2,7 +2,7 @@
 
 App P2P de colectas solidarias con curaduría de causas, gamificación por reconocimiento y trazabilidad del dinero como eje de confianza. Este repo es el POC móvil (iPhone y Android) para salir a validar.
 
-Documento fundacional, contexto y prototipo de diseño en `docs/` (`paper-fundacional-donar.md`, `CONTEXTO.md`, `prototipo-donar.html`). Backlog vivo en `docs/BACKLOG.md`.
+Documento fundacional, contexto y prototipo de diseño en `docs/` (`paper-fundacional-donar.md`, `CONTEXTO.md`, `prototipo-donar.html`). Backlog vivo en `docs/BACKLOG.md`. Go-to-market (plan de marketing, landing y financiación, con elevator pitch y deck) en `docs/go-to-market.md`.
 
 ## Stack
 
@@ -113,6 +113,7 @@ scripts/
 docs/
   proceso-logo.md      registro AI-first de cómo se hizo el ícono/logo
   logo-preview.html    vista previa de los assets del ícono (registro visual)
+  go-to-market.md      plan de marketing + landing + financiación (pitch, deck)
 ```
 
 ## Encuadre legal (clave)

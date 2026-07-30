@@ -2,7 +2,7 @@
 
 Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia. No es el estado del código (eso vive en `memory.md`); acá vive el "qué falta y en qué orden".
 
-Última actualización: 29 de julio de 2026.
+Última actualización: 30 de julio de 2026.
 
 **Estados:** ✅ hecho · 🔨 en curso · ⬜ pendiente · 🐞 bug · 🅿️ parqueado (fuera del MVP por ahora) · ❓ decisión abierta
 
@@ -121,6 +121,18 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 - ✅ **13.1** **Ícono/logo de la app — TERMINADO (29 jul).** Una mano abierta con un corazón héroe encima, sobre squircle celeste degradé. Método AI-first documentado paso a paso en `docs/proceso-logo.md` (corazón simple descartado → conceptos AR/gesto en SVG → idea "estilo ML pero una mano dando a otra" → salto a IA de imagen porque las manos ilustradas no van en SVG a mano → "muy Mercado Pago" → ajustes → feedback sobrecargado/sin aire → variación elegida). Los 8 archivos se generan desde una imagen fuente con `scripts/generate-icons.mjs` (`sharp` + `opentype.js`): icon 1024, Play 512, foreground/background/monochrome de Android, splash (con wordmark "donAR" vectorizado), favicon. Enganchados en `app.json`. Vista previa/registro: `docs/logo-preview.html`. **Wordmark:** solo símbolo en el ícono (el SO pone "DonAR" debajo); `donAR` va dentro de la app (login + header) y en el splash — modelo Facebook.
 - ⬜ **13.2** Screenshots para las fichas de App Store / Play Store (con marco de celular + copy). Recomendado Figma con template, no generador de imágenes.
 - ✅ **13.3** Feature graphic de Play Store (1024×500) — HECHO (29 jul). Banner con símbolo + wordmark `donAR` + tagline sobre el degradé de marca, armado por composición con `scripts/generate-feature-graphic.mjs` (sin IA). En `assets/images/store/play-feature-graphic-1024x500.png`.
+
+## Épica 14 — Go-to-market y financiación
+*Capítulo aparte pedido por Gastón (30 jul): cómo se marketinea, se presenta y se financia donAR. El plan completo vive en `docs/go-to-market.md` (marketing + landing + pitch); acá solo las tareas ejecutables que salen de él.*
+
+- ✅ **14.1** Plan escrito (30 jul): plan de marketing (insight "quiere ayudar pero desconfía", growth loop nativo del share de causa, fases 0/1/2, canales priorizados), plan de la landing (one-pager, hero con mockup 3D de screenshots REALES, estructura sección por sección con copy borrador), plan de financiación (dos caminos: impacto/subsidios como mejor fit hoy vs. pre-seed VC con la historia "infraestructura de confianza"; elevator pitch redactado; deck de 12 slides; objeciones con respuesta). En `docs/go-to-market.md`.
+- ⬜ **14.2** Chequear y registrar dominio (`donar.ar` / `dona.ar` en NIC Argentina). Barato y urgente: bloquea la landing y define la marca web.
+- ⬜ **14.3** Landing v1: estática (HTML/CSS o Astro), hero con mockup 3D (screenshots reales + frame + CSS perspective, NO imagen generada por IA de una UI inventada), captura de mail pre-stores, OG tags para WhatsApp, analytics. Hosting Vercel/Netlify.
+- ⬜ **14.4** Video-demo de 60 segundos del recorrido completo (crear → verificar → donar → confirmar → cerrar → agradecer). Triple uso: pitch, prensa, landing.
+- ⬜ **14.5** Reclutar 10 a 15 causas semilla (fase 0) con metas alcanzables. El criterio es calidad y cercanía, no volumen.
+- ❓ **14.6** Decidir eje emocional de marca ("Ayudá sin dudar" vs. "La ayuda que llega" vs. otras): testear con gente real, no en el escritorio.
+- ❓ **14.7** Definir monto del ask y camino (impacto/subsidio primero vs. pre-seed). Decisión de Gastón, con la estructura de uso de fondos ya propuesta en el doc. Prerequisitos del pitch: opinión legal escrita + fee definido + números de fase 1.
+- 🅿️ **14.8** Página web pública de cada causa (`/c/[id]`): a dónde cae el link compartido por WhatsApp para quien no tiene la app. Es el eslabón más importante del growth loop, pero es producto (no solo landing); se prioriza cuando arranque la fase 1.
 
 ---
 
