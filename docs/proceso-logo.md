@@ -120,7 +120,32 @@ RULES: no text, no letters, soft shadow to separate shapes (no hard outline),
 high contrast, read clearly at small sizes. Square 1024x1024.
 ```
 
-**Estado:** esperando las variaciones de ChatGPT para elegir la definitiva.
+### 9. Variación elegida + limpieza para producción
+De las 4 variaciones, Gastón eligió la **variación 1**: una sola mano abierta (palma arriba) con el corazón como héroe flotando encima, mucho aire, sobre el squircle celeste degradé. Resolvió todo el feedback de la iteración 6.
+
+Para poder derivar los assets hacía falta la imagen "limpia" (sin la lámina de presentación que ChatGPT arma por default). Se pidieron **dos exportaciones en mensajes separados** (clave: "nothing else, no glow, no text, edge to edge"):
+1. **FULL ICON** — 1024², celeste full-bleed hasta los bordes, sin transparencia. Salió perfecta (1254×1254). Es la fuente: `assets/images/fuente-icono.png`.
+2. **SYMBOL ONLY** sobre verde chroma — salió borrosa/con glow, **descartada**. No hizo falta: el símbolo se extrajo del FULL ICON, que tenía separación nítida.
+
+### 10. Generación de los 8 assets (Claude + `sharp`)
+Script reproducible: **`scripts/generate-icons.mjs`** (usa `sharp` + `opentype.js`, instalados aparte para no engordar la app). Qué hace:
+- **Sondeo de color** de la fuente: el fondo celeste tiene `min(R,G,B) ≤ ~79`, el símbolo blanco `~253` → separación limpísima. Umbral 140-210 sobre `min(R,G,B)` → máscara nítida del símbolo, sin halo.
+- Del FULL ICON: `icon.png` 1024 (iOS/App Store, **sin alpha** como exige Apple), `store/play-icon-512.png`, `favicon.png` 48.
+- Del símbolo extraído (blanco/transparente, recortado a bbox 681×508): `android-icon-foreground.png` y `android-icon-monochrome.png` (símbolo centrado al 62%, la safe zone de Android), `splash-icon.png`.
+- `android-icon-background.png`: degradé celeste generado por SVG.
+- **Splash con wordmark** (decisión de Gastón, "modelo Facebook"): símbolo + **"donAR" en blanco** debajo, vectorizado desde `SFNSRounded.ttf` (la misma redondeada que usa la app) con `opentype.js`, engordado con stroke para simular el peso extrabold del logotipo. En blanco porque el bicolor azul/celeste se perdería sobre el fondo celeste.
+- `app.json`: `adaptiveIcon.backgroundColor` y `splash backgroundColor` pasados a `#1E88E5` (el splash necesita fondo celeste para que el símbolo/wordmark blancos contrasten).
+
+**Verificación:** vista previa en artifact (los 8 assets en iOS a 60/40/29px, Android recortado en las 3 formas, monocromo teñido, splash) → OK visual de Gastón ("me encantó"). El preview quedó guardado como registro permanente en **`docs/logo-preview.html`** (autocontenido, con las imágenes embebidas). Artifact de la sesión: https://claude.ai/code/artifact/07c0f767-061a-4d46-9b8b-f64fe7500a5b
+
+**Estado:** ✅ ícono terminado y en el repo, enganchado en `app.json`. Pendiente: el feature graphic 1024×500 de Play (banner con símbolo + wordmark), aparte.
+
+---
+
+## Sistema de identidad (dónde va símbolo vs. wordmark)
+Regla, tal cual el modelo Facebook que disparó Gastón:
+- **Solo el símbolo** → el ícono de la app (home del celular + stores). Nunca lleva texto adentro; el nombre "DonAR" lo pone el sistema operativo debajo del ícono. Meter texto en el ícono es error (ilegible chico, lo penalizan las stores).
+- **El wordmark `donAR`** → dentro de la app (login grande + header del feed) y en el splash (símbolo + "donAR" debajo). También irá en marketing (feature graphic, landing).
 
 ---
 
@@ -135,19 +160,18 @@ Sirven para cualquier iteración futura del logo o de otros assets:
 ---
 
 ## División de trabajo (IA de imagen ↔ Claude/`sharp`)
-**ChatGPT/DALL·E entrega 1-2 masters:** (1) el ícono final cuadrado 1024×1024, fondo pleno; (2) opcional, solo las manos+corazón con aire, para la capa foreground de Android (fondo transparente o verde liso recortable).
+Regla que funcionó: **ChatGPT/DALL·E entrega UN master** (el ícono full-bleed 1024², fondo pleno). Los 8 archivos finales NO se le piden a la IA (no maneja bien transparencia, tamaños ni capas): los deriva Claude localmente con `sharp` + `opentype.js` vía `scripts/generate-icons.mjs`. El símbolo transparente que necesitan las capas de Android se **extrae del master** por umbral de color (más confiable que pedirle transparencia a la IA).
 
-**Claude deriva localmente con `sharp` los 8 archivos finales:**
-
-| Archivo | Para qué |
+| Archivo | Cómo se deriva |
 |---|---|
-| `assets/images/icon.png` 1024² | ícono principal iOS + App Store |
-| ícono 512² | ficha de Play Store |
-| `assets/images/android-icon-foreground.png` | capa de manos (Android adaptable) |
-| `assets/images/android-icon-background.png` | fondo celeste (Android) |
-| `assets/images/android-icon-monochrome.png` | ícono monocromo temado (Android 13+) |
-| `assets/images/splash-icon.png` | pantalla de carga |
-| `assets/images/favicon.png` | web |
-| feature graphic 1024×500 | banner de la ficha de Play (se arma aparte: logo + wordmark) |
+| `assets/images/icon.png` 1024² | resize del master, sin alpha (iOS + App Store) |
+| `assets/images/store/play-icon-512.png` | resize del master (ficha de Play Store) |
+| `assets/images/android-icon-foreground.png` | símbolo extraído, centrado al 62% (Android adaptable) |
+| `assets/images/android-icon-background.png` | degradé celeste generado por SVG |
+| `assets/images/android-icon-monochrome.png` | símbolo extraído, blanco/transparente (Android 13+) |
+| `assets/images/splash-icon.png` | símbolo + wordmark "donAR" vectorizado (SF Rounded) |
+| `assets/images/favicon.png` 48² | resize del master (web) |
+| `assets/images/fuente-icono.png` | el master original, guardado como fuente |
+| feature graphic 1024×500 | pendiente, se arma aparte (símbolo + wordmark) |
 
-Todos se enganchan en `app.json` (`icon`, `android.adaptiveIcon.*`, `web.favicon`, `expo-splash-screen`).
+Todos enganchados en `app.json` (`icon`, `android.adaptiveIcon.*`, `web.favicon`, `expo-splash-screen`). Para regenerar todo desde la fuente: ver el header de `scripts/generate-icons.mjs`.

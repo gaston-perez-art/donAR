@@ -107,6 +107,11 @@ supabase/
   schema.sql           esquema completo + migraciones al final, fecha por fecha
 scripts/
   seed-demo-cause.mjs  siembra una causa ajena para probar donar
+  generate-icons.mjs   genera los 8 assets del ícono desde una imagen fuente
+                       (ver docs/proceso-logo.md)
+docs/
+  proceso-logo.md      registro AI-first de cómo se hizo el ícono/logo
+  logo-preview.html    vista previa de los assets del ícono (registro visual)
 ```
 
 ## Encuadre legal (clave)
