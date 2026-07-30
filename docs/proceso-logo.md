@@ -138,7 +138,10 @@ Script reproducible: **`scripts/generate-icons.mjs`** (usa `sharp` + `opentype.j
 
 **Verificación:** vista previa en artifact (los 8 assets en iOS a 60/40/29px, Android recortado en las 3 formas, monocromo teñido, splash) → OK visual de Gastón ("me encantó"). El preview quedó guardado como registro permanente en **`docs/logo-preview.html`** (autocontenido, con las imágenes embebidas). Artifact de la sesión: https://claude.ai/code/artifact/07c0f767-061a-4d46-9b8b-f64fe7500a5b
 
-**Estado:** ✅ ícono terminado y en el repo, enganchado en `app.json`. Pendiente: el feature graphic 1024×500 de Play (banner con símbolo + wordmark), aparte.
+### 11. Feature graphic de Play (1024×500)
+Armado por composición, **sin IA**, con `scripts/generate-feature-graphic.mjs`: degradé de marca (con dos círculos blancos sutiles al 5-6% para que no sea un rectángulo plano) + el símbolo extraído de la fuente + el wordmark `donAR` y el tagline *"Colectas solidarias verificadas"* (el del login), todo vectorizado desde SF Rounded, en blanco. **Lockup centrado con márgenes** a propósito: Play a veces superpone controles sobre el banner, así que nada crítico va en los bordes. Guardado en `assets/images/store/play-feature-graphic-1024x500.png`. Verificado con preview + simulación de la ficha, OK de Gastón.
+
+**Estado:** ✅ ícono + feature graphic terminados y en el repo (`app.json` enganchado). Ya están todos los assets de marca para publicar; solo quedan los **screenshots** de las fichas (13.2), que se hacen con capturas reales de la app + Figma, no acá.
 
 ---
 

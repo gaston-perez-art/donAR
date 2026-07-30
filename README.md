@@ -109,6 +109,7 @@ scripts/
   seed-demo-cause.mjs  siembra una causa ajena para probar donar
   generate-icons.mjs   genera los 8 assets del ícono desde una imagen fuente
                        (ver docs/proceso-logo.md)
+  generate-feature-graphic.mjs  arma el banner 1024×500 de la ficha de Play
 docs/
   proceso-logo.md      registro AI-first de cómo se hizo el ícono/logo
   logo-preview.html    vista previa de los assets del ícono (registro visual)

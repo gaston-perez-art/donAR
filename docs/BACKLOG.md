@@ -120,7 +120,7 @@ Backlog vivo del producto. Ordena lo que hay que hacer por épicas y dependencia
 
 - ✅ **13.1** **Ícono/logo de la app — TERMINADO (29 jul).** Una mano abierta con un corazón héroe encima, sobre squircle celeste degradé. Método AI-first documentado paso a paso en `docs/proceso-logo.md` (corazón simple descartado → conceptos AR/gesto en SVG → idea "estilo ML pero una mano dando a otra" → salto a IA de imagen porque las manos ilustradas no van en SVG a mano → "muy Mercado Pago" → ajustes → feedback sobrecargado/sin aire → variación elegida). Los 8 archivos se generan desde una imagen fuente con `scripts/generate-icons.mjs` (`sharp` + `opentype.js`): icon 1024, Play 512, foreground/background/monochrome de Android, splash (con wordmark "donAR" vectorizado), favicon. Enganchados en `app.json`. Vista previa/registro: `docs/logo-preview.html`. **Wordmark:** solo símbolo en el ícono (el SO pone "DonAR" debajo); `donAR` va dentro de la app (login + header) y en el splash — modelo Facebook.
 - ⬜ **13.2** Screenshots para las fichas de App Store / Play Store (con marco de celular + copy). Recomendado Figma con template, no generador de imágenes.
-- ⬜ **13.3** Feature graphic de Play Store (1024×500): banner con el símbolo + wordmark `donAR` sobre fondo de marca.
+- ✅ **13.3** Feature graphic de Play Store (1024×500) — HECHO (29 jul). Banner con símbolo + wordmark `donAR` + tagline sobre el degradé de marca, armado por composición con `scripts/generate-feature-graphic.mjs` (sin IA). En `assets/images/store/play-feature-graphic-1024x500.png`.
 
 ---
 
