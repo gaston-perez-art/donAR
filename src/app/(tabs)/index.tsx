@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/empty-state';
 import { FeedSkeleton } from '@/components/skeleton';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
+import { useAppTourTargets } from '@/store/app-tour-context';
 import { useCauses } from '@/store/causes-store';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -20,6 +21,7 @@ export default function FeedScreen() {
   const router = useRouter();
   const scroll = useTabBarScroll();
   const { causes, myCauses, loading, accountEmail, displayName, avatarUrl } = useCauses();
+  const { setTarget } = useAppTourTargets();
 
   // Regla Instagram (29 jul, pedido de Gastón): el feed principal es para
   // DESCUBRIR causas de otros, no para volver a ver la tuya propia (ya la
@@ -78,7 +80,7 @@ export default function FeedScreen() {
           </>
         )}
 
-        <View style={styles.sec}>
+        <View ref={(node) => setTarget('feed', node)} style={styles.sec}>
           <Text style={styles.secTitle}>Causas verificadas cerca tuyo</Text>
           <Text style={styles.secSub}>Cada causa fue revisada antes de publicarse</Text>
         </View>

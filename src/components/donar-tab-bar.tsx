@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/donar-theme';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
+import { useAppTourTargets, type TourTargetKey } from '@/store/app-tour-context';
 
 type IoniconName = ComponentProps<typeof Ionicons>['name'];
 type TabItem = { icon: IoniconName; iconOutline: IoniconName; label: string; path: string };
@@ -19,6 +20,14 @@ const RIGHT: TabItem[] = [
   { icon: 'notifications', iconOutline: 'notifications-outline', label: 'Actividad', path: '/activity' },
   { icon: 'person', iconOutline: 'person-outline', label: 'Perfil', path: '/profile' },
 ];
+
+// Targets del Tour 2 (Bloque E) por ruta: el ícono real que hay que medir
+// para iluminarlo, no una posición calculada a mano.
+const TOUR_TARGET_BY_PATH: Partial<Record<string, TourTargetKey>> = {
+  '/ranking': 'tabRanking',
+  '/activity': 'tabActivity',
+  '/profile': 'tabProfile',
+};
 
 /**
  * Tab bar tipo "pill" flotante de vidrio (frosted glass), al estilo iOS 26 /
@@ -45,6 +54,7 @@ export function DonarTabBar() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scroll = useTabBarScroll();
+  const { setTarget } = useAppTourTargets();
 
   const isActive = (path: string) =>
     path === '/' ? pathname === '/' : pathname.startsWith(path);
@@ -53,9 +63,11 @@ export function DonarTabBar() {
 
   const renderTab = (t: TabItem) => {
     const active = isActive(t.path);
+    const targetKey = TOUR_TARGET_BY_PATH[t.path];
     return (
       <Pressable
         key={t.path}
+        ref={targetKey ? (node) => setTarget(targetKey, node) : undefined}
         style={styles.tab}
         onPress={() => goTo(t.path)}
         accessibilityRole="tab"
@@ -105,6 +117,7 @@ export function DonarTabBar() {
           {LEFT.map(renderTab)}
 
           <Pressable
+            ref={(node) => setTarget('tabPlus', node)}
             style={styles.tab}
             onPress={() => goTo('/create')}
             accessibilityRole="button"

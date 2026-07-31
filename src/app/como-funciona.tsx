@@ -7,10 +7,12 @@ import { useCauses } from '@/store/causes-store';
 
 /**
  * "Cómo funciona donAR" (Bloque F): volver a ver los tours desde el Perfil,
- * cuantas veces se quiera, sin cerrar sesión. No borra el flag de
- * AsyncStorage del Tour 1 (`donar.tour.welcome.v1` sigue en visto): el
- * replay corre por `replayTour` en el store, que `_layout.tsx` muestra como
- * modal por encima de la app.
+ * cuantas veces se quiera, sin cerrar sesión. No borra los flags de
+ * AsyncStorage de los tours (siguen en visto): el replay corre por
+ * `replayTour` en el store. El Tour 1 se re-muestra como modal desde
+ * `_layout.tsx`; el Tour 2 vive superpuesto a los tabs (`(tabs)/_layout.tsx`),
+ * así que su fila navega al feed antes de disparar el replay, para que el
+ * primer paso ("el feed") tenga sentido visual.
  */
 export default function ComoFuncionaScreen() {
   const router = useRouter();
@@ -19,6 +21,11 @@ export default function ComoFuncionaScreen() {
   const openWelcomeReplay = () => {
     setReplayTour('welcome');
     router.back();
+  };
+
+  const openAppTourReplay = () => {
+    setReplayTour('app');
+    router.navigate('/');
   };
 
   return (
@@ -39,9 +46,13 @@ export default function ComoFuncionaScreen() {
           <Text style={styles.chevron}>›</Text>
         </Pressable>
 
-        {/* Tour 2 (recorrido por la app real, Bloque E de docs/PLAN-SONNET-2.md):
-            todavía no está construido. Cuando exista, va acá una fila igual
-            que dispare setReplayTour('app'). */}
+        <Pressable style={[styles.row, styles.rowSpaced]} onPress={openAppTourReplay}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Ver el recorrido por la app</Text>
+            <Text style={styles.rowSub}>Dónde está cada cosa: el feed, pedir ayuda, ranking, actividad y perfil.</Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
       </View>
 
       {/* Links a docs/terminos-y-condiciones.md y docs/privacidad.md: quedan
@@ -84,6 +95,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingVertical: 15,
   },
+  rowSpaced: { marginTop: Spacing.md },
   rowTitle: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
   rowSub: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   chevron: { fontSize: 22, color: Colors.muted, fontWeight: '300' },
