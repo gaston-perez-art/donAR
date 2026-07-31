@@ -1,11 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DonorProfileModal } from '@/components/donor-profile-modal';
 import { EmptyState } from '@/components/empty-state';
+import { RankingSkeleton } from '@/components/skeleton';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { supabase } from '@/lib/supabase';
@@ -71,9 +72,7 @@ export default function RankingScreen() {
       </View>
 
       {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.brand} />
-        </View>
+        <RankingSkeleton />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -152,7 +151,6 @@ export default function RankingScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.md, paddingBottom: Spacing.lg },
   title: { fontSize: 24, fontWeight: '800', color: Colors.ink, letterSpacing: -0.5 },
   sub: { fontSize: 13, color: Colors.muted, marginTop: 3 },

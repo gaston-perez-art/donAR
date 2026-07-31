@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
 import { EmptyState } from '@/components/empty-state';
+import { FeedSkeleton } from '@/components/skeleton';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
@@ -81,6 +82,8 @@ export default function FeedScreen() {
           <Text style={styles.secTitle}>Causas verificadas cerca tuyo</Text>
           <Text style={styles.secSub}>Cada causa fue revisada antes de publicarse</Text>
         </View>
+
+        {loading && <FeedSkeleton />}
 
         {active.map((cause) => (
           <CauseCard key={cause.id} cause={cause} onPress={() => router.push(`/cause/${cause.id}`)} />

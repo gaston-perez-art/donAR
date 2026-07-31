@@ -1,10 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/empty-state';
+import { ActivitySkeleton } from '@/components/skeleton';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { causeInitial, Colors, formatARS, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import {
@@ -66,8 +67,8 @@ export default function ActivityScreen() {
         <View style={styles.head}>
           <Text style={styles.title}>Actividad</Text>
         </View>
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.brand} />
+        <View style={{ paddingHorizontal: Spacing.xl }}>
+          <ActivitySkeleton />
         </View>
       </SafeAreaView>
     );

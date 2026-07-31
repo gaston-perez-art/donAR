@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState } from '@/components/empty-state';
+import { ProfileSkeleton } from '@/components/skeleton';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { causeInitial, Colors, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { levelFor, medalsFor, type Medal } from '@/lib/gamification';
@@ -155,9 +156,7 @@ export default function ProfileScreen() {
   if (loading || !activity) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.brand} />
-        </View>
+        <ProfileSkeleton />
       </SafeAreaView>
     );
   }
@@ -431,7 +430,6 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
