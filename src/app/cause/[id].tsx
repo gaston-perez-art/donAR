@@ -99,7 +99,7 @@ export default function CauseDetailScreen() {
     if (!perm.granted) {
       Alert.alert(
         'Necesitamos acceso a tus fotos',
-        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > DonAR > Fotos.',
+        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > donAR > Fotos.',
       );
       return;
     }
@@ -203,8 +203,8 @@ export default function CauseDetailScreen() {
   const shareCause = async () => {
     if (!cause) return;
     const message = done
-      ? `¡"${cause.title}" cumplió su meta en DonAR gracias a todos los que aportaron! 🎉`
-      : `Ayudá a "${cause.title}" en DonAR. Cada aporte queda verificado y a la vista. 💙`;
+      ? `¡"${cause.title}" cumplió su meta en donAR gracias a todos los que aportaron! 🎉`
+      : `Ayudá a "${cause.title}" en donAR. Cada aporte queda verificado y a la vista. 💙`;
     await Share.share({ message });
   };
 
@@ -280,7 +280,7 @@ export default function CauseDetailScreen() {
               <Text style={styles.tickText}>{expired ? '✕' : '✓'}</Text>
             </View>
             <Text style={styles.badgeText}>
-              {done ? 'Meta alcanzada' : expired ? 'Causa cerrada' : 'Causa verificada por DonAR'}
+              {done ? 'Meta alcanzada' : expired ? 'Causa cerrada' : 'Causa verificada por donAR'}
             </Text>
           </View>
           {cause.imageUrls.length === 0 && <Text style={styles.heroEmoji}>{causeInitial(cause.title)}</Text>}

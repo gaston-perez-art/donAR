@@ -93,7 +93,7 @@ export default function CreateScreen() {
     if (!perm.granted) {
       Alert.alert(
         'Necesitamos acceso a tus fotos',
-        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > DonAR > Fotos.',
+        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > donAR > Fotos.',
       );
       return;
     }

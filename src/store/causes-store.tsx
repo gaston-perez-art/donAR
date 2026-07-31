@@ -20,6 +20,7 @@ import {
   signUpWithPassword,
   supabase,
   updatePassword,
+  updateProfileName,
   uploadAvatarPhoto,
   uploadClosingPhoto,
   uploadCoverPhoto,
@@ -403,6 +404,7 @@ type CausesContextValue = {
   displayName: string | null;
   avatarUrl: string | null;
   updateAvatar: (photoUri: string) => Promise<boolean>;
+  updateDisplayName: (fullName: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -528,6 +530,16 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     setAvatarUrl(url);
     return true;
   }, [userId]);
+
+  /** Cambia el nombre para mostrar (10.4). Mismo patrón que updateAvatar:
+   * escribe en la base y refleja el valor nuevo en el estado, así el header
+   * del Perfil y el avatar (iniciales) se actualizan sin recargar la app. */
+  const updateDisplayName = useCallback(async (fullName: string): Promise<{ error: string | null }> => {
+    const { error } = await updateProfileName(fullName);
+    if (error) return { error };
+    setDisplayName(fullName.trim());
+    return { error: null };
+  }, []);
 
   /** Pide el mail de reset (10.2). `redirectTo` es el deep link de esta app:
    * el mismo esquema que ya usa el retorno de Mercado Pago. */
@@ -1264,6 +1276,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       displayName,
       avatarUrl,
       updateAvatar,
+      updateDisplayName,
       signUp,
       signIn,
       signOut,
@@ -1306,6 +1319,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       displayName,
       avatarUrl,
       updateAvatar,
+      updateDisplayName,
       signUp,
       signIn,
       signOut,

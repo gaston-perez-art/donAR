@@ -1,5 +1,5 @@
 /**
- * DonAR design tokens.
+ * donAR design tokens.
  * Celeste / azul palette (Airbnb-style: rounded, airy). Mirrors the HTML prototype.
  */
 

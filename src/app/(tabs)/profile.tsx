@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
@@ -52,12 +52,49 @@ export default function ProfileScreen() {
     displayName,
     avatarUrl,
     updateAvatar,
+    updateDisplayName,
   } = useCauses();
   const [activity, setActivity] = useState<MyActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [openMedal, setOpenMedal] = useState<Medal | null>(null);
   const [phrase, setPhrase] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Edición del nombre (10.4).
+  const [editingName, setEditingName] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  // Mismos dos campos que el registro (decisión del 29 jul: uno solo no
+  // garantiza poder sacar dos iniciales). Para precargarlos hay que deshacer
+  // el join: primer token = nombre, el resto = apellido. Las cuentas viejas
+  // tienen una sola palabra (derivada del mail), así que ahí el apellido
+  // arranca vacío y el usuario lo completa: es justamente el caso que 10.4
+  // viene a resolver.
+  const openNameEditor = () => {
+    const parts = (displayName ?? '').trim().split(/\s+/).filter(Boolean);
+    setFirstName(parts[0] ?? '');
+    setLastName(parts.slice(1).join(' '));
+    setNameError(null);
+    setEditingName(true);
+  };
+
+  const canSaveName = firstName.trim().length >= 1 && lastName.trim().length >= 1;
+
+  const saveName = async () => {
+    if (!canSaveName || savingName) return;
+    setSavingName(true);
+    setNameError(null);
+    const { error } = await updateDisplayName(`${firstName.trim()} ${lastName.trim()}`);
+    setSavingName(false);
+    if (error) {
+      setNameError(error);
+      return;
+    }
+    setEditingName(false);
+  };
 
   const showMedal = (m: Medal) => {
     setPhrase(randomPhrase());
@@ -70,7 +107,7 @@ export default function ProfileScreen() {
     if (!perm.granted) {
       Alert.alert(
         'Necesitamos acceso a tus fotos',
-        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > DonAR > Fotos.',
+        'Sin permiso no podemos subir la foto. Activalo desde Ajustes del celular > donAR > Fotos.',
       );
       return;
     }
@@ -151,7 +188,17 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>Tu impacto</Text>
+            {/* El nombre real, tapeable para corregirlo (10.4). Antes acá
+                decía "Tu impacto": la pantalla nunca mostraba tu nombre, así
+                que un display_name malo (el derivado del mail en las cuentas
+                viejas) era invisible desde la app y solo se veía en el
+                ranking, donde ya lo ven los demás. */}
+            <Pressable style={styles.nameRow} onPress={openNameEditor} hitSlop={8}>
+              <Text style={styles.name} numberOfLines={1}>
+                {displayName || 'Poné tu nombre'}
+              </Text>
+              <Text style={styles.nameEdit}>✎</Text>
+            </Pressable>
             <View style={styles.levelPill}>
               <Text style={styles.levelPillText}>
                 Nivel {level.number} · {level.name}
@@ -290,6 +337,57 @@ export default function ProfileScreen() {
 
       </ScrollView>
 
+      {/* Editar nombre (10.4) */}
+      <Modal visible={editingName} transparent animationType="fade" onRequestClose={() => setEditingName(false)}>
+        <Pressable style={styles.backdrop} onPress={() => setEditingName(false)}>
+          <Pressable style={styles.nameCard} onPress={() => {}}>
+            <Text style={styles.nameCardTitle}>Tu nombre</Text>
+            <Text style={styles.nameCardHint}>
+              Es el que ven los demás en el ranking y en cada aporte que hacés.
+            </Text>
+
+            <Text style={styles.label}>Nombre</Text>
+            <TextInput
+              style={styles.input}
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="Gastón"
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+
+            <Text style={styles.label}>Apellido</Text>
+            <TextInput
+              style={styles.input}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Pérez"
+              placeholderTextColor={Colors.muted}
+              autoCapitalize="words"
+              returnKeyType="done"
+              onSubmitEditing={saveName}
+            />
+
+            {nameError ? <Text style={styles.nameCardError}>{nameError}</Text> : null}
+
+            <Pressable
+              style={[styles.modalClose, styles.nameSaveBtn, !canSaveName && styles.modalCloseOff]}
+              onPress={saveName}
+              disabled={!canSaveName || savingName}>
+              {savingName ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.modalCloseText}>Guardar</Text>
+              )}
+            </Pressable>
+            <Pressable onPress={() => setEditingName(false)}>
+              <Text style={styles.nameCardCancel}>Cancelar</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Modal de medalla */}
       <Modal visible={!!openMedal} transparent animationType="fade" onRequestClose={() => setOpenMedal(null)}>
         <Pressable style={styles.backdrop} onPress={() => setOpenMedal(null)}>
@@ -357,7 +455,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarEditBadgeText: { color: '#fff', fontSize: 10 },
-  name: { fontSize: 22, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: { fontSize: 22, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3, flexShrink: 1 },
+  nameEdit: { fontSize: 13, color: Colors.muted },
   levelPill: {
     alignSelf: 'flex-start',
     marginTop: 6,
@@ -519,4 +619,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalCloseOff: { opacity: 0.45 },
+
+  // Editar nombre (10.4)
+  nameCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#fff',
+    borderRadius: Radius.xl,
+    padding: Spacing.xxl,
+  },
+  nameCardTitle: { fontSize: 20, fontWeight: '800', color: Colors.ink, letterSpacing: -0.3 },
+  nameCardHint: { fontSize: 13, color: Colors.muted, marginTop: 6, lineHeight: 18 },
+  label: { fontSize: 12.5, color: Colors.muted, fontWeight: '700', marginTop: Spacing.lg, marginBottom: 6 },
+  input: {
+    borderWidth: 1.5,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: Colors.ink,
+    backgroundColor: '#fff',
+  },
+  nameCardError: { fontSize: 12.5, color: '#C0392B', marginTop: Spacing.md },
+  nameSaveBtn: { marginTop: Spacing.xl },
+  nameCardCancel: {
+    fontSize: 13.5,
+    color: Colors.muted,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: Spacing.md,
+  },
 });

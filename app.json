@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "DonAR",
+    "name": "donAR",
     "slug": "donar",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -40,7 +40,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "DonAR necesita acceder a tus fotos para subir el DNI, la selfie y la documentación de tu causa."
+          "photosPermission": "donAR necesita acceder a tus fotos para subir el DNI, la selfie y la documentación de tu causa."
         }
       ],
       "expo-web-browser"

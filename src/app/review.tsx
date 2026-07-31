@@ -95,7 +95,7 @@ export default function ReviewScreen() {
         </View>
         <Text style={styles.h2}>Tu causa está en revisión</Text>
         <Text style={styles.sub}>
-          Un curador de DonAR verifica tu historia, tu documentación y tu cuenta de cobro. Te
+          Un curador de donAR verifica tu historia, tu documentación y tu cuenta de cobro. Te
           avisamos cuando esté publicada, normalmente en menos de 24 hs hábiles.
         </Text>
 

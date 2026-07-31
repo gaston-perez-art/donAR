@@ -251,7 +251,7 @@ export default function DonateScreen() {
               <Text style={{ color: '#fff', fontSize: 13 }}>✓</Text>
             </View>
             <Text style={styles.trustText}>
-              El 100% de tu aporte va a la causa. En el MVP DonAR no cobra comisión. Tu aporte queda
+              El 100% de tu aporte va a la causa. En el MVP donAR no cobra comisión. Tu aporte queda
               visible en el recorrido.
             </Text>
           </View>

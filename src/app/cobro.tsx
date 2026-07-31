@@ -30,7 +30,7 @@ export default function CobroScreen() {
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.intro}>
-          Cada aporte se acredita acá directo, sin pasar por DonAR. Es obligatorio para publicar tu
+          Cada aporte se acredita acá directo, sin pasar por donAR. Es obligatorio para publicar tu
           causa.
         </Text>
 

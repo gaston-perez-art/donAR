@@ -168,6 +168,36 @@ export async function ensureRegisteredProfile(email: string, fullName?: string):
   if (error) console.warn('ensureRegisteredProfile error:', error.message);
 }
 
+/**
+ * Cambia el nombre para mostrar de la cuenta propia (10.4). Hasta acá
+ * `display_name` solo se escribía una vez, al registrarse: las cuentas
+ * anteriores a 10.3 quedaron con el nombre derivado del mail para siempre y
+ * la única salida era un UPDATE a mano en la base.
+ *
+ * Escribe los dos lados para que no queden desincronizados: las columnas de
+ * `profiles` (lo que lee toda la app: ranking, mini-perfil, aportes) y la
+ * metadata de auth (`full_name`, lo que dejó el signup). El trigger de 15.2
+ * fuerza `is_curator`/`points` a su valor previo, así que este update no
+ * necesita policy nueva: toca solo columnas libres de la propia fila.
+ */
+export async function updateProfileName(fullName: string): Promise<{ error: string | null }> {
+  const uid = await ensureSession();
+  if (!uid) return { error: 'Necesitás iniciar sesión.' };
+
+  const name = fullName.trim();
+  if (!name) return { error: 'El nombre no puede quedar vacío.' };
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ display_name: name, full_name: name })
+    .eq('id', uid);
+  if (error) return { error: 'No pudimos guardar tu nombre. Probá de nuevo.' };
+
+  // Best-effort: si falla, el nombre real (el de profiles) ya quedó bien.
+  await supabase.auth.updateUser({ data: { full_name: name } });
+  return { error: null };
+}
+
 /** True si la sesión actual es de un curador (marcado a mano en profiles). */
 export async function isCurator(): Promise<boolean> {
   const uid = await ensureSession();
