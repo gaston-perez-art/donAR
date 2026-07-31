@@ -412,6 +412,8 @@ type CausesContextValue = {
   requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
   beginPasswordRecovery: (url: string) => Promise<boolean>;
   completePasswordReset: (newPassword: string) => Promise<{ error: string | null }>;
+  replayTour: 'welcome' | 'app' | null;
+  setReplayTour: (t: 'welcome' | 'app' | null) => void;
 };
 
 const CausesContext = createContext<CausesContextValue | null>(null);
@@ -428,6 +430,11 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   // La misma cuenta puede ser curador Y beneficiado de una causa propia (caso
   // real: Gastón). "viewAsDonor" deja ver el lado donante sin cerrar sesión.
   const [viewAsDonor, setViewAsDonor] = useState(false);
+  // Volver a ver un tour desde "Cómo funciona" (Bloque F, 31 jul). Estado en
+  // memoria, no el flag de AsyncStorage: ese sigue en `true` (no hay que
+  // volver a mostrarlo solo, es un replay a pedido). _layout.tsx lo muestra
+  // como modal por encima de la app, sin pasar por los gates de sesión.
+  const [replayTour, setReplayTour] = useState<'welcome' | 'app' | null>(null);
   // Sesión de recuperación activa (10.2): true entre tocar el link del mail y
   // terminar de elegir la contraseña nueva. Mientras esté true, el gate de
   // _layout muestra la pantalla de nueva contraseña ANTES que nada más
@@ -1284,6 +1291,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       requestPasswordReset,
       beginPasswordRecovery,
       completePasswordReset,
+      replayTour,
+      setReplayTour,
     }),
     [
       causes,
@@ -1327,6 +1336,7 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       requestPasswordReset,
       beginPasswordRecovery,
       completePasswordReset,
+      replayTour,
     ],
   );
 

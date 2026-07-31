@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/donar-theme';
@@ -38,7 +38,16 @@ const WELCOME_TOUR_KEY = 'donar.tour.welcome.v1';
  * por igual (antes ninguna de las dos tenía navegación nativa acá).
  */
 function AppShell() {
-  const { isCurator, loading, viewAsDonor, isAuthenticated, passwordRecovery, beginPasswordRecovery } = useCauses();
+  const {
+    isCurator,
+    loading,
+    viewAsDonor,
+    isAuthenticated,
+    passwordRecovery,
+    beginPasswordRecovery,
+    replayTour,
+    setReplayTour,
+  } = useCauses();
   const { seen: seenWelcomeTour, loading: tourLoading, markSeen: markWelcomeTourSeen } =
     useOnboardingFlag(WELCOME_TOUR_KEY);
 
@@ -95,20 +104,30 @@ function AppShell() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="create" />
-      <Stack.Screen name="cobro" />
-      <Stack.Screen name="review" />
-      <Stack.Screen name="cause/[id]" />
-      <Stack.Screen name="donate/[id]" />
-      <Stack.Screen name="transfer/[id]" />
-      <Stack.Screen name="donated" />
-      <Stack.Screen name="received" />
-      {/* Pantalla de éxito: terminal. Sin swipe-back a la donación ya cerrada
-          (como cualquier confirmación de iOS). Se sale por sus botones. */}
-      <Stack.Screen name="gracias" options={{ gestureEnabled: false }} />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="create" />
+        <Stack.Screen name="cobro" />
+        <Stack.Screen name="review" />
+        <Stack.Screen name="cause/[id]" />
+        <Stack.Screen name="donate/[id]" />
+        <Stack.Screen name="transfer/[id]" />
+        <Stack.Screen name="donated" />
+        <Stack.Screen name="received" />
+        <Stack.Screen name="como-funciona" />
+        {/* Pantalla de éxito: terminal. Sin swipe-back a la donación ya cerrada
+            (como cualquier confirmación de iOS). Se sale por sus botones. */}
+        <Stack.Screen name="gracias" options={{ gestureEnabled: false }} />
+      </Stack>
+
+      {/* Replay de tours desde "Cómo funciona" (Bloque F). Modal por encima
+          de toda la app, sin pasar por los gates de sesión ni tocar el flag
+          de AsyncStorage: es un repaso a pedido, no el primer ingreso. */}
+      <Modal visible={replayTour === 'welcome'} animationType="slide" onRequestClose={() => setReplayTour(null)}>
+        <WelcomeTourScreen onClose={() => setReplayTour(null)} />
+      </Modal>
+    </>
   );
 }
 

@@ -332,6 +332,13 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* "Cómo funciona": volver a ver los tours (Bloque F, 31 jul), pedido
+            explícito de Gastón. Justo arriba de "Cerrar sesión". */}
+        <Pressable style={styles.howItWorksRow} onPress={() => router.push('/como-funciona')}>
+          <Text style={styles.howItWorksText}>Cómo funciona donAR</Text>
+          <Text style={styles.howItWorksChevron}>›</Text>
+        </Pressable>
+
         {/* Cuenta / salir: al final, patrón de apps grandes (Instagram,
             Uber, Airbnb) donde "cerrar sesión" es la última acción de la
             pantalla de cuenta, no algo que compite arriba con el resto. */}
@@ -484,7 +491,22 @@ const styles = StyleSheet.create({
   },
   accountLinked: { fontSize: 12.5, color: Colors.happy, fontWeight: '700', flexShrink: 1 },
   signOutLink: { fontSize: 12, color: Colors.muted, fontWeight: '700', textDecorationLine: 'underline' },
-  signOutSection: { paddingHorizontal: Spacing.xl, marginTop: Spacing.xxl, alignItems: 'center' },
+  howItWorksRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: Spacing.xl,
+    marginTop: Spacing.xxl,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 15,
+  },
+  howItWorksText: { fontSize: 14.5, fontWeight: '600', color: Colors.ink },
+  howItWorksChevron: { fontSize: 22, color: Colors.muted, fontWeight: '300' },
+  signOutSection: { paddingHorizontal: Spacing.xl, marginTop: Spacing.lg, alignItems: 'center' },
   signOutEmail: { fontSize: 12, color: Colors.muted, marginBottom: Spacing.md },
   signOutBtn: {
     alignSelf: 'stretch',
