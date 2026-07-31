@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark } from '@/components/brand-mark';
+import { EmptyState } from '@/components/empty-state';
 import { causeInitial, Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
 import { hoursUntilAutoConfirm, useCauses, type MyContribution } from '@/store/causes-store';
 
@@ -49,11 +49,11 @@ export default function DonatedScreen() {
         </View>
       ) : contributions.length === 0 ? (
         <View style={styles.center}>
-          <BrandMark size={64} />
-          <Text style={styles.emptyText}>Todavía no donaste a ninguna causa.</Text>
-          <Pressable style={styles.emptyBtn} onPress={() => router.navigate('/')}>
-            <Text style={styles.emptyBtnText}>Ver causas</Text>
-          </Pressable>
+          <EmptyState
+            title="Todavía no donaste a ninguna causa."
+            actionLabel="Ver causas"
+            onAction={() => router.navigate('/')}
+          />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -121,9 +121,6 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
-  emptyText: { fontSize: 14, color: Colors.muted, marginTop: 10, marginBottom: 16, textAlign: 'center' },
-  emptyBtn: { backgroundColor: Colors.brand, borderRadius: Radius.md, paddingHorizontal: 22, paddingVertical: 12 },
-  emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   list: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   row: {
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EmptyState } from '@/components/empty-state';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { causeInitial, Colors, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { levelFor, medalsFor, type Medal } from '@/lib/gamification';
@@ -256,11 +257,20 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Mis causas */}
-        {myCauses.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.secTitle}>Mis causas</Text>
-            {myCauses.map((c) => {
+        {/* Mis causas. Antes la sección entera se escondía con
+            `myCauses.length > 0 &&`, así que una cuenta nueva no veía ninguna
+            señal de que podía crear una causa (Épica 17, 31 jul). */}
+        <View style={styles.section}>
+          <Text style={styles.secTitle}>Mis causas</Text>
+          {myCauses.length === 0 ? (
+            <EmptyState
+              title="Todavía no creaste ninguna causa"
+              subtitle="Si necesitás ayuda, contá tu situación. Un curador la revisa antes de que se publique."
+              actionLabel="Crear una causa"
+              onAction={() => router.push('/create')}
+            />
+          ) : (
+            myCauses.map((c) => {
               const label = MY_CAUSE_STATUS[c.status] ?? c.status;
               const bad = c.status === 'rejected';
               const active = c.status === 'active' || c.status === 'completed';
@@ -297,9 +307,9 @@ export default function ProfileScreen() {
                   </View>
                 </Pressable>
               );
-            })}
-          </View>
-        )}
+            })
+          )}
+        </View>
 
         {/* Medallas */}
         <View style={styles.section}>

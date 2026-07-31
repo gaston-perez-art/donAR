@@ -5,6 +5,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DonorProfileModal } from '@/components/donor-profile-modal';
+import { EmptyState } from '@/components/empty-state';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { supabase } from '@/lib/supabase';
@@ -93,13 +94,10 @@ export default function RankingScreen() {
           )}
 
           {ranking.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🏅</Text>
-              <Text style={styles.emptyTitle}>Todavía no hay puntajes este mes</Text>
-              <Text style={styles.emptySub}>
-                Sé la primera persona en aparecer: doná a una causa y sumá tus primeros puntos.
-              </Text>
-            </View>
+            <EmptyState
+              title="Todavía no hay puntajes este mes"
+              subtitle="Sé la primera persona en aparecer: doná a una causa y sumá tus primeros puntos."
+            />
           ) : (
             ranking.map((entry, i) => {
               const position = i + 1;
@@ -206,16 +204,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     marginTop: Spacing.lg,
     lineHeight: 18,
-  },
-  empty: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxl },
-  emptyEmoji: { fontSize: 44, marginBottom: Spacing.md },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.ink, textAlign: 'center' },
-  emptySub: {
-    fontSize: 13,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-    lineHeight: 19,
-    maxWidth: 280,
   },
 });

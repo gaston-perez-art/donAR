@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { EmptyState } from '@/components/empty-state';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { causeInitial, Colors, formatARS, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import {
@@ -87,8 +88,10 @@ export default function ActivityScreen() {
 
       {nothing ? (
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>🔔</Text>
-          <Text style={styles.emptyText}>Todavía no hay novedades. Doná o creá una causa para arrancar.</Text>
+          <EmptyState
+            title="Todavía no hay novedades."
+            subtitle="Doná o creá una causa para arrancar."
+          />
         </View>
       ) : (
         <ScrollView
@@ -217,8 +220,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '800', color: Colors.ink, letterSpacing: -0.4 },
   sub: { fontSize: 12.5, color: Colors.muted, marginTop: 2 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
-  emptyEmoji: { fontSize: 34, marginBottom: Spacing.sm },
-  emptyText: { fontSize: 14, color: Colors.muted, textAlign: 'center', lineHeight: 20 },
   section: { marginBottom: Spacing.lg },
   secTitle: { fontSize: 15, fontWeight: '700', color: Colors.ink, marginBottom: Spacing.sm },
   row: {

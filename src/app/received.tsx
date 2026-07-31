@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark } from '@/components/brand-mark';
+import { EmptyState } from '@/components/empty-state';
 import { Colors, formatARS, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { useCauses, type ReceivedContribution } from '@/store/causes-store';
 
@@ -40,11 +40,12 @@ export default function ReceivedScreen() {
         </View>
       ) : contributions.length === 0 ? (
         <View style={styles.center}>
-          <BrandMark size={64} />
-          <Text style={styles.emptyText}>
-            Todavía no recibiste aportes confirmados. Cuando alguien te done y lo confirmes, va a
-            aparecer acá.
-          </Text>
+          <EmptyState
+            title="Todavía no recibiste aportes confirmados."
+            subtitle="Cuando alguien te done y lo confirmes, va a aparecer acá."
+            actionLabel="Crear una causa"
+            onAction={() => router.push('/create')}
+          />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -97,7 +98,6 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.xl },
-  emptyText: { fontSize: 14, color: Colors.muted, marginTop: 10, textAlign: 'center', lineHeight: 20 },
   list: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
   row: {
     flexDirection: 'row',

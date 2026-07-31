@@ -2,8 +2,8 @@ import { useRouter } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandMark } from '@/components/brand-mark';
 import { CauseCard } from '@/components/cause-card';
+import { EmptyState } from '@/components/empty-state';
 import { useTabBarScroll } from '@/components/tab-bar-scroll';
 import { Colors, initialsFor, Radius, Spacing, TabBarHeight } from '@/constants/donar-theme';
 import { useCauses } from '@/store/causes-store';
@@ -87,24 +87,17 @@ export default function FeedScreen() {
         ))}
 
         {!loading && active.length === 0 && (
-          <View style={styles.empty}>
-            <View style={{ marginBottom: Spacing.md }}>
-              <BrandMark size={64} />
-            </View>
-            {myActiveCount > 0 ? (
-              <>
-                <Text style={styles.emptyTitle}>Tu causa ya está publicada</Text>
-                <Text style={styles.emptySub}>
-                  Compartila para que llegue a más gente. Acá vas a ver las causas de otros a medida que se publiquen.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.emptyTitle}>Todavía no hay causas</Text>
-                <Text style={styles.emptySub}>Tocá el + para crear la primera y probála de punta a punta.</Text>
-              </>
-            )}
-          </View>
+          myActiveCount > 0 ? (
+            <EmptyState
+              title="Tu causa ya está publicada"
+              subtitle="Compartila para que llegue a más gente. Acá vas a ver las causas de otros a medida que se publiquen."
+            />
+          ) : (
+            <EmptyState
+              title="Todavía no hay causas"
+              subtitle="Tocá el + para crear la primera y probála de punta a punta."
+            />
+          )
         )}
 
         {completed.length > 0 && (
@@ -172,14 +165,4 @@ const styles = StyleSheet.create({
   myCausePillBad: { backgroundColor: '#FBE9E9' },
   myCausePillText: { fontSize: 11, fontWeight: '700', color: '#8A6D00' },
   myCausePillTextBad: { color: '#C0392B' },
-  empty: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xxl },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: Colors.ink },
-  emptySub: {
-    fontSize: 13,
-    color: Colors.muted,
-    textAlign: 'center',
-    marginTop: Spacing.xs,
-    lineHeight: 19,
-    maxWidth: 260,
-  },
 });
