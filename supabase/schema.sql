@@ -360,3 +360,114 @@ create policy "avatar file insert own" on storage.objects for insert
   with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "avatar file public read" on storage.objects for select
   using (bucket_id = 'avatars');
+
+-- 31 jul 2026 (Épica 15: fixes de RLS/triggers). Corridos por Gastón en el SQL
+-- Editor el 30 jul, exportados recién ahora de la base real con
+-- pg_get_functiondef/pg_get_triggerdef/pg_policies (no reescritos de memoria):
+-- sin esto, recrear el entorno desde este archivo salía sin los 4 fixes,
+-- dos de ellos críticos. Comparado el resto de las policies del repo contra
+-- las vigentes en la base: coinciden todas salvo "contributions insert".
+
+-- 15.1 (crítico). La policy "contributions insert" original (línea ~98) solo
+-- validaba donor_id: cualquiera podía insertar una contribution con
+-- status='approved' y monto inventado, sin transferir nada, inflando meta y
+-- ranking o disparando el cierre automático de una causa ajena. Ahora exige
+-- que todo aporte nuevo entre en 'pending' por 'transfer'. Nota: donate()
+-- en causes-store.tsx (flujo de Mercado Pago) todavía inserta con
+-- status='approved'/method='mp'; hoy no se llama desde ninguna pantalla
+-- (MP_ENABLED=false en donate/[id].tsx). Si se reactiva MP, ese insert va a
+-- fallar contra esta policy: hace falta moverlo a una Edge Function con la
+-- service key en vez de confiar en el cliente (que es además el diseño
+-- correcto: el cliente no debería poder marcarse su propio pago como
+-- aprobado).
+drop policy if exists "contributions insert" on contributions;
+create policy "contributions insert" on contributions for insert
+  with check (auth.uid() = donor_id and status = 'pending' and method = 'transfer');
+
+-- 15.2 (crítico). La policy "profiles update own" (línea 80) deja actualizar
+-- cualquier columna de la propia fila con solo auth.uid() = id, incluida
+-- is_curator: cualquier cuenta podía auto-nombrarse curadora y acceder a
+-- DNI/selfie ajenos. Trigger de columnas protegidas: fuerza is_curator y
+-- points a su valor anterior salvo que la conexión sea el service_role.
+create or replace function public.protect_profile_privileged_columns()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    new.is_curator := old.is_curator;
+    new.points := old.points;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger protect_profile_privileged_columns
+  before update on public.profiles
+  for each row execute function public.protect_profile_privileged_columns();
+
+-- 15.3 (alto). La policy "causes update own" (línea 86) deja actualizar
+-- cualquier columna de una causa propia, incluido status: el dueño podía
+-- publicarse a sí mismo sin pasar por curaduría. Un curador (is_curator=true)
+-- sigue pudiendo cualquier transición; el dueño solo las dos que ya dispara
+-- la app: 'active'->'completed'/'closed' (cierre de causa, Épica 4) y
+-- 'needs_info'->'review' (reenviar tras un pedido de información).
+create or replace function public.guard_cause_status_update()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  caller_is_curator boolean;
+begin
+  select is_curator into caller_is_curator from profiles where id = auth.uid();
+  if coalesce(caller_is_curator, false) then
+    return new;
+  end if;
+
+  if new.status <> old.status then
+    if not (
+      (old.status = 'active' and new.status in ('completed', 'closed'))
+      or (old.status = 'needs_info' and new.status = 'review')
+    ) then
+      raise exception 'Transición de estado no permitida para el dueño de la causa';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger guard_cause_status_update
+  before update on public.causes
+  for each row execute function public.guard_cause_status_update();
+
+-- 15.4 (medio). La policy "contributions cause owner update" (línea ~263,
+-- Épica 3: confirmar transferencia) deja al dueño de la causa actualizar
+-- cualquier columna de un aporte ajeno, no solo status/confirmed_at: podía
+-- alterar el amount ya registrado al confirmar o rechazar. Mismo patrón de
+-- columnas protegidas: todo lo que no sea status/confirmed_at vuelve a su
+-- valor anterior salvo que la conexión sea el service_role.
+create or replace function public.guard_contribution_owner_update()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if auth.role() <> 'service_role' then
+    new.amount := old.amount;
+    new.donor_id := old.donor_id;
+    new.cause_id := old.cause_id;
+    new.method := old.method;
+    new.receipt_url := old.receipt_url;
+    new.message := old.message;
+    new.anonymous := old.anonymous;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger guard_contribution_owner_update
+  before update on public.contributions
+  for each row execute function public.guard_contribution_owner_update();
