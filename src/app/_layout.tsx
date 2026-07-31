@@ -123,9 +123,16 @@ function AppShell() {
 
       {/* Replay de tours desde "Cómo funciona" (Bloque F). Modal por encima
           de toda la app, sin pasar por los gates de sesión ni tocar el flag
-          de AsyncStorage: es un repaso a pedido, no el primer ingreso. */}
+          de AsyncStorage: es un repaso a pedido, no el primer ingreso.
+          `Modal` de RN abre una ventana/raíz nativa nueva: el `SafeAreaProvider`
+          de más arriba no la alcanza, así que el contenido se corría para
+          arriba (perdía el inset del notch/status bar). Se ancla uno propio
+          adentro del Modal para que `WelcomeTourScreen` mida bien su propia
+          ventana. */}
       <Modal visible={replayTour === 'welcome'} animationType="slide" onRequestClose={() => setReplayTour(null)}>
-        <WelcomeTourScreen onClose={() => setReplayTour(null)} />
+        <SafeAreaProvider>
+          <WelcomeTourScreen onClose={() => setReplayTour(null)} />
+        </SafeAreaProvider>
       </Modal>
     </>
   );
