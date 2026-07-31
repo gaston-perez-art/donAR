@@ -7,12 +7,18 @@ import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/donar-theme';
+import { useOnboardingFlag } from '@/hooks/use-onboarding-flag';
 import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
 import ResetPasswordScreen from '@/screens/reset-password-screen';
+import WelcomeTourScreen from '@/screens/welcome-tour-screen';
 import { CausesProvider, useCauses } from '@/store/causes-store';
 
 SplashScreen.hideAsync();
+
+// Versionada (Bloque D, PLAN-SONNET-2.md): si el tour se rediseña, subir a
+// v2 lo vuelve a mostrar a todos sin borrar nada a mano.
+const WELCOME_TOUR_KEY = 'donar.tour.welcome.v1';
 
 /**
  * Decide qué ve cada identidad. Un curador entra directo al panel de
@@ -33,6 +39,8 @@ SplashScreen.hideAsync();
  */
 function AppShell() {
   const { isCurator, loading, viewAsDonor, isAuthenticated, passwordRecovery, beginPasswordRecovery } = useCauses();
+  const { seen: seenWelcomeTour, loading: tourLoading, markSeen: markWelcomeTourSeen } =
+    useOnboardingFlag(WELCOME_TOUR_KEY);
 
   // Deep link de "olvidé mi contraseña" (10.2): el mail manda a esta app con
   // los tokens de recuperación en la URL. beginPasswordRecovery valida que
@@ -47,11 +55,13 @@ function AppShell() {
     return () => sub.remove();
   }, [beginPasswordRecovery]);
 
-  if (loading) {
+  if (loading || tourLoading) {
     // Mismo azul y mismo asset (símbolo + wordmark) que el splash nativo del
     // arranque (app.json): continúa la pantalla en vez de cortar a blanco,
     // pedido de Gastón ("para eso la hicimos"). SplashScreen.hideAsync() ya
-    // se disparó, así que sin esto había un salto azul -> blanco.
+    // se disparó, así que sin esto había un salto azul -> blanco. `tourLoading`
+    // suma la lectura de AsyncStorage del Tour 1: sin esperarla, se vería un
+    // flash del login o del feed antes de que el tour tape la pantalla.
     return (
       <View style={styles.loadingScreen}>
         <Image source={require('../../assets/images/splash-icon.png')} style={styles.loadingSplash} />
@@ -65,6 +75,13 @@ function AppShell() {
   // pero no hay que soltar a la persona en la app sin que elija la pass nueva).
   if (passwordRecovery) {
     return <ResetPasswordScreen />;
+  }
+
+  // Tour 1 (Bloque D): presentación de la propuesta de valor, antes del
+  // registro. Va después del deep link de recuperar contraseña (que nunca
+  // debe quedar tapado por el tour) y antes del login.
+  if (!seenWelcomeTour) {
+    return <WelcomeTourScreen onClose={markWelcomeTourSeen} />;
   }
 
   // Sin cuenta, nada de app: la identidad es obligatoria (todo se ata a un
