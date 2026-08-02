@@ -114,6 +114,7 @@ function mapRow(row: any, userId: string | null): Cause {
     raised,
     goal,
     daysLeft,
+    deadline: row.deadline ?? null,
     status: row.status,
     verified: row.verified,
     reviewNote: row.review_note ?? null,
@@ -264,6 +265,19 @@ export type MyContribution = {
 /** Un agradecimiento puntual del beneficiado a un aporte de su causa. */
 export type CauseThank = { contributionId: string; message: string };
 
+/** Un slot de foto de portada al editar (Épica 1.6): mantiene la URL existente,
+ * reemplaza con un archivo nuevo, o queda vacío si no se manda ninguno. */
+export type CoverSlotInput = { existingUrl: string | null; newFile: EvidenceFile };
+
+/** Una fila del historial de ediciones de una causa (tabla cause_edits, ver schema.sql). */
+export type CauseEdit = {
+  id: string;
+  field: 'title' | 'story' | 'goal_amount' | 'deadline' | 'image_urls';
+  oldValue: string | null;
+  newValue: string | null;
+  editedAt: string;
+};
+
 /** Un aporte que ME hicieron a alguna de mis causas. Solo confirmados
  * (approved): es la misma regla que ya usa el total "Recibiste" del perfil. */
 export type ReceivedContribution = {
@@ -399,6 +413,11 @@ type CausesContextValue = {
   getReviewInfo: (causeId: string) => Promise<ReviewInfo>;
   reviewCause: (causeId: string, action: ReviewAction, note?: string) => Promise<boolean>;
   resubmitCause: (causeId: string) => Promise<boolean>;
+  updateCause: (
+    causeId: string,
+    patch: { title: string; story: string; goalAmount: number; deadline: string | null; coverSlots: CoverSlotInput[] },
+  ) => Promise<{ error: string | null }>;
+  getCauseEdits: (causeId: string) => Promise<CauseEdit[]>;
   isAuthenticated: boolean;
   accountEmail: string | null;
   displayName: string | null;
@@ -1245,6 +1264,79 @@ export function CausesProvider({ children }: { children: ReactNode }) {
     [fetchCauses, userId],
   );
 
+  /**
+   * Editar una causa ya publicada (Épica 1.6). Decisión de Gastón: todo es
+   * editable, incluso con aportes confirmados, sin volver a pasar por
+   * curaduría; el trigger `log_cause_edit` (schema.sql) deja el registro
+   * público. No hace falta policy nueva: "causes update own" ya permitía al
+   * dueño escribir cualquier columna, el hueco era solo de UI.
+   */
+  const updateCause = useCallback(
+    async (
+      causeId: string,
+      patch: { title: string; story: string; goalAmount: number; deadline: string | null; coverSlots: CoverSlotInput[] },
+    ): Promise<{ error: string | null }> => {
+      const uid = userId ?? (await ensureSession());
+      if (!uid) return { error: 'Necesitás iniciar sesión.' };
+
+      const title = patch.title.trim();
+      if (!title) return { error: 'El título no puede quedar vacío.' };
+      if (!patch.goalAmount || patch.goalAmount <= 0) {
+        return { error: 'El monto meta tiene que ser mayor a cero.' };
+      }
+
+      const resolvedUrls: string[] = [];
+      for (let i = 0; i < patch.coverSlots.length; i++) {
+        const slot = patch.coverSlots[i];
+        if (slot.newFile) {
+          const { url, error } = await uploadCoverPhoto(slot.newFile.uri, causeId, i, slot.newFile.mimeType);
+          if (error) return { error: 'No pudimos subir una de las fotos. Probá de nuevo.' };
+          if (url) resolvedUrls.push(url);
+        } else if (slot.existingUrl) {
+          resolvedUrls.push(slot.existingUrl);
+        }
+      }
+
+      const { error } = await supabase
+        .from('causes')
+        .update({
+          title,
+          story: patch.story.trim() || null,
+          goal_amount: patch.goalAmount,
+          deadline: patch.deadline,
+          image_urls: resolvedUrls,
+        })
+        .eq('id', causeId);
+      if (error) {
+        console.warn('updateCause error:', error.message);
+        return { error: 'No pudimos guardar los cambios. Probá de nuevo.' };
+      }
+
+      await fetchCauses(uid);
+      return { error: null };
+    },
+    [userId, fetchCauses],
+  );
+
+  const getCauseEdits = useCallback(async (causeId: string): Promise<CauseEdit[]> => {
+    const { data, error } = await supabase
+      .from('cause_edits')
+      .select('id, field, old_value, new_value, edited_at')
+      .eq('cause_id', causeId)
+      .order('edited_at', { ascending: false });
+    if (error) {
+      console.warn('getCauseEdits error:', error.message);
+      return [];
+    }
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      field: row.field,
+      oldValue: row.old_value,
+      newValue: row.new_value,
+      editedAt: row.edited_at,
+    }));
+  }, []);
+
   const value = useMemo<CausesContextValue>(
     () => ({
       causes,
@@ -1278,6 +1370,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReviewInfo,
       reviewCause,
       resubmitCause,
+      updateCause,
+      getCauseEdits,
       isAuthenticated: !!userId,
       accountEmail,
       displayName,
@@ -1323,6 +1417,8 @@ export function CausesProvider({ children }: { children: ReactNode }) {
       getReviewInfo,
       reviewCause,
       resubmitCause,
+      updateCause,
+      getCauseEdits,
       userId,
       accountEmail,
       displayName,

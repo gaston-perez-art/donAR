@@ -1,6 +1,6 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
@@ -19,48 +19,58 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { MIN_GOAL } from '@/constants/cause-rules';
 import { Colors, formatARS, Radius, Spacing } from '@/constants/donar-theme';
-import { formatDMY, isValidFutureDate, parseDMY, startOfToday } from '@/lib/date-dmy';
-import { useCauses, type EvidenceFile } from '@/store/causes-store';
-
-type EvidenceKey = 'dniFront' | 'dniBack' | 'selfie' | 'backupDoc';
-type PhotoKey = EvidenceKey | 'coverPhoto1' | 'coverPhoto2';
-
-const EVIDENCE_FIELDS: { key: EvidenceKey; label: string; hint: string }[] = [
-  { key: 'dniFront', label: 'DNI (frente)', hint: 'Foto legible del frente' },
-  { key: 'dniBack', label: 'DNI (dorso)', hint: 'Foto legible del dorso' },
-  { key: 'selfie', label: 'Selfie con tu DNI', hint: 'Confirma que sos vos' },
-  { key: 'backupDoc', label: 'Documento de respaldo', hint: 'Orden médica, presupuesto, etc.' },
-];
-
-const COVER_FIELDS: { key: 'coverPhoto1' | 'coverPhoto2'; label: string }[] = [
-  { key: 'coverPhoto1', label: 'Foto 1' },
-  { key: 'coverPhoto2', label: 'Foto 2' },
-];
+import { fromISODate, formatDMY, isValidFutureDate, parseDMY, startOfToday, toISODate } from '@/lib/date-dmy';
+import { useCauses, type CoverSlotInput } from '@/store/causes-store';
 
 const GOAL_PRESETS = [100000, 500000, 1000000, 3000000];
 
-export default function CreateScreen() {
+type CoverSlotState = { existingUrl: string | null; localUri: string | null; mimeType: string | null };
+
+export default function EditCauseScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { draft, setDraft } = useCauses();
+  const { getCause, updateCause } = useCauses();
+  const cause = getCause(String(id));
+
+  const [title, setTitle] = useState(cause?.title ?? '');
+  const [story, setStory] = useState(cause?.story ?? '');
+  const [goal, setGoal] = useState(cause ? formatARS(cause.goal) : '');
+  const [deadline, setDeadline] = useState(cause?.deadline ? fromISODate(cause.deadline) : '');
+  const [slots, setSlots] = useState<CoverSlotState[]>(() => [
+    { existingUrl: cause?.imageUrls[0] ?? null, localUri: null, mimeType: null },
+    { existingUrl: cause?.imageUrls[1] ?? null, localUri: null, mimeType: null },
+  ]);
   const [showPicker, setShowPicker] = useState(false);
-  const [tempDate, setTempDate] = useState<Date>(new Date());
-  // Fijo al montar: si fuera `new Date()` inline en el picker, se recalcula en
-  // cada render y el mínimo se corre mientras el usuario gira la rueda.
+  const [tempDate, setTempDate] = useState<Date>(() => (cause?.deadline ? parseDMY(fromISODate(cause.deadline)) : startOfToday()));
   const [minDate] = useState(() => startOfToday());
+  const [saving, setSaving] = useState(false);
+
+  if (!cause) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.header}>
+          <Pressable style={styles.back} onPress={() => router.back()}>
+            <Text style={styles.backText}>‹</Text>
+          </Pressable>
+          <Text style={styles.title}>Editar causa</Text>
+        </View>
+        <View style={styles.center}>
+          <Text style={styles.muted}>No se encontró la causa.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const missing: string[] = [];
-  if (!draft.title.trim()) missing.push('el título');
-  const goalAmount = Number(draft.goal.replace(/\D/g, '')) || 0;
-  if (!draft.goal.trim()) missing.push('el monto');
+  if (!title.trim()) missing.push('el título');
+  const goalAmount = Number(goal.replace(/\D/g, '')) || 0;
+  if (!goal.trim()) missing.push('el monto');
   else if (goalAmount < MIN_GOAL) missing.push(`un monto de al menos ${formatARS(MIN_GOAL)}`);
-  if (!draft.deadline.trim() || !isValidFutureDate(draft.deadline)) missing.push('una fecha de cierre válida');
-  for (const { key, label } of EVIDENCE_FIELDS) {
-    if (!draft[key]) missing.push(label);
-  }
-  const canContinue = missing.length === 0;
+  if (!deadline.trim() || !isValidFutureDate(deadline)) missing.push('una fecha de cierre válida');
+  const canSave = missing.length === 0;
 
-  const pickPhoto = async (key: PhotoKey) => {
+  const pickPhoto = async (index: number) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert(
@@ -76,32 +86,58 @@ export default function CreateScreen() {
     });
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    const file: EvidenceFile = { uri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' };
-    setDraft({ [key]: file } as Partial<typeof draft>);
+    setSlots((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, localUri: asset.uri, mimeType: asset.mimeType || 'image/jpeg' } : s)),
+    );
+  };
+
+  const removePhoto = (index: number) => {
+    setSlots((prev) => prev.map((s, i) => (i === index ? { existingUrl: null, localUri: null, mimeType: null } : s)));
   };
 
   const onChangeGoal = (text: string) => {
     const digits = text.replace(/\D/g, '');
-    setDraft({ goal: digits ? formatARS(Number(digits)) : '' });
+    setGoal(digits ? formatARS(Number(digits)) : '');
   };
 
-  const goalDigits = draft.goal.replace(/\D/g, '');
-  const pickGoalPreset = (amount: number) => setDraft({ goal: formatARS(amount) });
+  const goalDigits = goal.replace(/\D/g, '');
+  const pickGoalPreset = (amount: number) => setGoal(formatARS(amount));
 
   const openPicker = () => {
-    setTempDate(draft.deadline ? parseDMY(draft.deadline) : minDate);
+    setTempDate(deadline ? parseDMY(deadline) : minDate);
     setShowPicker(true);
   };
 
   const confirmPicker = () => {
-    setDraft({ deadline: formatDMY(tempDate) });
+    setDeadline(formatDMY(tempDate));
     setShowPicker(false);
   };
 
-  // Android muestra su propio diálogo nativo: se setea la fecha en el onChange.
   const onAndroidDateChange = (event: DateTimePickerEvent, d?: Date) => {
     setShowPicker(false);
-    if (event.type === 'set' && d) setDraft({ deadline: formatDMY(d) });
+    if (event.type === 'set' && d) setDeadline(formatDMY(d));
+  };
+
+  const save = async () => {
+    if (!canSave || saving) return;
+    setSaving(true);
+    const coverSlots: CoverSlotInput[] = slots.map((s) => ({
+      existingUrl: s.existingUrl,
+      newFile: s.localUri && s.mimeType ? { uri: s.localUri, mimeType: s.mimeType } : null,
+    }));
+    const { error } = await updateCause(cause.id, {
+      title,
+      story,
+      goalAmount,
+      deadline: toISODate(deadline),
+      coverSlots,
+    });
+    setSaving(false);
+    if (error) {
+      Alert.alert('No se pudo guardar', error);
+      return;
+    }
+    router.back();
   };
 
   return (
@@ -110,30 +146,33 @@ export default function CreateScreen() {
         <Pressable style={styles.back} onPress={() => router.back()}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
-        <Text style={styles.title}>Crear una causa</Text>
+        <Text style={styles.title}>Editar causa</Text>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
+          <Text style={styles.intro}>
+            Los cambios se ven al toque, sin volver a pasar por curaduría. Quedan en un historial público, visible
+            para cualquiera que mire tu causa.
+          </Text>
+
           <Field label="Título de tu causa">
             <TextInput
               style={styles.input}
               placeholder="Ej: Tratamiento para Mateo, 6 años"
               placeholderTextColor={Colors.muted}
-              value={draft.title}
-              onChangeText={(title) => setDraft({ title })}
+              value={title}
+              onChangeText={setTitle}
             />
           </Field>
 
           <Field label="Tu historia">
             <TextInput
               style={[styles.input, styles.multiline]}
-              placeholder="Contá qué necesitás y por qué. Cuanto más claro y honesto, más confianza genera."
+              placeholder="Contá qué necesitás y por qué."
               placeholderTextColor={Colors.muted}
-              value={draft.story}
-              onChangeText={(story) => setDraft({ story })}
+              value={story}
+              onChangeText={setStory}
               multiline
             />
           </Field>
@@ -143,7 +182,7 @@ export default function CreateScreen() {
               style={styles.input}
               placeholder="$3.000.000"
               placeholderTextColor={Colors.muted}
-              value={draft.goal}
+              value={goal}
               onChangeText={onChangeGoal}
               keyboardType="number-pad"
             />
@@ -166,8 +205,8 @@ export default function CreateScreen() {
 
           <Field label="Fecha de cierre">
             <Pressable style={styles.dateField} onPress={openPicker}>
-              <Text style={draft.deadline ? styles.dateText : styles.datePlaceholder}>
-                {draft.deadline || 'Tocá para elegir una fecha'}
+              <Text style={deadline ? styles.dateText : styles.datePlaceholder}>
+                {deadline || 'Tocá para elegir una fecha'}
               </Text>
               <Text style={styles.calIcon}>📅</Text>
             </Pressable>
@@ -175,72 +214,41 @@ export default function CreateScreen() {
 
           <Field label="Fotos de portada (opcional)">
             <View style={styles.evidenceGrid}>
-              {COVER_FIELDS.map(({ key, label }) => {
-                const file = draft[key];
+              {slots.map((slot, i) => {
+                const uri = slot.localUri || slot.existingUrl;
                 return (
-                  <Pressable key={key} style={styles.coverSlot} onPress={() => pickPhoto(key)}>
-                    {file ? (
-                      <Image source={{ uri: file.uri }} style={styles.evidenceThumb} resizeMode="cover" />
-                    ) : (
-                      <Text style={styles.uploadIcon}>🖼️</Text>
-                    )}
-                    <Text style={styles.evidenceLabel}>{label}</Text>
-                    <Text style={styles.evidenceHint}>{file ? 'Toqué para cambiar' : 'Sin foto'}</Text>
-                  </Pressable>
+                  <View key={i} style={styles.coverSlot}>
+                    <Pressable onPress={() => pickPhoto(i)}>
+                      {uri ? (
+                        <Image source={{ uri }} style={styles.evidenceThumb} resizeMode="cover" />
+                      ) : (
+                        <Text style={styles.uploadIcon}>🖼️</Text>
+                      )}
+                      <Text style={styles.evidenceLabel}>Foto {i + 1}</Text>
+                      <Text style={styles.evidenceHint}>{uri ? 'Toqué para cambiar' : 'Sin foto'}</Text>
+                    </Pressable>
+                    {uri ? (
+                      <Pressable onPress={() => removePhoto(i)}>
+                        <Text style={styles.removeText}>Quitar foto</Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
                 );
               })}
             </View>
-            <Text style={styles.helper}>
-              Se ven en el feed. Si subís las dos, la gente puede deslizar entre ambas. Si no subís
-              ninguna, mostramos un color con un ícono.
-            </Text>
-          </Field>
-
-          <Field label="Evidencia para verificar tu causa">
-            <View style={styles.evidenceGrid}>
-              {EVIDENCE_FIELDS.map(({ key, label, hint }) => {
-                const file = draft[key];
-                return (
-                  <Pressable key={key} style={styles.evidenceSlot} onPress={() => pickPhoto(key)}>
-                    {file ? (
-                      <Image source={{ uri: file.uri }} style={styles.evidenceThumb} resizeMode="cover" />
-                    ) : (
-                      <Text style={styles.uploadIcon}>📎</Text>
-                    )}
-                    <Text style={styles.evidenceLabel}>{label}</Text>
-                    <Text style={styles.evidenceHint}>{file ? 'Toqué para cambiar' : hint}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.helper}>
-              Necesitamos identidad verificada para publicar. Un curador revisa tu causa antes de que
-              salga.
-            </Text>
           </Field>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.lg) }]}>
-        <Pressable
-          style={[styles.btn, !canContinue && styles.btnDisabled]}
-          disabled={!canContinue}
-          onPress={() => router.push('/cobro')}>
-          <Text style={styles.btnText}>Continuar</Text>
+        <Pressable style={[styles.btn, (!canSave || saving) && styles.btnDisabled]} disabled={!canSave || saving} onPress={save}>
+          <Text style={styles.btnText}>{saving ? 'Guardando...' : 'Guardar cambios'}</Text>
         </Pressable>
-        {!canContinue && (
-          <Text style={styles.missingText}>Falta: {missing.join(', ')}</Text>
-        )}
+        {!canSave && <Text style={styles.missingText}>Falta: {missing.join(', ')}</Text>}
       </View>
 
       {Platform.OS === 'android' && showPicker && (
-        <DateTimePicker
-          value={tempDate}
-          mode="date"
-          display="calendar"
-          minimumDate={minDate}
-          onChange={onAndroidDateChange}
-        />
+        <DateTimePicker value={tempDate} mode="date" display="calendar" minimumDate={minDate} onChange={onAndroidDateChange} />
       )}
 
       {Platform.OS === 'ios' && (
@@ -284,6 +292,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  muted: { color: Colors.muted, fontSize: 14 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,6 +314,7 @@ const styles = StyleSheet.create({
   backText: { fontSize: 22, color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   form: { paddingHorizontal: Spacing.xl, paddingBottom: Spacing.xxl },
+  intro: { fontSize: 12.5, color: Colors.muted, lineHeight: 17, marginBottom: Spacing.sm },
   field: { marginVertical: Spacing.md },
   label: { fontSize: 12.5, color: Colors.muted, fontWeight: '600', marginBottom: Spacing.sm },
   input: {
@@ -343,18 +354,6 @@ const styles = StyleSheet.create({
   goalChipText: { fontSize: 12.5, fontWeight: '700', color: Colors.ink },
   goalChipTextSel: { color: Colors.brandDark },
   evidenceGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  evidenceSlot: {
-    width: '47%',
-    flexGrow: 1,
-    borderWidth: 1.6,
-    borderColor: '#B9D3E8',
-    borderStyle: 'dashed',
-    borderRadius: Radius.md,
-    padding: 16,
-    alignItems: 'center',
-    backgroundColor: Colors.skyTint,
-    overflow: 'hidden',
-  },
   coverSlot: {
     width: '47%',
     flexGrow: 1,
@@ -375,7 +374,7 @@ const styles = StyleSheet.create({
   evidenceLabel: { fontSize: 12.5, fontWeight: '700', color: Colors.ink, textAlign: 'center' },
   evidenceHint: { fontSize: 11, color: Colors.muted, textAlign: 'center', marginTop: 2 },
   uploadIcon: { fontSize: 28, marginBottom: Spacing.sm },
-  helper: { fontSize: 11.5, color: Colors.muted, marginTop: Spacing.sm, lineHeight: 16 },
+  removeText: { fontSize: 11.5, color: Colors.sad, fontWeight: '700', textAlign: 'center', marginTop: Spacing.sm },
   footer: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.line, backgroundColor: '#fff' },
   missingText: { fontSize: 11.5, color: Colors.muted, textAlign: 'center', marginTop: Spacing.sm },
   btn: { backgroundColor: Colors.brand, borderRadius: Radius.md, padding: 17, alignItems: 'center' },

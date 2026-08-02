@@ -20,8 +20,34 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { DonorProfileModal } from '@/components/donor-profile-modal';
 import { causeInitial, Colors, formatARS, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
+import { formatDMY, fromISODate } from '@/lib/date-dmy';
 import { getReceiptUrl } from '@/lib/supabase';
-import { hoursUntilAutoConfirm, useCauses, type CauseThank, type Contribution } from '@/store/causes-store';
+import { hoursUntilAutoConfirm, useCauses, type CauseEdit, type CauseThank, type Contribution } from '@/store/causes-store';
+
+const EDIT_FIELD_LABEL: Record<CauseEdit['field'], string> = {
+  title: 'Editaron el título',
+  story: 'Actualizaron la historia',
+  goal_amount: 'Cambiaron el monto meta',
+  deadline: 'Cambiaron la fecha de cierre',
+  image_urls: 'Actualizaron las fotos de portada',
+};
+
+/** Detalle "de X a Y" solo para los campos donde tiene sentido mostrarlo
+ * corto (monto, fecha, título). Historia y fotos quedan sin diff: mostrar el
+ * texto/URL viejo y nuevo ahí sería ruido, no transparencia. */
+function editDetail(e: CauseEdit): string | null {
+  if (!e.oldValue || !e.newValue) return null;
+  if (e.field === 'goal_amount') {
+    return `${formatARSCompact(Number(e.oldValue))} → ${formatARSCompact(Number(e.newValue))}`;
+  }
+  if (e.field === 'deadline') {
+    return `${fromISODate(e.oldValue)} → ${fromISODate(e.newValue)}`;
+  }
+  if (e.field === 'title') {
+    return `“${e.oldValue}” → “${e.newValue}”`;
+  }
+  return null;
+}
 
 const STATUS_COPY: Record<string, { title: string; sub: string }> = {
   review: {
@@ -52,10 +78,19 @@ export default function CauseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getCause, getContributions, resubmitCause, reviewTransfer, publishClosingMessage, getThanks, thankDonor } =
-    useCauses();
+  const {
+    getCause,
+    getContributions,
+    resubmitCause,
+    reviewTransfer,
+    publishClosingMessage,
+    getThanks,
+    thankDonor,
+    getCauseEdits,
+  } = useCauses();
   const cause = getCause(String(id));
   const [contribs, setContribs] = useState<Contribution[]>([]);
+  const [edits, setEdits] = useState<CauseEdit[]>([]);
   const [resubmitting, setResubmitting] = useState(false);
   const [heroWidth, setHeroWidth] = useState(0);
   const [activeImage, setActiveImage] = useState(0);
@@ -87,6 +122,11 @@ export default function CauseDetailScreen() {
   useEffect(() => {
     if (id) getContributions(String(id)).then(setContribs);
   }, [id, getContributions, cause?.raised]);
+
+  // Historial de ediciones (Épica 1.6): público, se lee para dueño y donante.
+  useEffect(() => {
+    if (id) getCauseEdits(String(id)).then(setEdits);
+  }, [id, getCauseEdits, cause?.title, cause?.goal, cause?.deadline]);
 
   const closed = cause?.status === 'completed' || cause?.status === 'closed';
 
@@ -246,7 +286,12 @@ export default function CauseDetailScreen() {
         <Pressable style={styles.back} onPress={() => router.back()}>
           <Text style={styles.backText}>‹</Text>
         </Pressable>
-        <Text style={styles.title}>{isOwner ? 'Tu causa' : 'Detalle de la causa'}</Text>
+        <Text style={[styles.title, { flex: 1 }]}>{isOwner ? 'Tu causa' : 'Detalle de la causa'}</Text>
+        {isOwner && cause.status === 'active' && (
+          <Pressable style={styles.editBtn} onPress={() => router.push(`/edit-cause/${cause.id}`)}>
+            <Text style={styles.editBtnText}>✎ Editar</Text>
+          </Pressable>
+        )}
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -373,6 +418,20 @@ export default function CauseDetailScreen() {
               </Pressable>
             </View>
           ) : null}
+
+          {edits.length > 0 && (
+            <View style={styles.editHistory}>
+              <Text style={styles.secTitle}>Editado</Text>
+              {edits.map((e) => (
+                <View key={e.id} style={styles.editRow}>
+                  <Text style={styles.editRowLabel}>
+                    {EDIT_FIELD_LABEL[e.field]} · {formatDMY(new Date(e.editedAt))}
+                  </Text>
+                  {editDetail(e) && <Text style={styles.editRowDetail}>{editDetail(e)}</Text>}
+                </View>
+              ))}
+            </View>
+          )}
 
           <View style={styles.trust}>
             <View style={styles.trustB}>
@@ -638,6 +697,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backText: { fontSize: 22, color: Colors.ink },
+  editBtn: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    backgroundColor: '#fff',
+  },
+  editBtnText: { fontSize: 12.5, fontWeight: '700', color: Colors.ink },
   title: { fontSize: 16, fontWeight: '700', color: Colors.ink },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   muted: { color: Colors.muted, fontSize: 13.5, lineHeight: 20 },
@@ -726,6 +794,17 @@ const styles = StyleSheet.create({
   },
   trustText: { flex: 1, fontSize: 12.5, lineHeight: 18, color: '#2A4A5E' },
   secTitle: { fontSize: 17, fontWeight: '700', color: Colors.ink, marginTop: 6, marginBottom: 8 },
+  editHistory: {
+    borderWidth: 1,
+    borderColor: Colors.line,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.lg,
+    backgroundColor: '#fff',
+  },
+  editRow: { marginTop: 6 },
+  editRowLabel: { fontSize: 12.5, fontWeight: '600', color: Colors.ink },
+  editRowDetail: { fontSize: 12, color: Colors.muted, marginTop: 2 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

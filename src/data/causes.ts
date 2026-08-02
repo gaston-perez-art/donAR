@@ -10,6 +10,8 @@ export type Cause = {
   raised: number;
   goal: number;
   daysLeft: number;
+  /** Fecha de cierre en ISO ("AAAA-MM-DD"), para prellenar la edición. null si no tiene. */
+  deadline: string | null;
   status: 'active' | 'completed' | 'closed' | 'review' | 'needs_info' | 'rejected';
   reviewNote?: string | null;
   createdAt: string;

@@ -111,6 +111,7 @@ function AppShell() {
         <Stack.Screen name="cobro" />
         <Stack.Screen name="review" />
         <Stack.Screen name="cause/[id]" />
+        <Stack.Screen name="edit-cause/[id]" />
         <Stack.Screen name="donate/[id]" />
         <Stack.Screen name="transfer/[id]" />
         <Stack.Screen name="donated" />

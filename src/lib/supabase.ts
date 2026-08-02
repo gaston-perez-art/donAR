@@ -273,8 +273,11 @@ export async function uploadCoverPhoto(
       .upload(path, arrayBuffer, { contentType, upsert: true });
 
     if (error) return { url: null, error: error.message };
+    // Cache-bust: el path es fijo por índice (cover-0/cover-1), así que al
+    // reemplazar una foto desde la edición de causa (Épica 1.6) el cliente
+    // podría mostrar la imagen vieja cacheada sin esto (mismo fix que avatars).
     const { data } = supabase.storage.from('cause-covers').getPublicUrl(path);
-    return { url: data.publicUrl, error: null };
+    return { url: `${data.publicUrl}?t=${Date.now()}`, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error subiendo la foto';
     return { url: null, error: message };

@@ -471,3 +471,72 @@ $$;
 create trigger guard_contribution_owner_update
   before update on public.contributions
   for each row execute function public.guard_contribution_owner_update();
+
+-- 2 ago 2026 (Épica 1.6: editar causa). Decisión de Gastón: el dueño puede
+-- editar título/historia/monto meta/fecha límite/fotos de una causa ya
+-- publicada, incluso con aportes confirmados, SIN volver a pasar por
+-- curaduría (la curaduría verifica identidad/evidencia, que no cambia con
+-- una edición de contenido). A cambio, cada cambio queda en un historial
+-- público, mismo espíritu de transparencia que la trazabilidad de aportes.
+-- No hace falta tocar la policy "causes update own" (línea 86): ya permitía
+-- al dueño escribir cualquier columna, el hueco era solo de UI.
+create table cause_edits (
+  id uuid primary key default gen_random_uuid(),
+  cause_id uuid not null references causes(id) on delete cascade,
+  field text not null,
+  old_value text,
+  new_value text,
+  edited_by uuid references profiles(id) on delete set null,
+  edited_at timestamptz not null default now()
+);
+
+alter table cause_edits enable row level security;
+
+-- Lectura pública, igual que contributions: es lo que sostiene la promesa de
+-- transparencia. No hace falta policy de insert: el trigger de abajo es
+-- security definer (mismo patrón que los guards de arriba) y bypassea RLS.
+create policy "cause_edits public read" on cause_edits for select using (true);
+
+-- Registra un cambio por campo, comparando OLD vs NEW. Guardado detrás de
+-- "old.status = 'active'": evita loguear como "edición" el propio armado de
+-- la causa (ej. publishDraft actualiza image_urls después del insert inicial,
+-- mientras la causa todavía está en 'review', eso no es una edición para el
+-- donante). Solo importa el contenido que el donante ya vio publicado.
+create or replace function public.log_cause_edit()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if old.status <> 'active' or new.status <> 'active' then
+    return new;
+  end if;
+
+  if old.title is distinct from new.title then
+    insert into public.cause_edits (cause_id, field, old_value, new_value, edited_by)
+    values (new.id, 'title', old.title, new.title, auth.uid());
+  end if;
+  if old.story is distinct from new.story then
+    insert into public.cause_edits (cause_id, field, old_value, new_value, edited_by)
+    values (new.id, 'story', old.story, new.story, auth.uid());
+  end if;
+  if old.goal_amount is distinct from new.goal_amount then
+    insert into public.cause_edits (cause_id, field, old_value, new_value, edited_by)
+    values (new.id, 'goal_amount', old.goal_amount::text, new.goal_amount::text, auth.uid());
+  end if;
+  if old.deadline is distinct from new.deadline then
+    insert into public.cause_edits (cause_id, field, old_value, new_value, edited_by)
+    values (new.id, 'deadline', old.deadline::text, new.deadline::text, auth.uid());
+  end if;
+  if old.image_urls is distinct from new.image_urls then
+    insert into public.cause_edits (cause_id, field, old_value, new_value, edited_by)
+    values (new.id, 'image_urls', array_to_string(old.image_urls, ','), array_to_string(new.image_urls, ','), auth.uid());
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger log_cause_edit
+  after update on public.causes
+  for each row execute function public.log_cause_edit();
