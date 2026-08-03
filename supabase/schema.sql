@@ -540,3 +540,26 @@ $$;
 create trigger log_cause_edit
   after update on public.causes
   for each row execute function public.log_cause_edit();
+
+-- 2 ago 2026 (Épica 9.2: push real al llegar una transferencia pendiente).
+-- Pedido de Gastón: "es el momento cúspide del beneficiado, no puede pasar
+-- desapercibido". Requiere dejar Expo Go por un dev build (EAS); ver los
+-- pasos manuales aparte. Un token por dispositivo/usuario (un usuario puede
+-- tener varios: celu + tablet, o reinstaló la app). Privado: solo el dueño
+-- del token lo lee/escribe desde el cliente; la Edge Function que manda el
+-- push usa la service role (bypassea RLS), no necesita policy extra.
+create table push_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  token text not null,
+  platform text not null,
+  updated_at timestamptz not null default now(),
+  unique (user_id, token)
+);
+
+alter table push_tokens enable row level security;
+
+create policy "push_tokens owner read" on push_tokens for select using (auth.uid() = user_id);
+create policy "push_tokens owner insert" on push_tokens for insert with check (auth.uid() = user_id);
+create policy "push_tokens owner update" on push_tokens for update using (auth.uid() = user_id);
+create policy "push_tokens owner delete" on push_tokens for delete using (auth.uid() = user_id);

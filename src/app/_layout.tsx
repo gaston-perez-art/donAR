@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/donar-theme';
 import { useOnboardingFlag } from '@/hooks/use-onboarding-flag';
+import { useRegisterPushToken } from '@/hooks/use-register-push-token';
 import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
 import ResetPasswordScreen from '@/screens/reset-password-screen';
@@ -50,6 +51,12 @@ function AppShell() {
   } = useCauses();
   const { seen: seenWelcomeTour, loading: tourLoading, markSeen: markWelcomeTourSeen } =
     useOnboardingFlag(WELCOME_TOUR_KEY);
+
+  // Push real (Épica 9.2): registra el token del dispositivo apenas hay
+  // sesión, sin importar si es curador o donante (una cuenta puede ser las
+  // dos cosas, ver viewAsDonor). No hace nada mientras falte el EAS
+  // projectId (paso manual de Gastón); ver use-register-push-token.ts.
+  useRegisterPushToken(isAuthenticated);
 
   // Deep link de "olvidé mi contraseña" (10.2): el mail manda a esta app con
   // los tokens de recuperación en la URL. beginPasswordRecovery valida que

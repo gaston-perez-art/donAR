@@ -43,7 +43,14 @@
           "photosPermission": "donAR necesita acceder a tus fotos para subir el DNI, la selfie y la documentación de tu causa."
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#1E88E5"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

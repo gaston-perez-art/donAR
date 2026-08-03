@@ -198,6 +198,23 @@ export async function updateProfileName(fullName: string): Promise<{ error: stri
   return { error: null };
 }
 
+/**
+ * Guarda (o actualiza) el push token del dispositivo actual (Épica 9.2).
+ * `upsert` por `(user_id, token)`: si el mismo dispositivo ya estaba
+ * registrado, solo refresca `updated_at`; si es un dispositivo nuevo del
+ * mismo usuario (o el usuario cambió de cuenta en el mismo cel), suma una
+ * fila más. Silencioso ante error: no registrar el token no puede romper el
+ * login ni el resto de la app.
+ */
+export async function savePushToken(token: string, platform: string): Promise<void> {
+  const uid = await ensureSession();
+  if (!uid) return;
+  const { error } = await supabase
+    .from('push_tokens')
+    .upsert({ user_id: uid, token, platform, updated_at: new Date().toISOString() }, { onConflict: 'user_id,token' });
+  if (error) console.warn('savePushToken error:', error.message);
+}
+
 /** True si la sesión actual es de un curador (marcado a mano en profiles). */
 export async function isCurator(): Promise<boolean> {
   const uid = await ensureSession();
