@@ -18,6 +18,17 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 });
 
 /**
+ * Link https real para compartir una causa (Épica 14.8 parcial, 2 ago): cae
+ * en la Edge Function `share-cause`, que muestra un resumen de la causa y, si
+ * quien lo abre ya tiene la app instalada (dev build de EAS, no Expo Go),
+ * intenta abrirla directo ahí. Se usa el propio dominio del proyecto de
+ * Supabase porque `donar.ar` todavía no está registrado (Épica 14.2).
+ */
+export function shareCauseUrl(causeId: string): string {
+  return `${SUPABASE_URL}/functions/v1/share-cause?id=${causeId}`;
+}
+
+/**
  * Devuelve el uid de la sesión actual SOLO si es una cuenta real (logueada con
  * mail + contraseña). Ya no crea sesiones anónimas: la app exige login (todo
  * queda atado a una cuenta que persiste). Si no hay sesión real, devuelve null

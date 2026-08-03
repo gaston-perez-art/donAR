@@ -21,7 +21,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { DonorProfileModal } from '@/components/donor-profile-modal';
 import { causeInitial, Colors, formatARS, formatARSCompact, initialsFor, Radius, Spacing } from '@/constants/donar-theme';
 import { formatDMY, fromISODate } from '@/lib/date-dmy';
-import { getReceiptUrl } from '@/lib/supabase';
+import { getReceiptUrl, shareCauseUrl } from '@/lib/supabase';
 import { hoursUntilAutoConfirm, useCauses, type CauseEdit, type CauseThank, type Contribution } from '@/store/causes-store';
 
 const EDIT_FIELD_LABEL: Record<CauseEdit['field'], string> = {
@@ -242,10 +242,11 @@ export default function CauseDetailScreen() {
 
   const shareCause = async () => {
     if (!cause) return;
+    const link = shareCauseUrl(cause.id);
     const message = done
-      ? `¡"${cause.title}" cumplió su meta en donAR gracias a todos los que aportaron! 🎉`
-      : `Ayudá a "${cause.title}" en donAR. Cada aporte queda verificado y a la vista. 💙`;
-    await Share.share({ message });
+      ? `¡"${cause.title}" cumplió su meta en donAR gracias a todos los que aportaron! 🎉\n${link}`
+      : `Ayudá a "${cause.title}" en donAR. Cada aporte queda verificado y a la vista. 💙\n${link}`;
+    await Share.share({ message, url: link });
   };
 
   if (pending) {
