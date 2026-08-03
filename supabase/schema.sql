@@ -563,3 +563,36 @@ create policy "push_tokens owner read" on push_tokens for select using (auth.uid
 create policy "push_tokens owner insert" on push_tokens for insert with check (auth.uid() = user_id);
 create policy "push_tokens owner update" on push_tokens for update using (auth.uid() = user_id);
 create policy "push_tokens owner delete" on push_tokens for delete using (auth.uid() = user_id);
+
+-- 2 ago 2026 (Épica 9.2, plan B). El Database Webhook por dashboard (tabla >
+-- INSERT > Edge Function) no le apareció disponible a Gastón como está
+-- documentado en la guía de Supabase (versión de UI distinta). Mismo
+-- resultado armado en SQL con pg_net, en el SQL Editor que ya usa siempre:
+-- dispara notify-pending-transfer por HTTP apenas entra una transferencia
+-- pendiente. La key va literal en el header porque es la publishable
+-- (pública a propósito, la misma que ya vive en src/lib/supabase.ts).
+create extension if not exists pg_net with schema extensions;
+
+create or replace function public.notify_pending_transfer()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.status = 'pending' and new.method = 'transfer' then
+    perform net.http_post(
+      url := 'https://fyaxvofpqqlvtudmnmxi.supabase.co/functions/v1/notify-pending-transfer',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer sb_publishable_BJTikY4NV5sb4DRDBCxVdg_16pVBYtS'
+      ),
+      body := jsonb_build_object('record', to_jsonb(new))
+    );
+  end if;
+  return new;
+end;
+$$;
+
+create trigger notify_pending_transfer_trigger
+  after insert on public.contributions
+  for each row execute function public.notify_pending_transfer();
