@@ -1,10 +1,10 @@
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -312,7 +312,15 @@ export default function CauseDetailScreen() {
               }}
               style={StyleSheet.absoluteFill}>
               {cause.imageUrls.map((uri, i) => (
-                <Image key={i} source={{ uri }} style={{ width: heroWidth, height: 200 }} resizeMode="cover" />
+                <Image
+                  key={i}
+                  source={{ uri }}
+                  style={{ width: heroWidth, height: 200 }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  recyclingKey={uri}
+                  transition={150}
+                />
               ))}
             </ScrollView>
           )}
@@ -384,7 +392,12 @@ export default function CauseDetailScreen() {
                 {done ? 'Mensaje de cierre' : 'Mensaje del beneficiado'}
               </Text>
               {cause.closingPhotoUrl ? (
-                <Image source={{ uri: cause.closingPhotoUrl }} style={styles.closingPhoto} resizeMode="cover" />
+                <Image
+                  source={{ uri: cause.closingPhotoUrl }}
+                  style={styles.closingPhoto}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
               ) : null}
               <Text style={styles.closingText}>“{cause.closingMessage}”</Text>
             </View>
@@ -398,7 +411,7 @@ export default function CauseDetailScreen() {
               </Text>
               <Pressable style={styles.closingPhotoPicker} onPress={pickClosingPhoto}>
                 {closingPhoto ? (
-                  <Image source={{ uri: closingPhoto }} style={styles.closingPhoto} resizeMode="cover" />
+                  <Image source={{ uri: closingPhoto }} style={styles.closingPhoto} contentFit="cover" />
                 ) : (
                   <Text style={styles.closingPhotoHint}>🖼️ Agregar una foto (opcional)</Text>
                 )}
@@ -456,7 +469,7 @@ export default function CauseDetailScreen() {
                   {pending.map((c) => (
                     <Pressable key={c.id} style={styles.pendRow} onPress={() => setReceiptTarget(c)}>
                       {c.avatarUrl ? (
-                        <Image source={{ uri: c.avatarUrl }} style={styles.dot} />
+                        <Image source={{ uri: c.avatarUrl }} style={styles.dot} cachePolicy="memory-disk" />
                       ) : (
                         <View style={styles.dot}>
                           <Text style={styles.dotText}>{initialsFor(c.name)}</Text>
@@ -525,7 +538,7 @@ export default function CauseDetailScreen() {
                         disabled={!c.donorId}
                         onPress={() => setSelectedContrib(c)}>
                         {c.avatarUrl ? (
-                          <Image source={{ uri: c.avatarUrl }} style={styles.dot} />
+                          <Image source={{ uri: c.avatarUrl }} style={styles.dot} cachePolicy="memory-disk" />
                         ) : (
                           <View style={styles.dot}>
                             <Text style={styles.dotText}>{initialsFor(c.name)}</Text>
@@ -649,7 +662,12 @@ export default function CauseDetailScreen() {
               </Text>
             )}
             {receiptUrl ? (
-              <Image source={{ uri: receiptUrl }} style={styles.pendReceipt} resizeMode="cover" />
+              <Image
+                source={{ uri: receiptUrl }}
+                style={styles.pendReceipt}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
             ) : (
               <View style={styles.pendReceiptLoading}>
                 <ActivityIndicator color={Colors.brand} />

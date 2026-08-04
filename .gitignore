@@ -31,6 +31,9 @@ yarn-error.*
 .env.*
 !.env.example
 
+# backups locales de scripts de mantenimiento (pueden pesar mucho)
+scripts/.backfill-originals-covers/
+
 # IDE
 .idea/
 .vscode/

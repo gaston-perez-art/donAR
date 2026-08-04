@@ -1,6 +1,6 @@
+import { Image } from 'expo-image';
 import { useState } from 'react';
 import {
-  Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -76,7 +76,10 @@ export function CauseCard({ cause, onPress, mine }: Props) {
                   <Image
                     source={{ uri }}
                     style={{ width: coverWidth, height: COVER_HEIGHT }}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    recyclingKey={uri}
+                    transition={150}
                   />
                 </Pressable>
               ))}

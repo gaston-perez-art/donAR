@@ -1,5 +1,6 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CauseCard } from '@/components/cause-card';
@@ -43,7 +44,7 @@ export default function FeedScreen() {
         </Text>
         <Pressable style={styles.avatar} onPress={() => router.navigate('/profile')}>
           {avatarUrl ? (
-            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} cachePolicy="memory-disk" />
           ) : (
             <Text style={styles.avatarText}>{initials}</Text>
           )}
