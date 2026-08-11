@@ -1206,14 +1206,6 @@ export function CausesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getReviewInfo = useCallback(async (causeId: string): Promise<ReviewInfo> => {
-    const empty: ReviewInfo = {
-      dniFrontPath: null,
-      dniBackPath: null,
-      selfiePath: null,
-      backupDocPath: null,
-      payoutMethod: null,
-      payoutAlias: null,
-    };
     const [{ data: evidence }, { data: payout }] = await Promise.all([
       supabase.from('cause_evidence').select('*').eq('cause_id', causeId).maybeSingle(),
       supabase.from('cause_payouts').select('*').eq('cause_id', causeId).maybeSingle(),
