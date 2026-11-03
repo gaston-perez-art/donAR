@@ -167,6 +167,15 @@ export default function RootLayout() {
  * En web (demo del portfolio) la app se muestra con ancho de celular,
  * centrada. En iOS y Android no hace nada.
  */
+// Los Modal de react-native-web se montan en el <body> con position: fixed
+// y ocupan toda la ventana. Esto los encierra en el mismo ancho del marco.
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const css = document.createElement('style');
+  css.textContent =
+    '[aria-modal="true"]{left:50% !important;right:auto !important;width:min(100vw,430px) !important;transform:translateX(-50%);}';
+  document.head.appendChild(css);
+}
+
 function WebFrame({ children }: { children: React.ReactNode }) {
   if (Platform.OS !== 'web') return <>{children}</>;
   return (

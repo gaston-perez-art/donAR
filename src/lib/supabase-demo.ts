@@ -283,8 +283,9 @@ class Query implements PromiseLike<any> {
 // Lo que sube el visitante vive solo en esta pestaña (URL de blob). Las
 // rutas de la semilla muestran una imagen de ejemplo.
 const blobs = new Map<string, string>();
+const toB64 = (txt: string) => btoa(unescape(encodeURIComponent(txt)));
 const placeholder = (label: string) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(
+  `data:image/svg+xml;base64,${toB64(
     `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400"><rect width="600" height="400" fill="#EEF2F6"/><text x="300" y="200" font-family="system-ui,sans-serif" font-size="26" fill="#7B8794" text-anchor="middle">${label}</text><text x="300" y="236" font-family="system-ui,sans-serif" font-size="16" fill="#9AA5B1" text-anchor="middle">Imagen de ejemplo de la demo</text></svg>`,
   )}`;
 const urlFor = (path: string) => {
