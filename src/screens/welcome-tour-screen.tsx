@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   Dimensions,
+  Platform,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -40,7 +41,11 @@ const SLIDES: Slide[] = [
   },
 ];
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+// En web la app vive en un marco de celular (ver WebFrame en _layout.tsx).
+const SCREEN_WIDTH =
+  Platform.OS === 'web'
+    ? Math.min(Dimensions.get('window').width, 430)
+    : Dimensions.get('window').width;
 
 type Props = {
   /** Marca el tour como visto y cierra, tanto desde "Saltar" como desde el

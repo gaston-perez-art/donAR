@@ -3,7 +3,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, Image, Modal, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Colors, Spacing } from '@/constants/donar-theme';
@@ -151,13 +151,30 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <CausesProvider>
         <StatusBar style="dark" />
-        <AppShell />
+        <WebFrame>
+          <AppShell />
+        </WebFrame>
       </CausesProvider>
     </SafeAreaProvider>
   );
 }
 
+/**
+ * En web (demo del portfolio) la app se muestra con ancho de celular,
+ * centrada. En iOS y Android no hace nada.
+ */
+function WebFrame({ children }: { children: React.ReactNode }) {
+  if (Platform.OS !== 'web') return <>{children}</>;
+  return (
+    <View style={styles.webOuter}>
+      <View style={styles.webInner}>{children}</View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  webOuter: { flex: 1, backgroundColor: '#EEF2F6', alignItems: 'center' },
+  webInner: { flex: 1, width: '100%', maxWidth: 430, backgroundColor: '#FFFFFF', overflow: 'hidden' },
   loadingScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.brand },
   loadingSplash: { width: 220, height: 220, resizeMode: 'contain' },
   loadingSpinner: { marginTop: Spacing.lg },
