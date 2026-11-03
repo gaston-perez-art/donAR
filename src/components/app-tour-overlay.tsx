@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/donar-theme';
@@ -27,6 +27,10 @@ const STEPS: Step[] = [
 type Rect = { x: number; y: number; width: number; height: number };
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+// Área real del overlay. En el celular coincide con la ventana; en la web de
+// escritorio la app vive en un marco centrado, así que el hueco y el
+// tooltip se calculan relativos a ese marco y no a la ventana.
+const VIEW = { w: SCREEN_W, h: SCREEN_H };
 const PAD = 8;
 const GAP = 14;
 const MAX_MEASURE_ATTEMPTS = 6;
@@ -52,6 +56,7 @@ export function AppTourOverlay() {
   const [active, setActive] = useState(false);
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
+  const rootRef = useRef<View>(null);
 
   const shouldRun = !loading && (!seen || replayTour === 'app');
 
@@ -91,7 +96,18 @@ export function AppTourOverlay() {
         return;
       }
       node.measureInWindow((x, y, width, height) => {
-        if (alive) setRect({ x, y, width, height });
+        const root = rootRef.current;
+        if (!root) {
+          if (alive) setRect({ x, y, width, height });
+          return;
+        }
+        root.measureInWindow((ox, oy, rw, rh) => {
+          if (rw && rh) {
+            VIEW.w = rw;
+            VIEW.h = rh;
+          }
+          if (alive) setRect({ x: x - ox, y: y - oy, width, height });
+        });
       });
     };
 
@@ -102,12 +118,13 @@ export function AppTourOverlay() {
     };
   }, [active, step, getTarget, finish]);
 
-  if (!active || !rect) return null;
+  if (!active) return null;
+  if (!rect) return <View ref={rootRef} pointerEvents="none" style={StyleSheet.absoluteFill} />;
 
   const isLast = step === STEPS.length - 1;
 
   return (
-    <Pressable style={StyleSheet.absoluteFill} onPress={() => {}}>
+    <Pressable ref={rootRef} style={StyleSheet.absoluteFill} onPress={() => {}}>
       <Spotlight rect={rect} />
       <Tooltip
         rect={rect}
@@ -127,16 +144,16 @@ export function AppTourOverlay() {
  * visuales. */
 function Spotlight({ rect }: { rect: Rect }) {
   const top = Math.max(0, rect.y - PAD);
-  const bottom = Math.min(SCREEN_H, rect.y + rect.height + PAD);
+  const bottom = Math.min(VIEW.h, rect.y + rect.height + PAD);
   const left = Math.max(0, rect.x - PAD);
-  const right = Math.min(SCREEN_W, rect.x + rect.width + PAD);
+  const right = Math.min(VIEW.w, rect.x + rect.width + PAD);
 
   return (
     <>
-      <View style={[styles.mask, { top: 0, left: 0, width: SCREEN_W, height: top }]} />
-      <View style={[styles.mask, { top: bottom, left: 0, width: SCREEN_W, height: SCREEN_H - bottom }]} />
+      <View style={[styles.mask, { top: 0, left: 0, width: VIEW.w, height: top }]} />
+      <View style={[styles.mask, { top: bottom, left: 0, width: VIEW.w, height: VIEW.h - bottom }]} />
       <View style={[styles.mask, { top, left: 0, width: left, height: bottom - top }]} />
-      <View style={[styles.mask, { top, left: right, width: SCREEN_W - right, height: bottom - top }]} />
+      <View style={[styles.mask, { top, left: right, width: VIEW.w - right, height: bottom - top }]} />
     </>
   );
 }
@@ -157,13 +174,13 @@ function Tooltip({
   onNext: () => void;
 }) {
   const holeTop = Math.max(0, rect.y - PAD);
-  const holeBottom = Math.min(SCREEN_H, rect.y + rect.height + PAD);
-  const spaceBelow = SCREEN_H - holeBottom;
+  const holeBottom = Math.min(VIEW.h, rect.y + rect.height + PAD);
+  const spaceBelow = VIEW.h - holeBottom;
   const spaceAbove = holeTop;
   // Se posiciona arriba o abajo del hueco según dónde haya más lugar. Usar
   // `bottom` para el caso "arriba" evita tener que conocer de antemano la
   // altura del tooltip (varía según el largo del texto de cada paso).
-  const positionStyle = spaceBelow >= spaceAbove ? { top: holeBottom + GAP } : { bottom: SCREEN_H - holeTop + GAP };
+  const positionStyle = spaceBelow >= spaceAbove ? { top: holeBottom + GAP } : { bottom: VIEW.h - holeTop + GAP };
 
   return (
     <View style={[styles.tooltip, positionStyle]}>
