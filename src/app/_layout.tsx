@@ -13,6 +13,8 @@ import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
 import ResetPasswordScreen from '@/screens/reset-password-screen';
 import WelcomeTourScreen from '@/screens/welcome-tour-screen';
+import DemoBar from '@/components/demo-bar';
+import { IS_DEMO } from '@/lib/supabase';
 import { instalarAlertWeb } from '@/lib/web-alert';
 import { CausesProvider, useCauses } from '@/store/causes-store';
 
@@ -170,6 +172,7 @@ function WebFrame({ children }: { children: React.ReactNode }) {
   return (
     <View style={styles.webOuter}>
       <View style={styles.webInner}>{children}</View>
+      {IS_DEMO && <DemoBar />}
     </View>
   );
 }

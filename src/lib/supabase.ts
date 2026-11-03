@@ -1,21 +1,29 @@
 import 'react-native-url-polyfill/auto';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+import { createDemoClient } from './supabase-demo';
 
 // Project URL y publishable key. La key publishable es pública: es seguro
 // tenerla en el cliente. NUNCA poner acá la service/secret key.
 const SUPABASE_URL = 'https://fyaxvofpqqlvtudmnmxi.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_BJTikY4NV5sb4DRDBCxVdg_16pVBYtS';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+// Demo pública del portfolio (EXPO_PUBLIC_DEMO=1): un Supabase falso en el
+// navegador, con datos de ejemplo. Ver supabase-demo.ts.
+export const IS_DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
+
+export const supabase: SupabaseClient = IS_DEMO
+  ? (createDemoClient() as unknown as SupabaseClient)
+  : createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        storage: AsyncStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    });
 
 /**
  * Link https real para compartir una causa (Épica 14.8 parcial, 2 ago): cae
