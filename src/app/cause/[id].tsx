@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -8,6 +9,7 @@ import {
   Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   Share,
@@ -246,7 +248,16 @@ export default function CauseDetailScreen() {
     const message = done
       ? `¡"${cause.title}" cumplió su meta en donAR gracias a todos los que aportaron! 🎉\n${link}`
       : `Ayudá a "${cause.title}" en donAR. Cada aporte queda verificado y a la vista. 💙\n${link}`;
-    await Share.share({ message, url: link });
+    try {
+      await Share.share({ message, url: link });
+    } catch {
+      // En un navegador sin Web Share (la mayoría de los de escritorio), se
+      // copia el mensaje y se avisa.
+      if (Platform.OS === 'web') {
+        await Clipboard.setStringAsync(message);
+        Alert.alert('Link copiado', 'Pegalo donde quieras compartir la causa.');
+      }
+    }
   };
 
   if (pending) {

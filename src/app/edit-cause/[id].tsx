@@ -1,4 +1,5 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import WebDateInput from '@/components/web-date-input';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -251,20 +252,24 @@ export default function EditCauseScreen() {
         <DateTimePicker value={tempDate} mode="date" display="calendar" minimumDate={minDate} onChange={onAndroidDateChange} />
       )}
 
-      {Platform.OS === 'ios' && (
+      {(Platform.OS === 'ios' || Platform.OS === 'web') && (
         <Modal visible={showPicker} transparent animationType="fade" onRequestClose={() => setShowPicker(false)}>
           <Pressable style={styles.overlay} onPress={() => setShowPicker(false)}>
             <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
               <Text style={styles.sheetTitle}>Elegí la fecha de cierre</Text>
-              <DateTimePicker
-                value={tempDate}
-                mode="date"
-                display="inline"
-                minimumDate={minDate}
-                themeVariant="light"
-                onChange={(_e, d) => d && setTempDate(d)}
-                style={styles.iosPicker}
-              />
+              {Platform.OS === 'web' ? (
+                <WebDateInput value={tempDate} minimumDate={minDate} onChange={setTempDate} />
+              ) : (
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="inline"
+                  minimumDate={minDate}
+                  themeVariant="light"
+                  onChange={(_e, d) => d && setTempDate(d)}
+                  style={styles.iosPicker}
+                />
+              )}
               <View style={styles.sheetActions}>
                 <Pressable style={styles.sheetBtn} onPress={() => setShowPicker(false)}>
                   <Text style={styles.sheetCancel}>Cancelar</Text>

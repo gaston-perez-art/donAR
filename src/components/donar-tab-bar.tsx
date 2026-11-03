@@ -109,7 +109,7 @@ export function DonarTabBar() {
           {Platform.OS === 'ios' && (
             <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
           )}
-          <View style={[styles.tint, Platform.OS === 'android' && styles.tintAndroid]} />
+          <View style={[styles.tint, Platform.OS === 'android' && styles.tintAndroid, Platform.OS === 'web' && webGlass]} />
         </View>
 
         {/* Capa de contenido: 5 slots parejos, el + inline en el centro. */}
@@ -136,6 +136,9 @@ export function DonarTabBar() {
 
 const PILL_HEIGHT = 62;
 const RADIUS = 30;
+
+// En web el vidrio lo hace el navegador con backdrop-filter.
+const webGlass = { backdropFilter: 'blur(20px) saturate(1.6)', WebkitBackdropFilter: 'blur(20px) saturate(1.6)' } as object;
 
 const styles = StyleSheet.create({
   wrap: {

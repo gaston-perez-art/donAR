@@ -13,9 +13,11 @@ import AuthScreen from '@/screens/auth-screen';
 import CurarScreen from '@/screens/curar-screen';
 import ResetPasswordScreen from '@/screens/reset-password-screen';
 import WelcomeTourScreen from '@/screens/welcome-tour-screen';
+import { instalarAlertWeb } from '@/lib/web-alert';
 import { CausesProvider, useCauses } from '@/store/causes-store';
 
 SplashScreen.hideAsync();
+instalarAlertWeb();
 
 // Versionada (Bloque D, PLAN-SONNET-2.md): si el tour se rediseña, subir a
 // v2 lo vuelve a mostrar a todos sin borrar nada a mano.
